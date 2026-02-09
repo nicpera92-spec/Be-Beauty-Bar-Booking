@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
     }
 
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
+      payment_method_types: ["card", "paypal", "revolut_pay", "apple_pay"],
       mode: "payment",
       metadata: { bookingId, type },
       ...(booking.customerEmail ? { customer_email: booking.customerEmail } : {}),
@@ -132,7 +132,9 @@ export async function POST(req: NextRequest) {
           quantity: 1,
         },
       ],
-      success_url: `${baseUrl}/booking/${bookingId}?paid=1`,
+      success_url: type === "deposit"
+        ? `${baseUrl}/booking/deposit-confirmed?bookingId=${bookingId}`
+        : `${baseUrl}/booking/${bookingId}?paid=1`,
       cancel_url: `${baseUrl}/booking/${bookingId}`,
     });
 

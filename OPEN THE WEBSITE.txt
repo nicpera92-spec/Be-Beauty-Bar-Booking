@@ -27,3 +27,13 @@ To start it yourself later:
 OR use the batch file (but you may need to close other servers first).
 
 For full setup guide, see START HERE.txt.
+
+---
+
+EMAILS NOT WORKING?
+
+1. Set RESEND_API_KEY in your .env (get a key from resend.com).
+2. In Admin → Settings, set "Business email" and click "Send test email".
+   - If you see "Test email sent to ...", check that inbox (and spam).
+   - If you see an error (e.g. "RESEND_API_KEY not set"), fix that in .env and restart the server.
+3. On Vercel, add RESEND_API_KEY in Project → Settings → Environment Variables.

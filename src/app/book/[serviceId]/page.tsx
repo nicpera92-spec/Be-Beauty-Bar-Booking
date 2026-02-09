@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { addDays, addMonths, eachDayOfInterval, endOfMonth, format, isBefore, parse, startOfMonth, startOfToday } from "date-fns";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/format";
@@ -32,6 +32,7 @@ export default function BookDatePage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
+  const timeSectionRef = useRef<HTMLDivElement>(null);
 
   const today = startOfToday();
   const minBookableDate = addDays(today, 1);
@@ -85,6 +86,12 @@ export default function BookDatePage() {
   useEffect(() => {
     fetchSlots();
   }, [fetchSlots]);
+
+  useEffect(() => {
+    if (selectedDate && timeSectionRef.current) {
+      timeSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [selectedDate]);
 
   const selectedDateLabel = selectedDate
     ? (() => {
@@ -188,7 +195,7 @@ export default function BookDatePage() {
         </div>
 
         {/* Available times */}
-        <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-6 min-h-[200px]">
+        <div ref={timeSectionRef} className="rounded-2xl border border-slate-200 bg-slate-50/50 p-6 min-h-[200px]">
           <h2 className="text-xs font-medium uppercase tracking-[0.2em] text-navy mb-4">
             2. Choose a time
           </h2>

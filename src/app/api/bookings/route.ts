@@ -3,6 +3,7 @@ import { addDays, isBefore, parse, startOfDay } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { verifyAdminRequest } from "@/lib/auth";
 import { blockOverlapsBooking } from "@/lib/blockOverlap";
+import { sendBookingCreatedEmails } from "@/lib/email";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -204,6 +205,11 @@ export async function POST(req: NextRequest) {
       },
       include: { service: true },
     });
+
+    const emailResult = await sendBookingCreatedEmails(booking.id);
+    if (!emailResult.ok) {
+      console.error("Booking-created emails failed:", emailResult.error);
+    }
 
     return NextResponse.json(booking);
   } catch (e) {

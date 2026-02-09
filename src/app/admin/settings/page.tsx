@@ -33,6 +33,8 @@ export default function AdminSettingsPage() {
   const [form, setForm] = useState<Partial<Settings>>({});
   const [saving, setSaving] = useState(false);
   const [stripeKeysChanged, setStripeKeysChanged] = useState({ secret: false, webhook: false });
+  const [testEmailSending, setTestEmailSending] = useState(false);
+  const [testEmailResult, setTestEmailResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   useEffect(() => {
     setHasToken(!!sessionStorage.getItem(ADMIN_TOKEN_KEY));
@@ -170,8 +172,42 @@ export default function AdminSettingsPage() {
                 placeholder="you@bebeautybar.com"
               />
               <p className="text-xs text-charcoal/50 mt-1">
-                You and the customer both receive a confirmation email when a booking is confirmed.
+                You and the customer receive emails when a booking is <strong>created</strong> and when it is <strong>confirmed</strong> (after deposit). Fill this in to get admin copies.
               </p>
+              <p className="text-xs text-amber-700 mt-1 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 mt-2">
+                <strong>Not receiving emails?</strong> 1) Set <code className="bg-amber-100 px-0.5">RESEND_API_KEY</code> in Vercel (or .env). 2) In Resend, verify your domain if you use a custom &quot;from&quot; address; otherwise use <code className="bg-amber-100 px-0.5">onboarding@resend.dev</code> for testing.
+              </p>
+              <div className="mt-2 flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  disabled={testEmailSending || !(form.businessEmail?.trim())}
+                  onClick={async () => {
+                    setTestEmailResult(null);
+                    setTestEmailSending(true);
+                    try {
+                      const r = await fetch("/api/admin/test-email", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+                        body: JSON.stringify({}),
+                      });
+                      const data = await r.json();
+                      setTestEmailResult(r.ok ? { ok: true, message: data.message ?? "Sent!" } : { ok: false, message: data.error ?? "Failed" });
+                    } catch {
+                      setTestEmailResult({ ok: false, message: "Request failed" });
+                    } finally {
+                      setTestEmailSending(false);
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-medium hover:bg-slate-50 disabled:opacity-50 disabled:pointer-events-none"
+                >
+                  {testEmailSending ? "Sending…" : "Send test email"}
+                </button>
+                {testEmailResult && (
+                  <span className={`text-sm ${testEmailResult.ok ? "text-green-700" : "text-red-600"}`}>
+                    {testEmailResult.message}
+                  </span>
+                )}
+              </div>
             </div>
             <div>
               <label className="block text-sm text-charcoal/70 mb-1">

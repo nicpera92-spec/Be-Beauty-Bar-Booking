@@ -134,15 +134,20 @@ export default function BookingPage() {
     setPayingBalance(false);
   };
 
-  if (loading) {
+  const justPaidWaitingConfirmation = paidParam && booking?.status === "pending_deposit";
+
+  if (loading || justPaidWaitingConfirmation) {
     return (
       <div className="max-w-2xl mx-auto px-6 py-24 text-center">
         <Link href="/" className="text-sm text-navy hover:underline mb-6 inline-block">
           Home
         </Link>
         <p className="text-slate-500">
-          {paidParam ? "Confirming your payment…" : "Loading your booking…"}
+          {paidParam || justPaidWaitingConfirmation ? "Confirming your payment…" : "Loading your booking…"}
         </p>
+        {(paidParam || justPaidWaitingConfirmation) && (
+          <p className="text-slate-400 text-sm mt-2">This usually takes a few seconds.</p>
+        )}
       </div>
     );
   }

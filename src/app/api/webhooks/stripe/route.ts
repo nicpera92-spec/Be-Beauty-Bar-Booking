@@ -68,9 +68,13 @@ export async function POST(req: NextRequest) {
       if (booking.balancePaidOnline) {
         return NextResponse.json({ received: true });
       }
+      const balancePi = (session.payment_intent as string) || null;
       await prisma.booking.update({
         where: { id: bookingId },
-        data: { balancePaidOnline: true },
+        data: {
+          balancePaidOnline: true,
+          ...(balancePi && { stripeBalancePaymentIntentId: balancePi }),
+        },
       });
       return NextResponse.json({ received: true });
     }
@@ -79,12 +83,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ received: true });
     }
 
+    const depositPi = (session.payment_intent as string) || null;
     await prisma.booking.update({
       where: { id: bookingId },
-      data: { status: "confirmed" },
+      data: {
+        status: "confirmed",
+        ...(depositPi && { stripeDepositPaymentIntentId: depositPi }),
+      },
     });
 
-    await sendBookingConfirmationEmails(bookingId);
+    const emailResult = await sendBookingConfirmationEmails(bookingId);
+    if (!emailResult.ok) {
+      console.error("Confirmation emails failed after deposit:", emailResult.error);
+    }
 
     return NextResponse.json({ received: true });
   } catch (e) {

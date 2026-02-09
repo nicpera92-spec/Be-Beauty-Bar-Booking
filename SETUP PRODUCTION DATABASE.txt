@@ -1,0 +1,46 @@
+SET UP YOUR LIVE SITE DATABASE (one-time)
+=========================================
+
+Your live site has an empty database. Do this ONCE to create tables
+and add the admin user + default services.
+
+STEP 1 — Get the production database URL
+----------------------------------------
+1. Go to Vercel.com → your project "be-beauty-bar-booking"
+2. Click Settings → Environment Variables
+3. Find DATABASE_URL and click the "eye" or copy icon to reveal/copy it
+4. Copy the whole value (starts with postgresql://...)
+
+
+STEP 2 — Run setup from your PC
+----------------------------------------
+1. Open your project folder: Cursor test
+2. Open the file .env in Notepad
+3. Find the line:   DATABASE_URL="file:./dev.db"
+4. REPLACE it temporarily with (paste your URL inside the quotes):
+   DATABASE_URL="postgresql://...paste the URL from Vercel here..."
+5. Save and close .env
+
+6. Open Command Prompt or PowerShell in the project folder:
+   - Press Windows key, type cmd, press Enter
+   - Type:   cd "c:\Users\nicpe\OneDrive\Desktop\Cursor test"
+   - Press Enter
+
+7. Run these two commands (one at a time):
+   npx prisma db push
+   npx prisma db seed
+
+8. Open .env again and change DATABASE_URL BACK to:
+   DATABASE_URL="file:./dev.db"
+9. Save. (So your local app still uses your local database.)
+
+
+DONE
+----
+Your live site will now have:
+- Tables created
+- Admin login: Svit.uk@hotmail.com  /  Password: 123456789
+- Default services (nails, lashes, permanent makeup)
+
+Go to: https://be-beauty-bar-booking-a8hq.vercel.app/admin
+and log in. Then check /book — services should appear.

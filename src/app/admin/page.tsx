@@ -22,10 +22,15 @@ type Booking = {
   startTime: string;
   endTime: string;
   depositAmount: number;
+  balancePaidOnline: boolean;
   status: string;
   notifyByEmail: boolean;
   notifyBySMS: boolean;
   notes: string | null;
+  stripeDepositPaymentIntentId: string | null;
+  stripeBalancePaymentIntentId: string | null;
+  depositRefundedAt: string | null;
+  balanceRefundedAt: string | null;
 };
 
 export default function AdminPage() {
@@ -87,6 +92,22 @@ export default function AdminPage() {
       })
       .then((data) => setBookings(Array.isArray(data) ? data : []))
       .catch(() => {});
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    const interval = setInterval(() => {
+      fetch("/api/bookings", { headers: getAuthHeaders() })
+        .then((r) => {
+          if (r.status === 401) return null;
+          return r.json();
+        })
+        .then((data) => {
+          if (Array.isArray(data)) setBookings(data);
+        })
+        .catch(() => {});
+    }, 30000);
+    return () => clearInterval(interval);
   }, [token]);
 
   const refreshBookings = () => {
@@ -298,9 +319,12 @@ function AdminBookingRow({
   readOnly?: boolean;
 }) {
   const [updating, setUpdating] = useState(false);
+  const [refunding, setRefunding] = useState<"deposit" | "balance" | null>(null);
+  const [refundError, setRefundError] = useState<string | null>(null);
 
   const confirmDeposit = () => {
     setUpdating(true);
+    setRefundError(null);
     fetch(`/api/bookings/${booking.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", ...getAuthHeaders() },
@@ -313,6 +337,7 @@ function AdminBookingRow({
   const cancel = () => {
     if (!confirm("Cancel this booking?")) return;
     setUpdating(true);
+    setRefundError(null);
     fetch(`/api/bookings/${booking.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", ...getAuthHeaders() },
@@ -322,6 +347,34 @@ function AdminBookingRow({
       .finally(() => setUpdating(false));
   };
 
+  const refund = (type: "deposit" | "balance") => {
+    const label = type === "deposit" ? "deposit" : "balance";
+    if (!confirm(`Refund ${label} via Stripe? The customer will be refunded.`)) return;
+    setRefunding(type);
+    setRefundError(null);
+    fetch("/api/admin/refund", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify({ bookingId: booking.id, type }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.error) throw new Error(data.error);
+        onUpdate();
+      })
+      .catch((err) => setRefundError(err?.message ?? "Refund failed"))
+      .finally(() => setRefunding(null));
+  };
+
+  const canRefundDeposit =
+    booking.status === "confirmed" &&
+    booking.stripeDepositPaymentIntentId &&
+    !booking.depositRefundedAt;
+  const canRefundBalance =
+    booking.balancePaidOnline &&
+    booking.stripeBalancePaymentIntentId &&
+    !booking.balanceRefundedAt;
+
   return (
     <div className={`flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl border bg-white ${readOnly ? "border-slate-100 bg-slate-50/50" : "border-slate-200"}`}>
       <div>
@@ -330,11 +383,17 @@ function AdminBookingRow({
         </p>
         <p className="text-sm text-charcoal/60">
           {booking.customerName} · {booking.customerEmail || booking.customerPhone || "No contact"} · {formatCurrency(booking.depositAmount)} deposit
+          {booking.balancePaidOnline && " · balance paid online"}
+          {booking.depositRefundedAt && " · deposit refunded"}
+          {booking.balanceRefundedAt && " · balance refunded"}
         </p>
         {booking.notes && booking.notes.trim() && (
           <p className="text-sm text-navy mt-2 italic">
             📝 Special request: {booking.notes}
           </p>
+        )}
+        {refundError && (
+          <p className="text-sm text-red-600 mt-2">{refundError}</p>
         )}
       </div>
       {readOnly ? (
@@ -363,7 +422,27 @@ function AdminBookingRow({
           </button>
         </div>
       ) : (
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
+          {canRefundDeposit && (
+            <button
+              type="button"
+              onClick={() => refund("deposit")}
+              disabled={updating || refunding !== null}
+              className="px-3 py-1.5 rounded-lg border border-amber-200 text-amber-700 text-sm hover:bg-amber-50 disabled:opacity-50"
+            >
+              {refunding === "deposit" ? "Refunding…" : "Refund deposit"}
+            </button>
+          )}
+          {canRefundBalance && (
+            <button
+              type="button"
+              onClick={() => refund("balance")}
+              disabled={updating || refunding !== null}
+              className="px-3 py-1.5 rounded-lg border border-amber-200 text-amber-700 text-sm hover:bg-amber-50 disabled:opacity-50"
+            >
+              {refunding === "balance" ? "Refunding…" : "Refund balance"}
+            </button>
+          )}
           {booking.status === "pending_deposit" && (
             <button
               type="button"
