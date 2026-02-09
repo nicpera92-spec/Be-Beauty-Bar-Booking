@@ -114,12 +114,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const session = await stripe.checkout.sessions.create({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Stripe types omit apple_pay/revolut_pay; API accepts them
-      payment_method_types: ["card", "paypal", "revolut_pay", "apple_pay"] as any,
+    const createParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
+      payment_method_types: ["card", "paypal"],
       metadata: { bookingId, type },
-      ...(booking.customerEmail ? { customer_email: booking.customerEmail } : {}),
       line_items: [
         {
           price_data: {
@@ -137,7 +135,11 @@ export async function POST(req: NextRequest) {
         ? `${baseUrl}/booking/deposit-confirmed?bookingId=${bookingId}`
         : `${baseUrl}/booking/${bookingId}?paid=1`,
       cancel_url: `${baseUrl}/booking/${bookingId}`,
-    });
+    };
+    if (booking.customerEmail) {
+      createParams.customer_email = booking.customerEmail;
+    }
+    const session = await stripe.checkout.sessions.create(createParams);
 
     return NextResponse.json({ url: session.url });
   } catch (e) {
