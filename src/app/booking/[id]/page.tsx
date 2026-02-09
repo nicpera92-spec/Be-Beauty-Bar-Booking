@@ -57,10 +57,16 @@ export default function BookingPage() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const paid = new URLSearchParams(window.location.search).get("paid") === "1";
-      setPaidParam(paid);
+      const params = new URLSearchParams(window.location.search);
+      setPaidParam(params.get("paid") === "1");
+      const sessionId = params.get("session_id")?.trim();
+      if (sessionId && id) {
+        fetch(`/api/confirm-deposit?bookingId=${encodeURIComponent(id)}&session_id=${encodeURIComponent(sessionId)}`)
+          .then(() => fetchData())
+          .catch(() => {});
+      }
     }
-  }, []);
+  }, [id]);
 
   useEffect(() => {
     fetchData();

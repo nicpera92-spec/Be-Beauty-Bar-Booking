@@ -37,7 +37,7 @@ export default function BookPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/services")
+    fetch("/api/services", { cache: "no-store", headers: { "Cache-Control": "no-cache" } })
       .then((r) => r.json())
       .then((data) => {
         setServices(Array.isArray(data) ? data : []);

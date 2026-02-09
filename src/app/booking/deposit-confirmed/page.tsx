@@ -1,8 +1,20 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 
 export default function DepositConfirmedPage() {
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const bookingId = searchParams.get("bookingId")?.trim();
+    const sessionId = searchParams.get("session_id")?.trim();
+    if (!bookingId || !sessionId) return;
+    const url = `/api/confirm-deposit?bookingId=${encodeURIComponent(bookingId)}&session_id=${encodeURIComponent(sessionId)}`;
+    fetch(url).catch(() => {});
+  }, [searchParams]);
+
   return (
     <div className="min-h-[70vh] flex flex-col items-center justify-center px-4 py-16">
       <div className="max-w-md w-full text-center space-y-6">

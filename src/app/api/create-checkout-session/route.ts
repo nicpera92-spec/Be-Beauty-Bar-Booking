@@ -132,8 +132,8 @@ export async function POST(req: NextRequest) {
         },
       ],
       success_url: type === "deposit"
-        ? `${baseUrl}/booking/deposit-confirmed?bookingId=${bookingId}`
-        : `${baseUrl}/booking/${bookingId}?paid=1`,
+        ? `${baseUrl}/booking/deposit-confirmed?bookingId=${bookingId}&session_id={CHECKOUT_SESSION_ID}`
+        : `${baseUrl}/booking/${bookingId}?paid=1&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/booking/${bookingId}`,
     };
     if (booking.customerEmail) {

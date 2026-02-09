@@ -15,20 +15,36 @@ export async function PATCH(
   const body = await req.json();
   const { name, category, durationMin, price, depositAmount, description, active } = body;
 
-  const data: Record<string, unknown> = {};
-  if (name != null) data.name = name;
-  if (category != null) data.category = category;
+  const data: {
+    name?: string;
+    category?: string;
+    durationMin?: number;
+    price?: number;
+    depositAmount?: number;
+    description?: string | null;
+    active?: boolean;
+  } = {};
+  if (name != null && String(name).trim() !== "") data.name = String(name).trim();
+  if (category != null && String(category).trim() !== "") data.category = String(category).trim();
   if (durationMin != null) data.durationMin = Number(durationMin);
   if (price != null) data.price = Number(price);
   if (depositAmount != null) data.depositAmount = Number(depositAmount);
-  if (description != null) data.description = description;
-  if (active != null) data.active = Boolean(active);
+  if (description != null) data.description = description === "" ? "" : String(description);
+  if (active !== undefined) data.active = Boolean(active);
+
+  if (Object.keys(data).length === 0) {
+    const current = await prisma.service.findUnique({ where: { id } });
+    if (!current) {
+      return NextResponse.json({ error: "Service not found" }, { status: 404 });
+    }
+    return NextResponse.json(current);
+  }
 
   if (data.price != null || data.depositAmount != null) {
     const current = await prisma.service.findUnique({ where: { id } });
     if (current) {
-      const p = (data.price as number) ?? current.price;
-      const d = (data.depositAmount as number) ?? current.depositAmount;
+      const p = data.price ?? current.price;
+      const d = data.depositAmount ?? current.depositAmount;
       if (d > p) {
         return NextResponse.json(
           { error: "Deposit cannot exceed full price" },
