@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Service {
+  id            String   @id @default(cuid())
+  name          String
+  category      String   // nails | lash | permanent-makeup
+  durationMin   Int      // minutes allotted per booking
+  price         Float    @default(0) // full price; deposit is deducted from this
+  depositAmount Float    // required to confirm; must be <= price
+  description   String?  @default("")
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  bookings      Booking[]
+}
+
+model BusinessSettings {
+  id                   String   @id // single row, use "default"
+  businessName         String   @default("Be Beauty Bar")
+  businessEmail        String?  // for confirmation emails to owner
+  adminLoginEmail      String?  // admin login email
+  adminPasswordHash    String?  // bcrypt hash of admin password
+  instagramHandle      String?  // e.g. bebeautybar — for "DM on Instagram" note
+  defaultDepositAmount Float?   // optional default when adding new services (£)
+  defaultPrice         Float?   // optional default full price for new services (£)
+  openHour             Int      @default(9)   // 24h, e.g. 9 = 9am
+  closeHour            Int      @default(17)  // 24h, e.g. 17 = 5pm
+  slotInterval         Int      @default(30)  // minutes between slots
+  primaryColor         String?  @default("#1e3a5f") // main accent color (hex)
+  secondaryColor       String?  @default("#2c5282") // secondary accent color (hex)
+  stripeSecretKey      String?  // Stripe secret key (starts with sk_test_ or sk_live_)
+  stripeWebhookSecret  String?  // Stripe webhook signing secret (starts with whsec_)
+  smsNotificationFee   Float?   @default(0.05) // Fee per booking for SMS notifications (£)
+  updatedAt            DateTime @updatedAt
+}
+
+model AvailabilityBlock {
+  id        String   @id @default(cuid())
+  startDate String   // yyyy-MM-dd
+  startTime String   // HH:mm, hour granularity
+  endDate   String   // yyyy-MM-dd
+  endTime   String   // HH:mm, hour granularity
+  createdAt DateTime @default(now())
+}
+
+model Booking {
+  id                String   @id @default(cuid())
+  serviceId         String
+  service           Service  @relation(fields: [serviceId], references: [id])
+  customerName      String
+  customerEmail     String?  // optional, but at least one of email/phone required
+  customerPhone     String?  // optional, but at least one of email/phone required
+  date              String   // YYYY-MM-DD
+  startTime         String   // HH:mm
+  endTime           String   // HH:mm
+  servicePrice      Float    // full price at booking time
+  depositAmount     Float    // required to confirm
+  balancePaidOnline Boolean  @default(false) // true if remaining paid via Stripe
+  status            String   @default("pending_deposit") // pending_deposit | confirmed | cancelled
+  notes             String?  @default("")
+  notifyByEmail     Boolean  @default(true) // customer wants email notifications
+  notifyBySMS       Boolean  @default(false) // customer wants SMS notifications
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}

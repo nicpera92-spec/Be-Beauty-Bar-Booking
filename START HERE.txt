@@ -1,0 +1,83 @@
+HOW TO RUN BE BEAUTY BAR (BOOKING SITE)
+=======================================
+
+Quick reminder: see OPEN THE WEBSITE.txt for the 3 steps and URLs.
+
+You don't need to know any coding. Just follow these steps.
+
+
+STEP 1 — Install Node.js (only do this once)
+--------------------------------------------
+1. Open your web browser and go to:  https://nodejs.org
+2. Click the big green "LTS" download button.
+3. Run the file that downloads. Click "Next" through the installer.
+4. When it's done, restart your computer (or at least close all Cursor/terminal windows).
+
+
+STEP 2 — Run the app
+--------------------
+1. Open the folder:  Cursor test
+2. Double-click the file:  Run the app.bat
+
+   A black window will open. The first time can take 1–2 minutes.
+   Wait until it says "Ready" or "compiled successfully".
+
+   *** KEEP THAT WINDOW OPEN ***
+   If you close it, the site stops and you'll get "refused to connect"
+   when you try localhost.
+
+
+STEP 3 — Open the site in your browser
+--------------------------------------
+1. Only AFTER the black window says "Ready" or "compiled" —
+2. Open Chrome, Edge, or any browser.
+3. Type in the address bar:  http://localhost:3001
+4. Press Enter.
+
+   You should see your booking site!
+
+
+WHERE TO GO
+-----------
+• Homepage:     http://localhost:3001
+• Book (customers):  http://localhost:3001/book
+• Admin (you):       http://localhost:3001/admin
+
+   Log in with:  Email: Svit.uk@hotmail.com   Password: 123456789
+   You can change your password after logging in (Admin → Change password).
+
+
+TO STOP THE APP
+---------------
+Close the black "Run the app" window. The site will stop. 
+To run it again later, just double-click "Run the app.bat" again.
+
+
+TROUBLESHOOTING
+---------------
+• "Node.js is not installed"  
+  → Do Step 1 above, restart your computer, then try Step 2 again.
+
+• The black window closes straight away  
+  → Right‑click "Run the app.bat" → "Open with" → Notepad, and check the file 
+    is in the same folder as your project. Or open Command Prompt, type:
+    cd "c:\Users\nicpe\OneDrive\Desktop\Cursor test"
+    then run:  Run the app.bat
+
+• "This site can't be reached" / "localhost refused to connect"  
+  → The server is not running. You must run "Run the app.bat" first.
+  → Keep the black window OPEN. Closing it stops the server — then localhost fails.
+  → Wait until the black window says "Ready" or "compiled" before opening
+      http://localhost:3001   or   http://127.0.0.1:3001
+  → If the black window closed: double‑click "Run the app.bat" again, wait for Ready.
+  → Quick start (after first setup): use "Start server only.bat" to start just the server.
+  → Run "Run the app.bat" by double‑clicking (don't use PowerShell). If you use
+    Cursor's terminal: run  cmd /c "npm run dev", then keep that terminal open.
+
+• "EPERM" or "operation not permitted" / Prisma or npm fails during setup  
+  → Your project is in OneDrive. Syncing locks files and causes this error.
+  → BEST FIX: Move the whole "Cursor test" folder to a location OUTSIDE OneDrive,
+    e.g.  C:\dev\beauty-booking  or  C:\Projects\beauty-booking. Then run
+    "Run the app.bat" from the new folder.
+  → Or: Pause OneDrive sync, close Cursor and all terminals, then run again.
+  → Or: Right‑click "Run the app.bat" → Run as administrator.
