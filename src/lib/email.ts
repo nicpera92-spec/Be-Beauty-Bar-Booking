@@ -129,7 +129,8 @@ export async function sendBookingConfirmationEmails(bookingId: string): Promise<
     const businessName = settings?.businessName ?? "Be Beauty Bar";
     const dayLabel = formatBookingDate(booking.date, "EEEE, d MMMM yyyy");
 
-    if (booking.notifyByEmail && booking.customerEmail) {
+    // Send to customer if they provided an email (when booking is confirmed)
+    if (booking.customerEmail) {
       const customerSubject = `Booking confirmed – ${businessName}`;
       const customerHtml = `
         <h2>Your booking is confirmed</h2>
@@ -158,8 +159,9 @@ export async function sendBookingConfirmationEmails(bookingId: string): Promise<
       await sendSMS(formatUKPhoneToE164(booking.customerPhone), smsMessage);
     }
 
-    if (settings?.businessEmail) {
-      const ownerSubject = `New booking confirmed – ${booking.customerName}`;
+    // Send to admin if they set a business email in Settings
+    if (settings?.businessEmail?.trim()) {
+      const ownerSubject = `Booking confirmed – ${booking.customerName}`;
       const ownerHtml = `
         <h2>Booking confirmed</h2>
         <p>A deposit has been received. Booking details:</p>
@@ -176,7 +178,7 @@ export async function sendBookingConfirmationEmails(bookingId: string): Promise<
       `;
       const r = await sendResendEmail({
         from,
-        to: settings.businessEmail,
+        to: settings.businessEmail.trim(),
         subject: ownerSubject,
         html: ownerHtml,
       });

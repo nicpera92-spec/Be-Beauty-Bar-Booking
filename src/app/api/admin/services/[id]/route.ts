@@ -4,14 +4,14 @@ import { verifyAdminRequest } from "@/lib/auth";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   const admin = await verifyAdminRequest(req);
   if (!admin) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await params;
+  const { id } = params;
   const body = await req.json();
   const { name, category, durationMin, price, depositAmount, description, active } = body;
 
@@ -47,13 +47,13 @@ export async function PATCH(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   const admin = await verifyAdminRequest(req);
   if (!admin) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const { id } = await params;
+  const { id } = params;
   // Only block removal if there are active bookings (pending or confirmed), not cancelled
   const activeBookingCount = await prisma.booking.count({
     where: {
