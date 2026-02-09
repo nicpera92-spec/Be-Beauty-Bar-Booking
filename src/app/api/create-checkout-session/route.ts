@@ -115,7 +115,8 @@ export async function POST(req: NextRequest) {
     }
 
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card", "paypal", "revolut_pay", "apple_pay"] as unknown as Stripe.Checkout.SessionCreateParams["payment_method_types"],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Stripe types omit apple_pay/revolut_pay; API accepts them
+      payment_method_types: ["card", "paypal", "revolut_pay", "apple_pay"] as any,
       mode: "payment",
       metadata: { bookingId, type },
       ...(booking.customerEmail ? { customer_email: booking.customerEmail } : {}),
