@@ -93,6 +93,12 @@ export default function BookDatePage() {
     }
   }, [selectedDate]);
 
+  useEffect(() => {
+    if (selectedDate && slots.length > 0 && timeSectionRef.current) {
+      timeSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [selectedDate, slots.length]);
+
   const selectedDateLabel = selectedDate
     ? (() => {
         try {
@@ -157,7 +163,7 @@ export default function BookDatePage() {
           {monthsWithDates.map(([monthTitle, monthDates]) => (
             <div key={monthTitle} className="mb-8 last:mb-0">
               <h3 className="text-sm font-semibold text-navy mb-3">{monthTitle}</h3>
-              <div className="grid grid-cols-7 gap-1.5 sm:gap-3 min-w-0">
+              <div className="grid grid-cols-7 gap-1 sm:gap-2 min-w-0">
                 {monthDates.map((d) => {
                   const dateStr = format(d, "yyyy-MM-dd");
                   const isPast = isBefore(d, minBookableDate);
@@ -173,17 +179,17 @@ export default function BookDatePage() {
                       onClick={() => {
                         if (!disabled) setSelectedDate(dateStr);
                       }}
-                      className={`py-2.5 sm:py-3 rounded-lg text-sm font-medium transition touch-manipulation min-h-[44px] sm:min-h-[48px] ${
+                      className={`py-1.5 sm:py-2 rounded-md text-xs font-medium transition touch-manipulation min-h-[36px] sm:min-h-[40px] ${
                         disabled
                           ? "bg-slate-100 text-slate-300 cursor-not-allowed"
                           : "border border-slate-200 bg-white hover:border-navy/40 hover:bg-slate-50 text-slate-800"
                       } ${isUnavailable ? "opacity-60" : ""} ${
-                        isSelected ? "ring-2 ring-navy ring-offset-2 bg-navy/5 border-navy/30" : ""
+                        isSelected ? "ring-2 ring-navy ring-offset-1 bg-navy/5 border-navy/30" : ""
                       }`}
                     >
                       {format(d, "d")}
                       <br />
-                      <span className="text-xs font-normal text-slate-500">
+                      <span className="text-[10px] sm:text-xs font-normal text-slate-500">
                         {format(d, "EEE")}
                       </span>
                     </button>
@@ -214,12 +220,12 @@ export default function BookDatePage() {
               <p className="text-slate-600 text-sm mb-4">
                 {selectedDateLabel}
               </p>
-              <div className="flex flex-wrap gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:gap-3 min-w-0">
                 {slots.map((slot) => (
                   <Link
                     key={slot.start}
                     href={`/book/${serviceId}/${selectedDate}/${encodeURIComponent(slot.start)}`}
-                    className="inline-flex items-center justify-center px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-slate-800 text-sm font-medium hover:border-navy/40 hover:bg-navy/5 hover:text-navy transition touch-manipulation"
+                    className="flex items-center justify-center px-2 py-2 sm:py-2.5 rounded-lg border border-slate-200 bg-white text-slate-800 text-[11px] sm:text-xs font-medium hover:border-navy/40 hover:bg-navy/5 hover:text-navy transition touch-manipulation text-center min-h-[40px] sm:min-h-[44px] min-w-0"
                   >
                     {formatTime24to12(slot.start)} – {formatTime24to12(slot.end)}
                   </Link>
