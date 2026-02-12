@@ -50,7 +50,7 @@ export default function AdminServicesPage() {
   const [defaultPrice, setDefaultPrice] = useState<number | null>(null);
 
   const fetchServices = () => {
-    fetch("/api/admin/services", { headers: getAuthHeaders(), cache: "no-store" })
+    fetch(`/api/admin/services?_=${Date.now()}`, { headers: getAuthHeaders(), cache: "no-store" })
       .then((r) => {
         if (r.status === 401) {
           sessionStorage.removeItem(ADMIN_TOKEN_KEY);

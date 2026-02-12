@@ -55,6 +55,17 @@ After this, when a customer pays the deposit, Stripe will call your app, the boo
 
 ---
 
+## Step 6: SMS (booking confirmations and cancellations by text)
+
+1. **SMS Works** – Get a JWT from [The SMS Works](https://thesmsworks.co.uk) (API Key tab → Generate Token).
+2. **Vercel** → **Settings** → **Environment Variables** → add:
+   - **`SMS_WORKS_JWT`** = your JWT token.
+   - **`SMS_WORKS_SENDER`** = sender ID (4–11 alphanumeric, e.g. `BeBeautyBar`). UK networks restrict some words.
+3. **Save** and **Redeploy** so the app uses them.
+4. In the app: **Admin** → **Settings** → under **Test SMS**, enter a UK mobile (07…) and click **Send test SMS**. If you receive the text, booking confirmations and cancellation SMS will work for customers who chose SMS.
+
+---
+
 ## Step 5: Refund button
 
 - Refund buttons appear in **Admin** for bookings that **paid online** (deposit or balance) and have **not** been refunded yet.
@@ -69,4 +80,5 @@ After this, when a customer pays the deposit, Stripe will call your app, the boo
 - [ ] Live site footer shows **“Build xxxxxxx”**.
 - [ ] **RESEND_API_KEY** (and optionally **NEXT_PUBLIC_APP_URL**) set in Vercel; **Business email** set in Admin; test email works.
 - [ ] **Stripe webhook** added for `https://bbbar.co.uk/api/webhooks/stripe`, **checkout.session.completed**, and **STRIPE_WEBHOOK_SECRET** set in Vercel (or in Admin Stripe settings).
+- [ ] **SMS_WORKS_JWT** and **SMS_WORKS_SENDER** set in Vercel; **Send test SMS** in Admin → Settings works.
 - [ ] One **Redeploy** after changing env vars so the running app uses them.

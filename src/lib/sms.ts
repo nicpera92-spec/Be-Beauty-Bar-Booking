@@ -1,5 +1,8 @@
 /**
  * SMS via The SMS Works (https://thesmsworks.co.uk).
+ * We use their "Option 2": HTTP POST to https://api.thesmsworks.co.uk/v1/message/send
+ * from the application (no SDK or Postman required). Customers who choose SMS when booking
+ * receive texts when their booking is confirmed or cancelled.
  * Set either:
  *   - SMS_WORKS_JWT: the token from your account (API Key tab → Generate Token), or
  *   - SMS_WORKS_API_KEY + SMS_WORKS_API_SECRET: we'll generate a JWT from these.
@@ -74,9 +77,10 @@ export async function sendSMS(
       body: JSON.stringify(body),
     });
 
-    const data = await res.json().catch(() => ({}));
+    const text = await res.text();
+    const data = text ? (() => { try { return JSON.parse(text) as Record<string, unknown>; } catch { return {}; } })() : {};
     if (!res.ok) {
-      const errMsg = (data as { message?: string }).message ?? data?.error ?? `HTTP ${res.status}`;
+      const errMsg = (data as { message?: string }).message ?? (data as { error?: string }).error ?? text || `HTTP ${res.status}`;
       console.error("SMS Works send failed:", errMsg);
       return { ok: false, error: String(errMsg) };
     }

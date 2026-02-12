@@ -35,6 +35,9 @@ export default function AdminSettingsPage() {
   const [stripeKeysChanged, setStripeKeysChanged] = useState({ secret: false, webhook: false });
   const [testEmailSending, setTestEmailSending] = useState(false);
   const [testEmailResult, setTestEmailResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [testSmsSending, setTestSmsSending] = useState(false);
+  const [testSmsResult, setTestSmsResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [testSmsTo, setTestSmsTo] = useState("");
 
   useEffect(() => {
     setHasToken(!!sessionStorage.getItem(ADMIN_TOKEN_KEY));
@@ -205,6 +208,52 @@ export default function AdminSettingsPage() {
                 {testEmailResult && (
                   <span className={`text-sm ${testEmailResult.ok ? "text-green-700" : "text-red-600"}`}>
                     {testEmailResult.message}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div>
+              <p className="text-sm text-charcoal/70 mb-1">
+                <strong>Test SMS (SMS Works)</strong>
+              </p>
+              <p className="text-xs text-charcoal/50 mb-2">
+                Set <code className="bg-amber-100 px-0.5">SMS_WORKS_JWT</code> and <code className="bg-amber-100 px-0.5">SMS_WORKS_SENDER</code> in Vercel (or .env). Then enter a UK mobile (07…) and click Send to verify booking SMS works.
+              </p>
+              <div className="mt-2 flex items-center gap-2 flex-wrap">
+                <input
+                  type="tel"
+                  value={testSmsTo}
+                  onChange={(e) => setTestSmsTo(e.target.value)}
+                  placeholder="07..."
+                  className="w-40 px-3 py-1.5 rounded-lg border border-slate-200 text-sm"
+                />
+                <button
+                  type="button"
+                  disabled={testSmsSending || !testSmsTo.trim()}
+                  onClick={async () => {
+                    setTestSmsResult(null);
+                    setTestSmsSending(true);
+                    try {
+                      const r = await fetch("/api/admin/test-sms", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+                        body: JSON.stringify({ to: testSmsTo.trim() }),
+                      });
+                      const data = await r.json();
+                      setTestSmsResult(r.ok ? { ok: true, message: data.message ?? "Sent!" } : { ok: false, message: data.error ?? "Failed" });
+                    } catch {
+                      setTestSmsResult({ ok: false, message: "Request failed" });
+                    } finally {
+                      setTestSmsSending(false);
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-medium hover:bg-slate-50 disabled:opacity-50 disabled:pointer-events-none"
+                >
+                  {testSmsSending ? "Sending…" : "Send test SMS"}
+                </button>
+                {testSmsResult && (
+                  <span className={`text-sm ${testSmsResult.ok ? "text-green-700" : "text-red-600"}`}>
+                    {testSmsResult.message}
                   </span>
                 )}
               </div>
