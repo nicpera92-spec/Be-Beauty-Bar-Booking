@@ -51,7 +51,7 @@ export default function BookDatePage() {
     return Array.from(map.entries());
   })();
 
-  const fetchData = () => {
+  useEffect(() => {
     Promise.all([
       fetch(`/api/services?_=${Date.now()}`, { cache: "no-store" }).then((r) => r.json()),
       fetch(
