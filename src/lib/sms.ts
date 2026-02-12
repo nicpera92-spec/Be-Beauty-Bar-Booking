@@ -11,9 +11,11 @@
 const SMS_WORKS_API = "https://api.thesmsworks.co.uk/v1/message/send";
 
 async function getSmsWorksAuthHeader(): Promise<string | null> {
-  const jwt = process.env.SMS_WORKS_JWT?.trim();
-  if (jwt) {
-    return jwt.startsWith("JWT ") ? jwt : `JWT ${jwt}`;
+  const raw = process.env.SMS_WORKS_JWT?.trim();
+  if (raw) {
+    // API accepts "Bearer <token>" or the raw token; use Bearer for compatibility
+    const token = raw.replace(/^(JWT|Bearer)\s+/i, "").trim();
+    return token ? `Bearer ${token}` : null;
   }
 
   const apiKey = process.env.SMS_WORKS_API_KEY?.trim();
@@ -58,12 +60,17 @@ export async function sendSMS(
     return { ok: false, error: "SMS not configured" };
   }
 
-  // API expects destination without + (e.g. 44777777777)
-  const destination = to.replace(/^\++/, "");
+  // API expects destination without + (e.g. 44777777777 or 07777777777)
+  const destination = to.replace(/\D/g, "").replace(/^0/, "44") || to.replace(/^\++/, "");
+  if (!destination || destination.length < 10) {
+    console.warn("SMS destination invalid:", to);
+    return { ok: false, error: "Invalid phone number" };
+  }
+  const dest = destination.startsWith("44") ? destination : "44" + destination;
 
   const body = {
     sender: getSender(),
-    destination,
+    destination: dest,
     content: message,
   };
 
@@ -80,8 +87,9 @@ export async function sendSMS(
     const text = await res.text();
     const data = text ? (() => { try { return JSON.parse(text) as Record<string, unknown>; } catch { return {}; } })() : {};
     if (!res.ok) {
-      const errMsg = (data as { message?: string }).message ?? (data as { error?: string }).error ?? (text || `HTTP ${res.status}`);
-      console.error("SMS Works send failed:", errMsg);
+      let errMsg = (data as { message?: string }).message ?? (data as { error?: string }).error ?? (text || `HTTP ${res.status}`);
+      if (res.status === 402) errMsg = "Insufficient SMS credits. Top up at thesmsworks.co.uk";
+      console.error("SMS Works send failed:", res.status, errMsg);
       return { ok: false, error: String(errMsg) };
     }
     return { ok: true };

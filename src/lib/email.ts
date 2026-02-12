@@ -156,7 +156,10 @@ export async function sendBookingConfirmationEmails(bookingId: string): Promise<
     if (booking.notifyBySMS && booking.customerPhone) {
       const smsDayLabel = formatBookingDate(booking.date, "dd/MM/yyyy");
       const smsMessage = `Hi ${booking.customerName}, your booking at ${businessName} is confirmed. ${booking.service.name} on ${smsDayLabel} at ${booking.startTime}-${booking.endTime}. We look forward to seeing you!`;
-      await sendSMS(formatUKPhoneToE164(booking.customerPhone), smsMessage);
+      const smsResult = await sendSMS(formatUKPhoneToE164(booking.customerPhone), smsMessage);
+      if (!smsResult.ok) {
+        console.warn("SMS not sent for booking confirmation:", smsResult.error);
+      }
     }
 
     // Send to admin if they set a business email in Settings
