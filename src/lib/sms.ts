@@ -1,56 +1,85 @@
-/** SMS via Twilio. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER in .env */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let twilioClient: any = null;
+/**
+ * SMS via The SMS Works (https://thesmsworks.co.uk).
+ * Set either:
+ *   - SMS_WORKS_JWT: the token from your account (API Key tab → Generate Token), or
+ *   - SMS_WORKS_API_KEY + SMS_WORKS_API_SECRET: we'll generate a JWT from these.
+ * Also set SMS_WORKS_SENDER: sender ID (4–11 alphanumeric, e.g. BeBeautyBar). UK networks restrict some words.
+ */
+const SMS_WORKS_API = "https://api.thesmsworks.co.uk/v1/message/send";
 
-function getTwilioClient() {
-  if (twilioClient) return twilioClient;
-
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-
-  if (!accountSid || !authToken) {
-    return null;
+async function getSmsWorksAuthHeader(): Promise<string | null> {
+  const jwt = process.env.SMS_WORKS_JWT?.trim();
+  if (jwt) {
+    return jwt.startsWith("JWT ") ? jwt : `JWT ${jwt}`;
   }
 
+  const apiKey = process.env.SMS_WORKS_API_KEY?.trim();
+  const apiSecret = process.env.SMS_WORKS_API_SECRET?.trim();
+  if (!apiKey || !apiSecret) return null;
+
   try {
-    // Lazy import Twilio only if credentials are present
-    const twilio = require("twilio");
-    twilioClient = twilio(accountSid, authToken);
-    return twilioClient;
+    const { SignJWT } = await import("jose");
+    const secret = new TextEncoder().encode(apiSecret);
+    const token = await new SignJWT({})
+      .setSubject(apiKey)
+      .setProtectedHeader({ alg: "HS256", typ: "JWT" })
+      .setIssuedAt()
+      .setExpirationTime("365d")
+      .sign(secret);
+    return `JWT ${token}`;
   } catch (e) {
-    console.error("Failed to initialize Twilio:", e);
+    console.error("SMS Works JWT generation failed:", e);
     return null;
   }
 }
 
+function getSender(): string {
+  const sender = process.env.SMS_WORKS_SENDER?.trim();
+  if (sender && /^[a-zA-Z0-9]{4,11}$/.test(sender)) return sender;
+  return "BeBeautyBar";
+}
+
 /**
- * Send an SMS message.
+ * Send an SMS message via The SMS Works.
  * @param to Phone number (E.164 format, e.g. +447123456789)
- * @param message Message text
+ * @param message Message text (GSM charset up to 160 chars; longer or Unicode uses more credits)
  * @returns { ok: boolean, error?: string }
  */
 export async function sendSMS(
   to: string,
   message: string
 ): Promise<{ ok: boolean; error?: string }> {
-  const client = getTwilioClient();
-  if (!client) {
-    console.warn("TWILIO_ACCOUNT_SID or TWILIO_AUTH_TOKEN not set; skipping SMS.");
+  const auth = await getSmsWorksAuthHeader();
+  if (!auth) {
+    console.warn("SMS Works not configured: set SMS_WORKS_JWT or SMS_WORKS_API_KEY + SMS_WORKS_API_SECRET.");
     return { ok: false, error: "SMS not configured" };
   }
 
-  const from = process.env.TWILIO_PHONE_NUMBER;
-  if (!from) {
-    console.warn("TWILIO_PHONE_NUMBER not set; skipping SMS.");
-    return { ok: false, error: "SMS phone number not configured" };
-  }
+  // API expects destination without + (e.g. 44777777777)
+  const destination = to.replace(/^\++/, "");
+
+  const body = {
+    sender: getSender(),
+    destination,
+    content: message,
+  };
 
   try {
-    await client.messages.create({
-      body: message,
-      from,
-      to,
+    const res = await fetch(SMS_WORKS_API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: auth,
+      },
+      body: JSON.stringify(body),
     });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const errMsg = (data as { message?: string }).message ?? data?.error ?? `HTTP ${res.status}`;
+      console.error("SMS Works send failed:", errMsg);
+      return { ok: false, error: String(errMsg) };
+    }
     return { ok: true };
   } catch (e) {
     console.error("sendSMS error:", e);
@@ -59,16 +88,11 @@ export async function sendSMS(
 }
 
 export function formatUKPhoneToE164(phone: string): string {
-  // Remove all non-digit characters
   let digits = phone.replace(/\D/g, "");
-
-  // If starts with 0, replace with +44
   if (digits.startsWith("0")) {
-    digits = "+44" + digits.slice(1);
-  } else if (!digits.startsWith("+")) {
-    // If no country code, assume UK and add +44
-    digits = "+44" + digits;
+    digits = "44" + digits.slice(1);
+  } else if (!digits.startsWith("44") && digits.length <= 10) {
+    digits = "44" + digits;
   }
-
-  return digits;
+  return digits ? "+" + digits : "";
 }

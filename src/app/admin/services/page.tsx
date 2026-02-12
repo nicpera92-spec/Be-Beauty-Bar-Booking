@@ -50,7 +50,7 @@ export default function AdminServicesPage() {
   const [defaultPrice, setDefaultPrice] = useState<number | null>(null);
 
   const fetchServices = () => {
-    fetch("/api/admin/services", { headers: getAuthHeaders() })
+    fetch("/api/admin/services", { headers: getAuthHeaders(), cache: "no-store" })
       .then((r) => {
         if (r.status === 401) {
           sessionStorage.removeItem(ADMIN_TOKEN_KEY);
@@ -148,6 +148,7 @@ function AdminServiceRow({
   });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
 
   // When not editing, keep form in sync with service (e.g. when revisiting the page or after refetch)
   useEffect(() => {
@@ -162,6 +163,12 @@ function AdminServiceRow({
       });
     }
   }, [editing, service.id, service.name, service.category, service.durationMin, service.price, service.depositAmount, service.description]);
+
+  useEffect(() => {
+    if (savedAt == null) return;
+    const t = setTimeout(() => setSavedAt(null), 3000);
+    return () => clearTimeout(t);
+  }, [savedAt]);
   
   // Get all unique categories from all services
   const allCategories = Array.from(new Set(allServices.map((s) => s.category)))
@@ -175,19 +182,28 @@ function AdminServiceRow({
     }
     setSaveError(null);
     setSaving(true);
+    const payload = {
+      name: String(form.name).trim(),
+      category: String(form.category).trim(),
+      durationMin: Number(form.durationMin) || 30,
+      price: Number(form.price) || 0,
+      depositAmount: Number(form.depositAmount) || 0,
+      description: form.description == null ? "" : String(form.description),
+    };
     fetch(`/api/admin/services/${service.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-      body: JSON.stringify(form),
+      body: JSON.stringify(payload),
     })
-      .then((r) => r.json().then((d) => ({ ok: r.ok, data: d })))
-      .then(({ ok, data }) => {
+      .then((r) => r.json().then((d) => ({ ok: r.ok, status: r.status, data: d })))
+      .then(({ ok, status, data }) => {
         if (ok) {
           setSaveError(null);
+          setSavedAt(Date.now());
           onUpdate();
           if (closeAfterSave) setEditing(false);
         } else {
-          setSaveError(data?.error ?? "Save failed");
+          setSaveError(data?.error ?? (status === 401 ? "Session expired" : "Save failed"));
         }
       })
       .catch(() => setSaveError("Save failed"))
@@ -356,15 +372,18 @@ function AdminServiceRow({
             className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white resize-none"
             placeholder="Description (optional)"
           />
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
             <button
               type="button"
               onClick={() => save(true)}
               disabled={saving}
               className="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-black disabled:opacity-50"
             >
-              Save
+              {saving ? "Saving…" : "Save"}
             </button>
+            {savedAt && Date.now() - savedAt < 3000 && (
+              <span className="text-sm text-emerald-600 font-medium">Saved</span>
+            )}
             <button
               type="button"
               onClick={() => {
