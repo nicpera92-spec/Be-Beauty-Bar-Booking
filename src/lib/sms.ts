@@ -80,7 +80,7 @@ export async function sendSMS(
     const text = await res.text();
     const data = text ? (() => { try { return JSON.parse(text) as Record<string, unknown>; } catch { return {}; } })() : {};
     if (!res.ok) {
-      const errMsg = (data as { message?: string }).message ?? (data as { error?: string }).error ?? text || `HTTP ${res.status}`;
+      const errMsg = (data as { message?: string }).message ?? (data as { error?: string }).error ?? (text || `HTTP ${res.status}`);
       console.error("SMS Works send failed:", errMsg);
       return { ok: false, error: String(errMsg) };
     }
