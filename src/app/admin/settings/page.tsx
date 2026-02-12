@@ -9,7 +9,8 @@ const ADMIN_TOKEN_KEY = "admin-token";
 function getAuthHeaders(): Record<string, string> {
   if (typeof window === "undefined") return {};
   const t = sessionStorage.getItem(ADMIN_TOKEN_KEY);
-  return t ? { Authorization: `Bearer ${t}` } : {};
+  if (!t) return {};
+  return { Authorization: `Bearer ${t}`, "X-Admin-Token": t };
 }
 
 type Settings = {
@@ -194,6 +195,11 @@ export default function AdminSettingsPage() {
                         body: JSON.stringify({}),
                       });
                       const data = await r.json();
+                      if (r.status === 401) {
+                        sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+                        router.replace("/admin");
+                        return;
+                      }
                       setTestEmailResult(r.ok ? { ok: true, message: data.message ?? "Sent!" } : { ok: false, message: data.error ?? "Failed" });
                     } catch {
                       setTestEmailResult({ ok: false, message: "Request failed" });
@@ -240,6 +246,11 @@ export default function AdminSettingsPage() {
                         body: JSON.stringify({ to: testSmsTo.trim() }),
                       });
                       const data = await r.json();
+                      if (r.status === 401) {
+                        sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+                        router.replace("/admin");
+                        return;
+                      }
                       setTestSmsResult(r.ok ? { ok: true, message: data.message ?? "Sent!" } : { ok: false, message: data.error ?? "Failed" });
                     } catch {
                       setTestSmsResult({ ok: false, message: "Request failed" });

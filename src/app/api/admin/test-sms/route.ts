@@ -5,7 +5,7 @@ import { sendSMS, formatUKPhoneToE164 } from "@/lib/sms";
 export async function POST(req: NextRequest) {
   const admin = await verifyAdminRequest(req);
   if (!admin) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Please log in again to Admin (session expired or missing)." }, { status: 401 });
   }
 
   try {
