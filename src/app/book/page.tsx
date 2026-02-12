@@ -36,14 +36,30 @@ export default function BookPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetch("/api/services", { cache: "no-store", headers: { "Cache-Control": "no-cache" } })
+  const fetchServices = (showLoading = true) => {
+    if (showLoading) setLoading(true);
+    fetch(`/api/services?_=${Date.now()}`, { cache: "no-store" })
       .then((r) => r.json())
-      .then((data) => {
-        setServices(Array.isArray(data) ? data : []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+      .then((data) => setServices(Array.isArray(data) ? data : []))
+      .catch(() => {})
+      .finally(() => showLoading && setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchServices(true);
+  }, []);
+
+  useEffect(() => {
+    const onFocus = () => fetchServices(false);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") fetchServices(false);
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   if (loading) {

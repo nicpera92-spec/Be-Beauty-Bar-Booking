@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyAdminRequest } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   const admin = await verifyAdminRequest(req);
   if (!admin) {
@@ -10,7 +12,9 @@ export async function GET(req: NextRequest) {
   const services = await prisma.service.findMany({
     orderBy: [{ category: "asc" }, { name: "asc" }],
   });
-  return NextResponse.json(services);
+  const res = NextResponse.json(services);
+  res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+  return res;
 }
 
 export async function POST(req: NextRequest) {

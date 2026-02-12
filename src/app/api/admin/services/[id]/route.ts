@@ -12,8 +12,13 @@ export async function PATCH(
   }
 
   const { id } = params;
-  const body = await req.json();
+  const body = await req.json().catch(() => ({}));
   const { name, category, durationMin, price, depositAmount, description, active } = body;
+
+  const current = await prisma.service.findUnique({ where: { id } });
+  if (!current) {
+    return NextResponse.json({ error: "Service not found" }, { status: 404 });
+  }
 
   const data: {
     name?: string;
@@ -24,34 +29,38 @@ export async function PATCH(
     description?: string | null;
     active?: boolean;
   } = {};
-  if (name != null && String(name).trim() !== "") data.name = String(name).trim();
-  if (category != null && String(category).trim() !== "") data.category = String(category).trim();
-  if (durationMin != null) data.durationMin = Number(durationMin);
-  if (price != null) data.price = Number(price);
-  if (depositAmount != null) data.depositAmount = Number(depositAmount);
-  if (description != null) data.description = description === "" ? "" : String(description);
+
+  if (name !== undefined) {
+    const trimmed = String(name).trim();
+    if (trimmed === "") {
+      return NextResponse.json({ error: "Service name cannot be empty" }, { status: 400 });
+    }
+    data.name = trimmed;
+  }
+  if (category !== undefined) {
+    const trimmed = String(category).trim();
+    if (trimmed === "") {
+      return NextResponse.json({ error: "Category cannot be empty" }, { status: 400 });
+    }
+    data.category = trimmed;
+  }
+  if (durationMin !== undefined) data.durationMin = Number(durationMin);
+  if (price !== undefined) data.price = Number(price);
+  if (depositAmount !== undefined) data.depositAmount = Number(depositAmount);
+  if (description !== undefined) data.description = description === null ? "" : String(description);
   if (active !== undefined) data.active = Boolean(active);
 
   if (Object.keys(data).length === 0) {
-    const current = await prisma.service.findUnique({ where: { id } });
-    if (!current) {
-      return NextResponse.json({ error: "Service not found" }, { status: 404 });
-    }
     return NextResponse.json(current);
   }
 
-  if (data.price != null || data.depositAmount != null) {
-    const current = await prisma.service.findUnique({ where: { id } });
-    if (current) {
-      const p = data.price ?? current.price;
-      const d = data.depositAmount ?? current.depositAmount;
-      if (d > p) {
-        return NextResponse.json(
-          { error: "Deposit cannot exceed full price" },
-          { status: 400 }
-        );
-      }
-    }
+  const newPrice = data.price ?? current.price;
+  const newDeposit = data.depositAmount ?? current.depositAmount;
+  if (newDeposit > newPrice) {
+    return NextResponse.json(
+      { error: "Deposit cannot exceed full price" },
+      { status: 400 }
+    );
   }
 
   const service = await prisma.service.update({

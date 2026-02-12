@@ -10,7 +10,9 @@ export async function GET() {
       orderBy: [{ category: "asc" }, { name: "asc" }],
     });
     const res = NextResponse.json(services);
-    res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+    res.headers.set("Pragma", "no-cache");
+    res.headers.set("Expires", "0");
     return res;
   } catch (e) {
     console.error(e);
