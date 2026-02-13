@@ -13,9 +13,9 @@ const SMS_WORKS_API = "https://api.thesmsworks.co.uk/v1/message/send";
 async function getSmsWorksAuthHeader(): Promise<string | null> {
   const raw = process.env.SMS_WORKS_JWT?.trim();
   if (raw) {
-    // API accepts "Bearer <token>" or the raw token; use Bearer for compatibility
+    // Docs: "Authorization: Your JSON Web Token goes here" – send raw token (no Bearer/JWT prefix)
     const token = raw.replace(/^(JWT|Bearer)\s+/i, "").trim();
-    return token ? `Bearer ${token}` : null;
+    return token || null;
   }
 
   const apiKey = process.env.SMS_WORKS_API_KEY?.trim();
