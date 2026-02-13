@@ -109,11 +109,6 @@ export async function sendBookingCreatedEmails(bookingId: string): Promise<{ ok:
 }
 
 export async function sendBookingConfirmationEmails(bookingId: string): Promise<{ ok: boolean; error?: string }> {
-  if (!resendClient) {
-    console.warn("RESEND_API_KEY not set; skipping confirmation emails.");
-    return { ok: false, error: "Email not configured" };
-  }
-
   try {
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
@@ -130,7 +125,7 @@ export async function sendBookingConfirmationEmails(bookingId: string): Promise<
     const dayLabel = formatBookingDate(booking.date, "EEEE, d MMMM yyyy");
 
     // Send to customer if they provided an email (when booking is confirmed)
-    if (booking.customerEmail) {
+    if (booking.customerEmail && resendClient) {
       const customerSubject = `Booking confirmed – ${businessName}`;
       const customerHtml = `
         <h2>Your booking is confirmed</h2>
@@ -150,9 +145,14 @@ export async function sendBookingConfirmationEmails(bookingId: string): Promise<
         subject: customerSubject,
         html: customerHtml,
       });
-      if (!r.ok) return r;
+      if (!r.ok) {
+        console.warn("Confirmation email failed:", r.error);
+      }
+    } else if (booking.customerEmail && !resendClient) {
+      console.warn("RESEND_API_KEY not set; skipping confirmation email.");
     }
 
+    // Send SMS if customer opted in (independent of email - SMS works even when Resend is not configured)
     if (booking.notifyBySMS && booking.customerPhone) {
       const smsDayLabel = formatBookingDate(booking.date, "dd/MM/yyyy");
       const smsMessage = `Hi ${booking.customerName}, your booking at ${businessName} is confirmed. ${booking.service.name} on ${smsDayLabel} at ${booking.startTime}-${booking.endTime}. We look forward to seeing you!`;
@@ -163,7 +163,7 @@ export async function sendBookingConfirmationEmails(bookingId: string): Promise<
     }
 
     // Send to admin if they set a business email in Settings
-    if (settings?.businessEmail?.trim()) {
+    if (settings?.businessEmail?.trim() && resendClient) {
       const ownerSubject = `Booking confirmed – ${booking.customerName}`;
       const ownerHtml = `
         <h2>Booking confirmed</h2>
@@ -185,7 +185,9 @@ export async function sendBookingConfirmationEmails(bookingId: string): Promise<
         subject: ownerSubject,
         html: ownerHtml,
       });
-      if (!r.ok) return r;
+      if (!r.ok) {
+        console.warn("Owner confirmation email failed:", r.error);
+      }
     }
 
     return { ok: true };
@@ -275,6 +277,92 @@ export async function sendDepositExpiredCancellationEmails(
     return { ok: true };
   } catch (e) {
     console.error("sendDepositExpiredCancellationEmails:", e);
+    return { ok: false, error: String(e) };
+  }
+}
+
+/**
+ * Send cancellation notifications when admin manually cancels a booking.
+ * Sends email and/or SMS to customer and owner.
+ */
+export async function sendManualCancellationEmails(
+  bookingId: string
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { service: true },
+    });
+    if (!booking || booking.status !== "cancelled") {
+      return { ok: false, error: "Booking not found or not cancelled" };
+    }
+
+    const settings = await prisma.businessSettings.findUnique({
+      where: { id: "default" },
+    });
+    const businessName = settings?.businessName ?? "Be Beauty Bar";
+    const dayLabel = formatBookingDate(booking.date, "EEEE, dd/MM/yyyy");
+
+    const customerSubject = `Booking cancelled – ${businessName}`;
+    const customerHtml = `
+      <h2>Your booking has been cancelled</h2>
+      <p>Hi ${booking.customerName},</p>
+      <p>Your booking has been cancelled. If you have any questions, please contact us.</p>
+      <p>Details of the cancelled booking:</p>
+      <ul>
+        <li><strong>Service:</strong> ${booking.service.name}</li>
+        <li><strong>Date:</strong> ${dayLabel}</li>
+        <li><strong>Time:</strong> ${booking.startTime} – ${booking.endTime}</li>
+      </ul>
+      <p>— ${businessName}</p>
+    `;
+
+    if (booking.notifyByEmail && booking.customerEmail && resendClient) {
+      await sendResendEmail({
+        from,
+        to: booking.customerEmail,
+        subject: customerSubject,
+        html: customerHtml,
+      });
+    } else if (booking.notifyByEmail && booking.customerEmail && !resendClient) {
+      console.warn("RESEND_API_KEY not set; cannot send cancellation email to customer.");
+    }
+
+    if (booking.notifyBySMS && booking.customerPhone) {
+      const smsDayLabel = formatBookingDate(booking.date, "dd/MM/yyyy");
+      const smsMessage = `Hi ${booking.customerName}, your booking at ${businessName} has been cancelled. ${booking.service.name} on ${smsDayLabel} at ${booking.startTime}-${booking.endTime}. If you have questions, please contact us.`;
+      const smsResult = await sendSMS(formatUKPhoneToE164(booking.customerPhone), smsMessage);
+      if (!smsResult.ok) {
+        console.warn("SMS not sent for manual cancellation notification:", smsResult.error);
+      }
+    }
+
+    if (resendClient && settings?.businessEmail?.trim()) {
+      const ownerSubject = `Booking cancelled – ${booking.customerName}`;
+      const ownerHtml = `
+        <h2>Booking cancelled</h2>
+        <p>A booking was cancelled by admin.</p>
+        <ul>
+          <li><strong>Customer:</strong> ${booking.customerName}</li>
+          <li><strong>Email:</strong> ${booking.customerEmail ?? "Not provided"}</li>
+          <li><strong>Phone:</strong> ${booking.customerPhone ?? "Not provided"}</li>
+          <li><strong>Service:</strong> ${booking.service.name}</li>
+          <li><strong>Date:</strong> ${dayLabel}</li>
+          <li><strong>Time:</strong> ${booking.startTime} – ${booking.endTime}</li>
+        </ul>
+        <p>— ${businessName} booking system</p>
+      `;
+      await sendResendEmail({
+        from,
+        to: settings.businessEmail.trim(),
+        subject: ownerSubject,
+        html: ownerHtml,
+      });
+    }
+
+    return { ok: true };
+  } catch (e) {
+    console.error("sendManualCancellationEmails:", e);
     return { ok: false, error: String(e) };
   }
 }

@@ -97,9 +97,10 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    sendBookingConfirmationEmails(bookingId).catch((e) =>
-      console.error("Confirmation emails failed after confirm-deposit:", e)
-    );
+    const emailResult = await sendBookingConfirmationEmails(bookingId);
+    if (!emailResult.ok) {
+      console.error("Confirmation emails failed after confirm-deposit:", emailResult.error);
+    }
 
     return NextResponse.json({ ok: true });
   } catch (e) {

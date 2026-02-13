@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendBookingConfirmationEmails } from "@/lib/email";
+import { sendBookingConfirmationEmails, sendManualCancellationEmails } from "@/lib/email";
 import { verifyAdminRequest } from "@/lib/auth";
 
 export async function GET(
@@ -45,9 +45,13 @@ export async function PATCH(
   });
 
   if (status === "confirmed") {
-    sendBookingConfirmationEmails(id).catch((e) =>
-      console.error("Failed to send confirmation emails:", e)
-    );
+    const r = await sendBookingConfirmationEmails(id);
+    if (!r.ok) console.error("Failed to send confirmation emails:", r.error);
+  }
+
+  if (status === "cancelled") {
+    const r = await sendManualCancellationEmails(id);
+    if (!r.ok) console.error("Failed to send cancellation emails:", r.error);
   }
 
   return NextResponse.json(booking);
