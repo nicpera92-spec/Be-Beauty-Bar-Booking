@@ -33,7 +33,7 @@ Add these for **Production** (and **Preview** if you use preview URLs). Use the 
 | **SMS_WORKS_SENDER** | `BeBeautyBar` (or your ID) | 4–11 alphanumeric. |
 | **CRON_SECRET** | A secret you choose | Only if you call the cron endpoint to auto-cancel expired deposits. |
 
-**SMS:** Use **either** `SMS_WORKS_JWT` **or** `SMS_WORKS_API_KEY` + `SMS_WORKS_API_SECRET`. Don’t set both. For Key+Secret, leave `SMS_WORKS_JWT` unset.
+**SMS:** Use **either** `SMS_WORKS_JWT` **or** `SMS_WORKS_API_KEY` + `SMS_WORKS_API_SECRET`. Don’t set both. For Key+Secret, leave `SMS_WORKS_JWT` unset. If you get "SMS Works: Unauthorized", try `SMS_WORKS_AUTH_STYLE` = `raw` or `jwt`. See `scripts/test-sms-works-curl.md` to test your token with cURL.
 
 ---
 
