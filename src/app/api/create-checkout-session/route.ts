@@ -116,7 +116,7 @@ export async function POST(req: NextRequest) {
 
     const createParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
-      payment_method_types: ["card", "paypal"],
+      payment_method_types: ["card", "paypal", "apple_pay", "link"],
       metadata: { bookingId, type },
       line_items: [
         {
