@@ -39,6 +39,7 @@ export default function AdminSettingsPage() {
   const [testSmsSending, setTestSmsSending] = useState(false);
   const [testSmsResult, setTestSmsResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [testSmsTo, setTestSmsTo] = useState("");
+  const [sessionCheck, setSessionCheck] = useState<{ ok: boolean; message: string } | null>(null);
 
   useEffect(() => {
     setHasToken(!!sessionStorage.getItem(ADMIN_TOKEN_KEY));
@@ -219,6 +220,40 @@ export default function AdminSettingsPage() {
               </div>
             </div>
             <div>
+              <p className="text-sm text-charcoal/70 mb-1">
+                <strong>Admin session check</strong>
+              </p>
+              <p className="text-xs text-charcoal/50 mb-2">
+                If &quot;Send test SMS&quot; says Unauthorized, verify your admin session is recognised first.
+              </p>
+              <div className="mt-2 flex items-center gap-2 flex-wrap mb-4">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setSessionCheck(null);
+                    try {
+                      const r = await fetch("/api/admin/verify-session", { headers: getAuthHeaders() });
+                      const data = await r.json();
+                      if (r.status === 401) {
+                        sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+                        router.replace("/admin");
+                        return;
+                      }
+                      setSessionCheck(r.ok ? { ok: true, message: "Admin session OK ✓" } : { ok: false, message: data.error ?? "Failed" });
+                    } catch {
+                      setSessionCheck({ ok: false, message: "Request failed" });
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-medium hover:bg-slate-50"
+                >
+                  Verify session
+                </button>
+                {sessionCheck && (
+                  <span className={`text-sm ${sessionCheck.ok ? "text-green-700" : "text-red-600"}`}>
+                    {sessionCheck.message}
+                  </span>
+                )}
+              </div>
               <p className="text-sm text-charcoal/70 mb-1">
                 <strong>Test SMS (SMS Works)</strong>
               </p>

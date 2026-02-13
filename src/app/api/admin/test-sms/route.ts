@@ -27,7 +27,8 @@ export async function POST(req: NextRequest) {
     const result = await sendSMS(to, "Be Beauty Bar test: if you got this, SMS is working. Booking confirmations and cancellations will use the same setup.");
     if (!result.ok) {
       const status = result.error === "SMS not configured" ? 503 : 502;
-      return NextResponse.json({ error: result.error ?? "Failed to send test SMS" }, { status });
+      const msg = `SMS Works: ${result.error ?? "Unknown error"}`;
+      return NextResponse.json({ error: msg }, { status });
     }
     return NextResponse.json({ ok: true, message: "Test SMS sent to " + to });
   } catch (e) {
