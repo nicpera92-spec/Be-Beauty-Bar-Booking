@@ -14,7 +14,9 @@ In **Vercel** → your project → **Settings** → **Environment Variables**, a
 | `RESEND_API_KEY` | For email | Resend API key (starts with `re_`) for booking emails. |
 | `STRIPE_SECRET_KEY` | For payments | Stripe secret key (e.g. `sk_live_...`). |
 | `STRIPE_WEBHOOK_SECRET` | For payments | Webhook signing secret (`whsec_...`) for Stripe. |
-| **`SMS_WORKS_JWT`** | For SMS | Your token from The SMS Works (Account → API Key → Generate Token). Paste the full token. |
+| **`SMS_WORKS_JWT`** | For SMS | Pre-generated token from Account → API Key → Generate Token. **Or** use Key + Secret below instead. |
+| **`SMS_WORKS_API_KEY`** | For SMS | From SMS Works “Generate a New API Key & Secret” (the Key value). Use with `SMS_WORKS_API_SECRET` instead of JWT. |
+| **`SMS_WORKS_API_SECRET`** | For SMS | From SMS Works (the Secret value). Use with `SMS_WORKS_API_KEY`. |
 | **`SMS_WORKS_SENDER`** | For SMS | Sender ID, 4–11 alphanumeric (e.g. `BeBeautyBar`). |
 | `CRON_SECRET` | For auto-cancel | Secret to protect the cron endpoint that cancels expired deposits. |
 

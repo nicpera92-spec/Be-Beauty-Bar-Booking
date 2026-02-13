@@ -25,13 +25,13 @@ async function getSmsWorksAuthHeader(): Promise<string | null> {
   try {
     const { SignJWT } = await import("jose");
     const secret = new TextEncoder().encode(apiSecret);
-    const token = await new SignJWT({})
-      .setSubject(apiKey)
+    // SMS Works expects JWT payload to contain "key" and "secret" (same format as their "Generate Token" UI)
+    const token = await new SignJWT({ key: apiKey, secret: apiSecret })
       .setProtectedHeader({ alg: "HS256", typ: "JWT" })
       .setIssuedAt()
       .setExpirationTime("365d")
       .sign(secret);
-    return `JWT ${token}`;
+    return `Bearer ${token}`;
   } catch (e) {
     console.error("SMS Works JWT generation failed:", e);
     return null;
