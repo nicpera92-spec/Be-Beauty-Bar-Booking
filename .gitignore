@@ -38,3 +38,22 @@ Thumbs.db
 
 # TypeScript
 next-env.d.ts
+*.tsbuildinfo
+
+# Internal docs and helper scripts (not needed in public repo)
+EMAIL NOTIFICATIONS PREVIEW.md
+ENV-VARS.md
+GET-LIVE-FIX.md
+GOING LIVE - BBBar.co.uk.md
+OPEN THE WEBSITE.txt
+PUSH TO GITHUB.bat
+Run the app.bat
+SECURITY.md
+SETUP PRODUCTION DATABASE.txt
+START HERE.txt
+Start server only.bat
+STRIPE SETUP GUIDE.md
+TWILIO SMS SETUP GUIDE.md
+VERCEL-ONE-PROJECT-SETUP.md
+scripts/test-sms-works-curl.md
+scripts/verify-site.ps1
