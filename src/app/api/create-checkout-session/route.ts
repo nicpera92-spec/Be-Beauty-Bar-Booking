@@ -116,8 +116,8 @@ export async function POST(req: NextRequest) {
 
     const createParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
-      // apple_pay not in Stripe SDK types but supported by API; link is in types
-      payment_method_types: ["card", "paypal", "apple_pay", "link"] as Stripe.Checkout.SessionCreateParams["payment_method_types"],
+      // card + paypal; Apple Pay appears automatically on Safari when enabled in Stripe Dashboard
+      payment_method_types: ["card", "paypal", "link"],
       metadata: { bookingId, type },
       line_items: [
         {
