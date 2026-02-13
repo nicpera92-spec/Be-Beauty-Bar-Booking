@@ -116,7 +116,7 @@ export async function POST(req: NextRequest) {
 
     const createParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
-      // card + paypal; Apple Pay appears automatically on Safari when enabled in Stripe Dashboard
+      // card + paypal + link. Card first; Link available but not auto-opened (we skip customer_email prefill for that).
       payment_method_types: ["card", "paypal", "link"],
       metadata: { bookingId, type },
       line_items: [
@@ -137,7 +137,9 @@ export async function POST(req: NextRequest) {
         : `${baseUrl}/booking/${bookingId}?paid=1&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/booking/${bookingId}`,
     };
-    if (booking.customerEmail) {
+    // Skip customer_email prefill to avoid Link auto-opening. Customer enters email on Stripe; card view shows first.
+    // Set STRIPE_PREFILL_EMAIL=true in env to restore email prefill (Link may auto-open for Link users).
+    if (booking.customerEmail && process.env.STRIPE_PREFILL_EMAIL === "true") {
       createParams.customer_email = booking.customerEmail;
     }
     const session = await stripe.checkout.sessions.create(createParams);
