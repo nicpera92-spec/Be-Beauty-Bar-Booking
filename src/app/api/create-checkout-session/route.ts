@@ -116,7 +116,8 @@ export async function POST(req: NextRequest) {
 
     const createParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
-      payment_method_types: ["card", "paypal", "apple_pay", "link"],
+      // apple_pay not in Stripe SDK types but supported by API; link is in types
+      payment_method_types: ["card", "paypal", "apple_pay", "link"] as Stripe.Checkout.SessionCreateParams["payment_method_types"],
       metadata: { bookingId, type },
       line_items: [
         {
