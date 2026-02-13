@@ -46,13 +46,11 @@ A booking platform for beauty businesses offering **nails**, **lash extensions**
    npm run dev
    ```
 
-   Open [http://localhost:3001](http://localhost:3001). Book at `/book`, admin at `/admin`. On your PC, see **OPEN THE WEBSITE.txt** for a 3-step guide.
+   Open [http://localhost:3001](http://localhost:3001). Book at `/book`, admin at `/admin`.
 
 ---
 
 ## Deploying online (e.g. Vercel)
-
-**Using BBBar.co.uk?** See **[GOING LIVE - BBBar.co.uk.md](GOING%20LIVE%20-%20BBBar.co.uk.md)** for a step-by-step checklist (domain, DNS, Stripe, env).
 
 1. Push your code to **GitHub** (or GitLab/Bitbucket).
 
@@ -86,11 +84,11 @@ A booking platform for beauty businesses offering **nails**, **lash extensions**
 
 ---
 
-## Pay by card (Stripe), confirmation emails (Resend), and SMS (Twilio)
+## Pay by card (Stripe), confirmation emails (Resend), and SMS (The SMS Works)
 
 - **Stripe**: Create a [Stripe](https://stripe.com) account, get **Secret key** and set `STRIPE_SECRET_KEY`. For **webhooks**, add an endpoint in Stripe Dashboard → Developers → Webhooks → `https://your-domain.com/api/webhooks/stripe`, event `checkout.session.completed`, and set `STRIPE_WEBHOOK_SECRET`. Locally, use [Stripe CLI](https://stripe.com/docs/stripe-cli): `stripe listen --forward-to localhost:3001/api/webhooks/stripe`.
 - **Resend (Email)**: Create a [Resend](https://resend.com) account, get an API key, set `RESEND_API_KEY`. Use `EMAIL_FROM` (e.g. `Be Beauty Bar <onboarding@resend.dev>`). Add **Business email** in Admin → Settings so you receive confirmation emails when a booking is confirmed.
-- **Twilio (SMS)**: Create a [Twilio](https://www.twilio.com) account, get your **Account SID**, **Auth Token**, and a **phone number**. Set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_PHONE_NUMBER` (E.164 format, e.g. `+447123456789`). Customers can choose to receive notifications via SMS, email, or both.
+- **SMS (The SMS Works)**: Create an account at [The SMS Works](https://thesmsworks.co.uk), generate a token in API Key → Generate Token, and set `SMS_WORKS_JWT` and `SMS_WORKS_SENDER` (4–11 alphanumeric, e.g. `BeBeautyBar`). Customers can choose to receive notifications via SMS, email, or both.
 
 ## Customizing deposit amounts
 

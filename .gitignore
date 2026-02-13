@@ -53,7 +53,6 @@ SETUP PRODUCTION DATABASE.txt
 START HERE.txt
 Start server only.bat
 STRIPE SETUP GUIDE.md
-TWILIO SMS SETUP GUIDE.md
 VERCEL-ONE-PROJECT-SETUP.md
 scripts/test-sms-works-curl.md
 scripts/verify-site.ps1
