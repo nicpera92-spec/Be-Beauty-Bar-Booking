@@ -82,10 +82,10 @@ export default function AdminCalendarPage() {
 
   useEffect(() => {
     if (!token) return;
-    const monthStart = startOfMonth(monthDate);
-    const monthEnd = endOfMonth(monthDate);
-    const weekStart = startOfWeek(monthStart, { weekStartsOn: 1 });
-    const weekEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+    const month1Start = startOfMonth(monthDate);
+    const month2End = endOfMonth(addMonths(monthDate, 1));
+    const weekStart = startOfWeek(month1Start, { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(month2End, { weekStartsOn: 1 });
     fetchData(format(weekStart, "yyyy-MM-dd"), format(weekEnd, "yyyy-MM-dd"));
   }, [token, monthDate, fetchData]);
 
@@ -97,14 +97,22 @@ export default function AdminCalendarPage() {
     );
   }
 
-  // One month: grid from first Monday on or before 1st to last Sunday on or after last day of month
-  const monthStart = startOfMonth(monthDate);
-  const monthEnd = endOfMonth(monthDate);
-  const weekStart = startOfWeek(monthStart, { weekStartsOn: 1 });
-  const weekEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
-  const daysInView = eachDayOfInterval({ start: weekStart, end: weekEnd });
+  // Two months: build grids for monthDate and monthDate+1
+  const month1Start = startOfMonth(monthDate);
+  const month1End = endOfMonth(monthDate);
+  const month2Start = startOfMonth(addMonths(monthDate, 1));
+  const month2End = endOfMonth(addMonths(monthDate, 1));
+  const week1Start = startOfWeek(month1Start, { weekStartsOn: 1 });
+  const week1End = endOfWeek(month1End, { weekStartsOn: 1 });
+  const week2Start = startOfWeek(month2Start, { weekStartsOn: 1 });
+  const week2End = endOfWeek(month2End, { weekStartsOn: 1 });
+  const daysInView1 = eachDayOfInterval({ start: week1Start, end: week1End });
+  const daysInView2 = eachDayOfInterval({ start: week2Start, end: week2End });
 
-  // Filter bookings for the visible month range
+  // Filter bookings for the visible month range (both months)
+  const weekStart = week1Start;
+  const weekEnd = week2End;
+
   const activeBookings = bookings.filter((b) => {
     if (b.status === "cancelled") return false;
     const bookingDate = parse(b.date, "yyyy-MM-dd", new Date());
@@ -157,8 +165,8 @@ export default function AdminCalendarPage() {
           <button
             type="button"
             onClick={() => {
-            const ws = startOfWeek(monthStart, { weekStartsOn: 1 });
-            const we = endOfWeek(monthEnd, { weekStartsOn: 1 });
+            const ws = startOfWeek(month1Start, { weekStartsOn: 1 });
+            const we = endOfWeek(month2End, { weekStartsOn: 1 });
             fetchData(format(ws, "yyyy-MM-dd"), format(we, "yyyy-MM-dd"));
           }}
             className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-charcoal text-sm font-medium transition"
@@ -196,7 +204,7 @@ export default function AdminCalendarPage() {
         </button>
         <div className="flex items-center gap-4">
           <h2 className="text-base sm:text-xl font-semibold text-charcoal text-center">
-            {format(monthDate, "MMMM yyyy")}
+            {format(monthDate, "MMMM yyyy")} & {format(addMonths(monthDate, 1), "MMMM yyyy")}
           </h2>
           <button
             type="button"
@@ -217,77 +225,83 @@ export default function AdminCalendarPage() {
 
       {/* Calendar + Overview side by side */}
       <div className="flex flex-col lg:flex-row gap-6 items-start">
-        {/* Calendar Grid - left */}
-        <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 flex-1 min-w-0 w-full overflow-x-auto">
-          {/* Day Headers */}
-          <div className="grid grid-cols-7 gap-1.5 sm:gap-2 mb-2 min-w-[280px]">
-            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
-              <div key={day} className="text-center text-sm font-medium text-charcoal/60 py-2">
-                {day}
+        {/* Calendar Grids - two months side by side */}
+        <div className="flex-1 min-w-0 w-full flex flex-col sm:flex-row gap-6 overflow-x-auto">
+          {[
+            { days: daysInView1, monthStart: month1Start, monthEnd: month1End, title: format(monthDate, "MMMM yyyy") },
+            { days: daysInView2, monthStart: month2Start, monthEnd: month2End, title: format(addMonths(monthDate, 1), "MMMM yyyy") },
+          ].map(({ days, monthStart, monthEnd, title }) => (
+            <div key={title} className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 flex-1 min-w-[280px]">
+              <h3 className="text-sm font-semibold text-charcoal mb-3">{title}</h3>
+              {/* Day Headers */}
+              <div className="grid grid-cols-7 gap-1.5 sm:gap-2 mb-2">
+                {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
+                  <div key={day} className="text-center text-sm font-medium text-charcoal/60 py-2">
+                    {day}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+              {/* Calendar Days */}
+              <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+                {days.map((day) => {
+                  const dayBookings = getBookingsForDate(day);
+                  const dateStr = format(day, "yyyy-MM-dd");
+                  const isSelected = selectedDate === dateStr;
+                  const isCurrentMonth = day >= monthStart && day <= monthEnd;
+                  const dayHasTimeOff = hasTimeOff(day);
 
-          {/* Calendar Days */}
-          <div className="grid grid-cols-7 gap-1.5 sm:gap-2 min-w-[280px]">
-            {/* One month grid (includes leading/trailing days from adjacent months) */}
-            {daysInView.map((day) => {
-              const dayBookings = getBookingsForDate(day);
-              const dateStr = format(day, "yyyy-MM-dd");
-              const isSelected = selectedDate === dateStr;
-              const isCurrentMonth = day >= monthStart && day <= monthEnd;
-              const dayHasTimeOff = hasTimeOff(day);
-
-              return (
-                <button
-                  key={dateStr}
-                  type="button"
-                  onClick={() => setSelectedDate(isSelected ? null : dateStr)}
-                  className={`
-                    aspect-square p-1.5 sm:p-2 rounded-lg border-2 transition-all touch-manipulation min-h-[44px]
-                    ${isToday(day) ? "border-navy bg-navy/5" : "border-slate-200"}
-                    ${isPast(day) ? "bg-slate-300 text-slate-500 hover:bg-slate-300" : ""}
-                    ${!isPast(day) && !isCurrentMonth ? "bg-slate-50/50 text-slate-400" : ""}
-                    ${dayHasTimeOff && !isPast(day) ? "bg-violet-50/80 border-violet-200/60" : ""}
-                    ${isSelected ? "ring-2 ring-navy ring-offset-2" : ""}
-                    ${isCurrentMonth && !isPast(day) ? "hover:border-navy/50 hover:bg-slate-50" : ""}
-                  `}
-                >
-                  <div className="flex flex-col h-full">
-                    <div className={`text-sm font-medium mb-1 ${isToday(day) ? "text-navy" : isPast(day) ? "text-slate-500" : !isCurrentMonth ? "text-slate-400" : "text-charcoal"}`}>
-                      {format(day, "d")}
-                    </div>
-                    {dayHasTimeOff && (
-                      <div className="text-[10px] sm:text-xs text-violet-600 font-medium truncate" title="Time off">
-                        Time off
-                      </div>
-                    )}
-                    {dayBookings.length > 0 && (
-                      <div className="flex-1 flex flex-col gap-0.5 overflow-hidden">
-                        {dayBookings.slice(0, 3).map((booking) => (
-                          <div
-                            key={booking.id}
-                            className={`
-                              text-xs px-1.5 py-0.5 rounded truncate
-                              ${booking.status === "confirmed" ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"}
-                            `}
-                            title={`${booking.customerName} - ${booking.service.name} ${booking.startTime}`}
-                          >
-                            {booking.startTime} {booking.customerName.split(" ")[0]}
+                  return (
+                    <button
+                      key={dateStr}
+                      type="button"
+                      onClick={() => setSelectedDate(isSelected ? null : dateStr)}
+                      className={`
+                        aspect-square p-1.5 sm:p-2 rounded-lg border-2 transition-all touch-manipulation min-h-[44px]
+                        ${isToday(day) ? "border-navy bg-navy/5" : "border-slate-200"}
+                        ${isPast(day) ? "bg-slate-300 text-slate-500 hover:bg-slate-300" : ""}
+                        ${!isPast(day) && !isCurrentMonth ? "bg-slate-50/50 text-slate-400" : ""}
+                        ${dayHasTimeOff && !isPast(day) ? "bg-violet-50/80 border-violet-200/60" : ""}
+                        ${isSelected ? "ring-2 ring-navy ring-offset-2" : ""}
+                        ${isCurrentMonth && !isPast(day) ? "hover:border-navy/50 hover:bg-slate-50" : ""}
+                      `}
+                    >
+                      <div className="flex flex-col h-full">
+                        <div className={`text-sm font-medium mb-1 ${isToday(day) ? "text-navy" : isPast(day) ? "text-slate-500" : !isCurrentMonth ? "text-slate-400" : "text-charcoal"}`}>
+                          {format(day, "d")}
+                        </div>
+                        {dayHasTimeOff && (
+                          <div className="text-[10px] sm:text-xs text-violet-600 font-medium truncate" title="Time off">
+                            Time off
                           </div>
-                        ))}
-                        {dayBookings.length > 3 && (
-                          <div className="text-xs text-charcoal/60 font-medium">
-                            +{dayBookings.length - 3} more
+                        )}
+                        {dayBookings.length > 0 && (
+                          <div className="flex-1 flex flex-col gap-0.5 overflow-hidden">
+                            {dayBookings.slice(0, 3).map((booking) => (
+                              <div
+                                key={booking.id}
+                                className={`
+                                  text-xs px-1.5 py-0.5 rounded truncate
+                                  ${booking.status === "confirmed" ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"}
+                                `}
+                                title={`${booking.customerName} - ${booking.service.name} ${booking.startTime}`}
+                              >
+                                {booking.startTime} {booking.customerName.split(" ")[0]}
+                              </div>
+                            ))}
+                            {dayBookings.length > 3 && (
+                              <div className="text-xs text-charcoal/60 font-medium">
+                                +{dayBookings.length - 3} more
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* Overview - right */}

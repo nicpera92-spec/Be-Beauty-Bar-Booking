@@ -203,7 +203,7 @@ export default function BookDatePage() {
             </div>
           ))}
           <p className="mt-6 text-sm text-slate-600">
-            Emergency after-hours appointments available upon request. Enquire via{" "}
+            <span className="font-bold text-red-600">Emergency</span> after-hours appointments available upon request. Enquire via{" "}
             <a
               href={`https://instagram.com/${(settings?.instagramHandle || "bebeauty.bar").replace(/^@/, "")}`}
               target="_blank"
