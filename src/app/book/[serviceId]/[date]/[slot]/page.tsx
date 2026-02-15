@@ -183,7 +183,8 @@ export default function BookFormPage() {
       </p>
       {addOns.length > 0 && (
         <div className="rounded-lg border border-slate-200 bg-slate-50/30 p-4 mb-4">
-          <p className="text-sm font-medium text-slate-700 mb-2">Add-ons (optional)</p>
+          <p className="text-sm font-medium text-slate-700 mb-1">Add-ons (optional)</p>
+          <p className="text-xs text-slate-500 mb-3">Select any add-ons to include — they will be added to your final price and deposit.</p>
           <div className="space-y-2">
             {addOns.map((a) => (
               <label key={a.id} className="flex items-center gap-3 cursor-pointer">
