@@ -143,7 +143,32 @@ export default function BookPage() {
                         : "border-slate-200 bg-white hover:border-navy/30 hover:shadow-md"
                     }`}
                   >
-                    <h3 className="font-medium text-slate-800">{s.name}</h3>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-medium text-slate-800">{s.name}</h3>
+                      {s.addOns && s.addOns.length > 0 && (
+                        <div className="flex items-center gap-2 text-sm text-slate-700" onClick={(e) => e.stopPropagation()}>
+                          <span>Add-ons</span>
+                          <select
+                            value={selectedAddOnId[s.id] ?? ""}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              setSelectedAddOnId((prev) => ({ ...prev, [s.id]: value }));
+                              if (selectedServiceId === s.id) {
+                                continueRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                              }
+                            }}
+                            className="text-sm text-slate-700 bg-transparent border-none outline-none focus:ring-0 cursor-pointer py-1"
+                          >
+                            <option value="">None</option>
+                            {s.addOns.map((a) => (
+                              <option key={a.id} value={a.id}>
+                                {a.name} +{formatCurrency(a.price)}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
                     {(() => {
                       const addOn = s.addOns?.find((a) => a.id === selectedAddOnId[s.id]);
                       const totalPrice = addOn ? s.price + addOn.price : s.price;
@@ -153,29 +178,6 @@ export default function BookPage() {
                         </p>
                       );
                     })()}
-                    {s.addOns && s.addOns.length > 0 && (
-                      <div className="mt-2 flex items-center gap-2 text-sm text-slate-700" onClick={(e) => e.stopPropagation()}>
-                        <span>Add-ons</span>
-                        <select
-                          value={selectedAddOnId[s.id] ?? ""}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            setSelectedAddOnId((prev) => ({ ...prev, [s.id]: value }));
-                            if (selectedServiceId === s.id) {
-                              continueRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-                            }
-                          }}
-                          className="text-sm text-slate-700 bg-transparent border-none outline-none focus:ring-0 cursor-pointer py-1"
-                        >
-                          <option value="">None</option>
-                          {s.addOns.map((a) => (
-                            <option key={a.id} value={a.id}>
-                              {a.name} +{formatCurrency(a.price)}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
                     {s.description && (
                       <div className="mt-2 w-full" onClick={(e) => e.stopPropagation()}>
                         <span
