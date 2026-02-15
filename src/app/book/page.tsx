@@ -143,7 +143,7 @@ export default function BookPage() {
                         : "border-slate-200 bg-white hover:border-navy/30 hover:shadow-md"
                     }`}
                   >
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-4 sm:gap-6 flex-wrap">
                       <h3 className="font-medium text-slate-800">{s.name}</h3>
                       {s.addOns && s.addOns.length > 0 && (
                         <div className="flex items-center gap-2 text-sm text-slate-700" onClick={(e) => e.stopPropagation()}>
