@@ -138,6 +138,7 @@ function AdminServiceRow({
   allServices: Service[];
 }) {
   const [editing, setEditing] = useState(false);
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [form, setForm] = useState({
     name: service.name,
     category: service.category,
@@ -414,10 +415,7 @@ function AdminServiceRow({
                   {formatCategoryName(service.category)}
                 </span>
               </h3>
-              {service.description && (
-                <p className="text-sm text-charcoal/60 mt-0.5">{service.description}</p>
-              )}
-              <p className="text-sm text-charcoal/50 mt-1">
+              <p className="text-sm font-semibold text-charcoal mt-1">
                 {service.durationMin} min · {formatCurrency(service.price)} · {formatCurrency(service.depositAmount)} deposit
               </p>
             </div>
@@ -450,6 +448,22 @@ function AdminServiceRow({
               )}
             </div>
           </div>
+          {service.description && (
+            <div className="mt-3 w-full">
+              <button
+                type="button"
+                onClick={() => setDescriptionExpanded((e) => !e)}
+                className="text-sm text-sky-600 hover:underline"
+              >
+                {descriptionExpanded ? "Hide description ▲" : "View description ▼"}
+              </button>
+              {descriptionExpanded && (
+                <p className="text-sm text-charcoal/60 mt-1.5 w-full">
+                  {service.description}
+                </p>
+              )}
+            </div>
+          )}
         </>
       )}
     </div>
