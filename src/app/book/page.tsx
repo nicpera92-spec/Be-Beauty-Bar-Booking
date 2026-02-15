@@ -42,7 +42,7 @@ export default function BookPage() {
   const [loading, setLoading] = useState(true);
   const [expandedDescriptionId, setExpandedDescriptionId] = useState<string | null>(null);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
-  const [selectedAddOnIds, setSelectedAddOnIds] = useState<Record<string, string[]>>({}); // serviceId -> addOnIds
+  const [selectedAddOnId, setSelectedAddOnId] = useState<Record<string, string>>({}); // serviceId -> addOnId (single)
   const continueRef = useRef<HTMLDivElement>(null);
 
   const fetchServices = (showLoading = true) => {
@@ -94,8 +94,8 @@ export default function BookPage() {
 
   const handleContinue = () => {
     if (!selectedServiceId) return;
-    const addOns = selectedAddOnIds[selectedServiceId] ?? [];
-    const query = addOns.length > 0 ? `?addOns=${addOns.join(",")}` : "";
+    const addOnId = selectedAddOnId[selectedServiceId];
+    const query = addOnId ? `?addOns=${addOnId}` : "";
     router.push(`/book/${selectedServiceId}${query}`);
   };
 
@@ -144,31 +144,38 @@ export default function BookPage() {
                     }`}
                   >
                     <h3 className="font-medium text-slate-800">{s.name}</h3>
-                    <p className="text-sm text-slate-900 mt-0.5">
-                      Duration {formatDurationHours(s.durationMin)} · Price {formatPriceShort(s.price)} · {formatPriceShort(s.depositAmount)} deposit
-                    </p>
+                    {(() => {
+                      const addOn = s.addOns?.find((a) => a.id === selectedAddOnId[s.id]);
+                      const totalPrice = addOn ? s.price + addOn.price : s.price;
+                      return (
+                        <p className="text-sm text-slate-900 mt-0.5">
+                          Duration {formatDurationHours(s.durationMin)} · Price {formatPriceShort(s.price)}
+                          {addOn && <span> + {addOn.name} {formatPriceShort(addOn.price)} = {formatPriceShort(totalPrice)} total</span>}
+                          {" · "}{formatPriceShort(s.depositAmount)} deposit
+                        </p>
+                      );
+                    })()}
                     {s.addOns && s.addOns.length > 0 && (
                       <div className="mt-3" onClick={(e) => e.stopPropagation()}>
                         <label className="block text-xs font-medium text-slate-600 mb-1">Add-ons</label>
                         <select
-                          multiple
-                          value={selectedAddOnIds[s.id] ?? []}
+                          value={selectedAddOnId[s.id] ?? ""}
                           onChange={(e) => {
-                            const selected = Array.from(e.target.selectedOptions, (o) => o.value);
-                            setSelectedAddOnIds((prev) => ({ ...prev, [s.id]: selected }));
+                            const value = e.target.value;
+                            setSelectedAddOnId((prev) => ({ ...prev, [s.id]: value }));
                             if (selectedServiceId === s.id) {
                               continueRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
                             }
                           }}
-                          className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 focus:border-navy focus:ring-1 focus:ring-navy/20 min-h-[80px]"
+                          className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 focus:border-navy focus:ring-1 focus:ring-navy/20"
                         >
+                          <option value="">None</option>
                           {s.addOns.map((a) => (
                             <option key={a.id} value={a.id}>
                               {a.name} +{formatCurrency(a.price)}
                             </option>
                           ))}
                         </select>
-                        <p className="text-xs text-slate-500 mt-1">Hold Ctrl (Windows) or Cmd (Mac) to select multiple</p>
                       </div>
                     )}
                     {s.description && (
