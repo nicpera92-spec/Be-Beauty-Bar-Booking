@@ -2,8 +2,6 @@ import {
   addMinutes,
   format,
   parse,
-  setHours,
-  setMinutes,
   isBefore,
   isAfter,
   isSameDay,
@@ -19,8 +17,8 @@ type Block = { startDate: string; startTime: string; endDate: string; endTime: s
 export function getSlotsForDay(
   dateStr: string,
   day: Date,
-  openHour: number,
-  closeHour: number,
+  openTime: string,  // HH:mm
+  closeTime: string,  // HH:mm
   interval: number,
   duration: number,
   existingBookings: BookingSlot[],
@@ -28,8 +26,8 @@ export function getSlotsForDay(
   now: Date
 ): { start: string; end: string }[] {
   const slots: { start: string; end: string }[] = [];
-  const open = setMinutes(setHours(day, openHour), 0);
-  const close = setMinutes(setHours(day, closeHour), 0);
+  const open = parse(openTime, "HH:mm", day);
+  const close = parse(closeTime, "HH:mm", day);
   let cursor = open;
 
   while (true) {

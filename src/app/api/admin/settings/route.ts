@@ -29,8 +29,8 @@ export async function PATCH(req: NextRequest) {
     instagramHandle,
     defaultDepositAmount,
     defaultPrice,
-    openHour,
-    closeHour,
+    openTime,
+    closeTime,
     slotInterval,
     stripeSecretKey,
     stripeWebhookSecret,
@@ -43,8 +43,8 @@ export async function PATCH(req: NextRequest) {
   if (instagramHandle != null) data.instagramHandle = instagramHandle === "" ? null : instagramHandle;
   if (defaultDepositAmount != null) data.defaultDepositAmount = defaultDepositAmount === "" ? null : Number(defaultDepositAmount);
   if (defaultPrice != null) data.defaultPrice = defaultPrice === "" ? null : Number(defaultPrice);
-  if (openHour != null) data.openHour = Number(openHour);
-  if (closeHour != null) data.closeHour = Number(closeHour);
+  if (openTime != null) data.openTime = String(openTime);
+  if (closeTime != null) data.closeTime = String(closeTime);
   if (slotInterval != null) data.slotInterval = Number(slotInterval);
   // Only update Stripe keys if a new value is provided (empty string means clear, undefined means don't change)
   if (stripeSecretKey !== undefined) {
@@ -64,8 +64,8 @@ export async function PATCH(req: NextRequest) {
       instagramHandle: (data.instagramHandle as string | null) ?? null,
       defaultDepositAmount: (data.defaultDepositAmount as number | null) ?? null,
       defaultPrice: (data.defaultPrice as number | null) ?? null,
-      openHour: (data.openHour as number) ?? 9,
-      closeHour: (data.closeHour as number) ?? 17,
+      openTime: (data.openTime as string) ?? "09:00",
+      closeTime: (data.closeTime as string) ?? "17:00",
       slotInterval: (data.slotInterval as number) ?? 30,
       primaryColor: "#1e3a5f",
       secondaryColor: "#2c5282",

@@ -11,8 +11,8 @@ export async function GET() {
         data: {
           id: "default",
           businessName: "Be Beauty Bar",
-          openHour: 9,
-          closeHour: 17,
+          openTime: "09:00",
+          closeTime: "17:00",
           slotInterval: 30,
         },
       });

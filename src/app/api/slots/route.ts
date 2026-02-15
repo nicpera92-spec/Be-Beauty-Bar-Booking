@@ -35,13 +35,13 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ slots: [] });
     }
 
-    const s = settings ?? { openHour: 9, closeHour: 17, slotInterval: 30 };
+    const s = settings ?? { openTime: "09:00", closeTime: "17:00", slotInterval: 30 };
     const now = new Date();
     const slots = getSlotsForDay(
       date,
       day,
-      s.openHour,
-      s.closeHour,
+      s.openTime,
+      s.closeTime,
       s.slotInterval,
       service.durationMin,
       existingBookings,

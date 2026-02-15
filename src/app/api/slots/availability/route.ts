@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Service not found" }, { status: 404 });
     }
 
-    const s = settings ?? { openHour: 9, closeHour: 17, slotInterval: 30 };
+    const s = settings ?? { openTime: "09:00", closeTime: "17:00", slotInterval: 30 };
     const fromDate = parse(from, "yyyy-MM-dd", new Date());
     const toDate = parse(to, "yyyy-MM-dd", new Date());
     const now = new Date();
@@ -50,8 +50,8 @@ export async function GET(req: NextRequest) {
       const slots = getSlotsForDay(
         dateStr,
         day,
-        s.openHour,
-        s.closeHour,
+        s.openTime,
+        s.closeTime,
         s.slotInterval,
         service.durationMin,
         dayBookings,

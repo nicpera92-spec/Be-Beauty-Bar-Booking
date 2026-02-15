@@ -42,9 +42,9 @@ model BusinessSettings {
   instagramHandle      String?  // e.g. bebeautybar — for "DM on Instagram" note
   defaultDepositAmount Float?   // optional default when adding new services (£)
   defaultPrice         Float?   // optional default full price for new services (£)
-  openHour             Int      @default(9)   // 24h, e.g. 9 = 9am
-  closeHour            Int      @default(17)  // 24h, e.g. 17 = 5pm
-  slotInterval         Int      @default(30)  // minutes between slots
+  openTime             String   @default("09:00")  // HH:mm, 15-min steps e.g. 09:15
+  closeTime            String   @default("17:00")  // HH:mm, 15-min steps e.g. 21:45
+  slotInterval         Int      @default(30)  // minutes between slots (5, 15, 30, etc.)
   primaryColor         String?  @default("#1e3a5f") // main accent color (hex)
   secondaryColor       String?  @default("#2c5282") // secondary accent color (hex)
   stripeSecretKey      String?  // Stripe secret key (starts with sk_test_ or sk_live_)

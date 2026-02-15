@@ -13,14 +13,22 @@ function getAuthHeaders(): Record<string, string> {
   return { Authorization: `Bearer ${t}`, "X-Admin-Token": t };
 }
 
+// Time options every 15 mins: 00:00, 00:15, ..., 23:45
+const TIME_OPTIONS: string[] = [];
+for (let h = 0; h < 24; h++) {
+  for (let m = 0; m < 60; m += 15) {
+    TIME_OPTIONS.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+  }
+}
+
 type Settings = {
   businessName: string;
   businessEmail?: string | null;
   instagramHandle?: string | null;
   defaultDepositAmount?: number | null;
   defaultPrice?: number | null;
-  openHour: number;
-  closeHour: number;
+  openTime: string;
+  closeTime: string;
   slotInterval: number;
   stripeSecretKey?: string | null;
   stripeWebhookSecret?: string | null;
@@ -65,8 +73,8 @@ export default function AdminSettingsPage() {
             instagramHandle: data.instagramHandle ?? "",
             defaultDepositAmount: data.defaultDepositAmount ?? undefined,
             defaultPrice: data.defaultPrice ?? undefined,
-            openHour: data.openHour,
-            closeHour: data.closeHour,
+            openTime: data.openTime ?? (data.openHour != null ? `${String(data.openHour).padStart(2, "0")}:00` : "09:00"),
+            closeTime: data.closeTime ?? (data.closeHour != null ? `${String(data.closeHour).padStart(2, "0")}:00` : "17:00"),
             slotInterval: data.slotInterval,
             stripeSecretKey: "", // Always start empty for security (password field)
             stripeWebhookSecret: "", // Always start empty for security (password field)
@@ -88,8 +96,8 @@ export default function AdminSettingsPage() {
       instagramHandle: form.instagramHandle,
       defaultDepositAmount: form.defaultDepositAmount,
       defaultPrice: form.defaultPrice,
-      openHour: form.openHour,
-      closeHour: form.closeHour,
+      openTime: form.openTime,
+      closeTime: form.closeTime,
       slotInterval: form.slotInterval,
       smsNotificationFee: form.smsNotificationFee,
     };
@@ -124,8 +132,8 @@ export default function AdminSettingsPage() {
             instagramHandle: data.instagramHandle ?? "",
             defaultDepositAmount: data.defaultDepositAmount ?? undefined,
             defaultPrice: data.defaultPrice ?? undefined,
-            openHour: data.openHour,
-            closeHour: data.closeHour,
+            openTime: data.openTime ?? (data.openHour != null ? `${String(data.openHour).padStart(2, "0")}:00` : "09:00"),
+            closeTime: data.closeTime ?? (data.closeHour != null ? `${String(data.closeHour).padStart(2, "0")}:00` : "17:00"),
             slotInterval: data.slotInterval,
             stripeSecretKey: "", // Always start empty for security (password field)
             stripeWebhookSecret: "", // Always start empty for security (password field)
@@ -404,33 +412,28 @@ export default function AdminSettingsPage() {
           </p>
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm text-charcoal/70 mb-1">Open (hour)</label>
-              <input
-                type="number"
-                min={0}
-                max={23}
-                value={form.openHour ?? 9}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, openHour: parseInt(e.target.value, 10) || 9 }))
-                }
+              <label className="block text-sm text-charcoal/70 mb-1">Open</label>
+              <select
+                value={form.openTime ?? "09:00"}
+                onChange={(e) => setForm((f) => ({ ...f, openTime: e.target.value }))}
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 focus:ring-1 focus:ring-sky-200 outline-none bg-white"
-              />
+              >
+                {TIME_OPTIONS.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
             </div>
             <div>
-              <label className="block text-sm text-charcoal/70 mb-1">Close (hour)</label>
-              <input
-                type="number"
-                min={0}
-                max={23}
-                value={form.closeHour ?? 17}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    closeHour: parseInt(e.target.value, 10) || 17,
-                  }))
-                }
+              <label className="block text-sm text-charcoal/70 mb-1">Close</label>
+              <select
+                value={form.closeTime ?? "17:00"}
+                onChange={(e) => setForm((f) => ({ ...f, closeTime: e.target.value }))}
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 focus:ring-1 focus:ring-sky-200 outline-none bg-white"
-              />
+              >
+                {TIME_OPTIONS.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-sm text-charcoal/70 mb-1">
