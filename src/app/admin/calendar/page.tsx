@@ -269,7 +269,7 @@ export default function AdminCalendarPage() {
                             key={booking.id}
                             className={`
                               text-xs px-1.5 py-0.5 rounded truncate
-                              ${booking.status === "confirmed" ? "bg-navy/10 text-navy" : "bg-amber-100 text-amber-800"}
+                              ${booking.status === "confirmed" ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"}
                             `}
                             title={`${booking.customerName} - ${booking.service.name} ${booking.startTime}`}
                           >
