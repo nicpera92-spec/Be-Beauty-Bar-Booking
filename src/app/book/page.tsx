@@ -103,7 +103,7 @@ export default function BookPage() {
         confirm your booking.
       </p>
 
-      <div className="space-y-16">
+      <div className="space-y-8">
         {allCategories.map((cat) => {
           const list = byCategory[cat] ?? [];
           if (list.length === 0) return null;
