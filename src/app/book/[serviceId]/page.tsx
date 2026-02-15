@@ -203,14 +203,14 @@ export default function BookDatePage() {
               </div>
             </div>
           ))}
-          <div className="mt-6 rounded-lg border-2 border-navy/30 bg-navy/5 px-4 py-3">
+          <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50/50 px-4 py-3">
             <p className="text-sm text-slate-700 leading-relaxed">
-              Private after-hours appointments are available upon request. Enquire via{" "}
+              Emergency after-hours appointments available upon request. Enquire via{" "}
               <a
                 href={`https://instagram.com/${(settings?.instagramHandle || "bebeauty.bar").replace(/^@/, "")}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-semibold text-navy hover:underline underline decoration-2 decoration-navy/60"
+                className="text-navy hover:underline"
               >
                 @bebeauty.bar
               </a>
