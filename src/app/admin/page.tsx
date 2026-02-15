@@ -239,13 +239,13 @@ export default function AdminPage() {
 
       <section>
         <h2 className="font-medium text-charcoal mb-4">
-          Pending deposit ({pending.length})
+          Confirmed ({confirmed.length})
         </h2>
-        {pending.length === 0 ? (
-          <p className="text-charcoal/60 text-sm">No bookings awaiting deposit.</p>
+        {confirmed.length === 0 ? (
+          <p className="text-charcoal/60 text-sm">No confirmed bookings yet.</p>
         ) : (
           <div className="space-y-3">
-            {pending.map((b) => (
+            {confirmed.map((b) => (
               <AdminBookingRow
                 key={b.id}
                 booking={b}
@@ -259,13 +259,13 @@ export default function AdminPage() {
 
       <section className="mt-10">
         <h2 className="font-medium text-charcoal mb-4">
-          Confirmed ({confirmed.length})
+          Pending deposit ({pending.length})
         </h2>
-        {confirmed.length === 0 ? (
-          <p className="text-charcoal/60 text-sm">No confirmed bookings yet.</p>
+        {pending.length === 0 ? (
+          <p className="text-charcoal/60 text-sm">No bookings awaiting deposit.</p>
         ) : (
           <div className="space-y-3">
-            {confirmed.map((b) => (
+            {pending.map((b) => (
               <AdminBookingRow
                 key={b.id}
                 booking={b}
