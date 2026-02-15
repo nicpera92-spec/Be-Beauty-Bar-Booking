@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { formatCurrency, formatPriceShort, formatDurationHours } from "@/lib/format";
 
 type AddOn = { id: string; name: string; price: number };
@@ -36,9 +37,13 @@ function formatCategoryName(category: string): string {
 }
 
 export default function BookPage() {
+  const router = useRouter();
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedDescriptionId, setExpandedDescriptionId] = useState<string | null>(null);
+  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
+  const [selectedAddOnIds, setSelectedAddOnIds] = useState<Record<string, string[]>>({}); // serviceId -> addOnIds
+  const continueRef = useRef<HTMLDivElement>(null);
 
   const fetchServices = (showLoading = true) => {
     if (showLoading) setLoading(true);
@@ -87,6 +92,18 @@ export default function BookPage() {
     .filter((cat) => byCategory[cat] && byCategory[cat].length > 0)
     .sort();
 
+  const handleContinue = () => {
+    if (!selectedServiceId) return;
+    const addOns = selectedAddOnIds[selectedServiceId] ?? [];
+    const query = addOns.length > 0 ? `?addOns=${addOns.join(",")}` : "";
+    router.push(`/book/${selectedServiceId}${query}`);
+  };
+
+  const handleServiceSelect = (serviceId: string) => {
+    setSelectedServiceId(serviceId);
+    continueRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-8 py-16 sm:py-20 md:py-28">
       <Link
@@ -117,34 +134,55 @@ export default function BookPage() {
               </h2>
               <div className="space-y-4">
                 {list.map((s) => (
-                  <Link
+                  <div
                     key={s.id}
-                    href={`/book/${s.id}`}
-                    className="block p-4 sm:p-6 rounded-lg border border-slate-200 bg-white hover:border-navy/30 hover:shadow-md transition-all duration-200 touch-manipulation active:bg-slate-50"
+                    onClick={() => handleServiceSelect(s.id)}
+                    className={`block p-4 sm:p-6 rounded-lg border-2 cursor-pointer transition-all duration-200 touch-manipulation ${
+                      selectedServiceId === s.id
+                        ? "border-navy bg-navy/5 shadow-md"
+                        : "border-slate-200 bg-white hover:border-navy/30 hover:shadow-md"
+                    }`}
                   >
                     <h3 className="font-medium text-slate-800">{s.name}</h3>
                     <p className="text-sm text-slate-900 mt-0.5">
                       Duration {formatDurationHours(s.durationMin)} · Price {formatPriceShort(s.price)} · {formatPriceShort(s.depositAmount)} deposit
-                      {s.addOns && s.addOns.length > 0 && (
-                        <span className="text-slate-500 text-xs block mt-0.5">
-                          Add-ons: {s.addOns.map((a) => `${a.name} +${formatPriceShort(a.price)}`).join(", ")}
-                        </span>
-                      )}
                     </p>
+                    {s.addOns && s.addOns.length > 0 && (
+                      <div className="mt-3" onClick={(e) => e.stopPropagation()}>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Add-ons</label>
+                        <select
+                          multiple
+                          value={selectedAddOnIds[s.id] ?? []}
+                          onChange={(e) => {
+                            const selected = Array.from(e.target.selectedOptions, (o) => o.value);
+                            setSelectedAddOnIds((prev) => ({ ...prev, [s.id]: selected }));
+                            if (selectedServiceId === s.id) {
+                              continueRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                            }
+                          }}
+                          className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 focus:border-navy focus:ring-1 focus:ring-navy/20 min-h-[80px]"
+                        >
+                          {s.addOns.map((a) => (
+                            <option key={a.id} value={a.id}>
+                              {a.name} +{formatCurrency(a.price)}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="text-xs text-slate-500 mt-1">Hold Ctrl (Windows) or Cmd (Mac) to select multiple</p>
+                      </div>
+                    )}
                     {s.description && (
-                      <div className="mt-2 w-full">
+                      <div className="mt-2 w-full" onClick={(e) => e.stopPropagation()}>
                         <span
                           role="button"
                           tabIndex={0}
                           onClick={(e) => {
                             e.preventDefault();
-                            e.stopPropagation();
                             setExpandedDescriptionId((id) => (id === s.id ? null : s.id));
                           }}
                           onKeyDown={(e) => {
                             if (e.key === "Enter" || e.key === " ") {
                               e.preventDefault();
-                              e.stopPropagation();
                               setExpandedDescriptionId((id) => (id === s.id ? null : s.id));
                             }
                           }}
@@ -159,12 +197,23 @@ export default function BookPage() {
                         )}
                       </div>
                     )}
-                  </Link>
+                  </div>
                 ))}
               </div>
             </section>
           );
         })}
+      </div>
+
+      <div ref={continueRef} className="mt-12 pt-8 border-t border-slate-200">
+        <button
+          type="button"
+          onClick={handleContinue}
+          disabled={!selectedServiceId}
+          className="w-full bg-navy text-white py-4 rounded-lg font-medium hover:bg-navy/90 disabled:opacity-50 disabled:cursor-not-allowed transition touch-manipulation min-h-[48px] sm:min-h-[52px] shadow-sm"
+        >
+          Continue
+        </button>
       </div>
     </div>
   );
