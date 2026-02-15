@@ -453,7 +453,7 @@ function AdminServiceRow({
               <button
                 type="button"
                 onClick={() => setDescriptionExpanded((e) => !e)}
-                className="text-sm text-sky-600 hover:underline"
+                className="text-sm text-charcoal hover:underline"
               >
                 {descriptionExpanded ? "Hide description ▲" : "View description ▼"}
               </button>

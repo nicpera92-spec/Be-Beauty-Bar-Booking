@@ -35,6 +35,7 @@ function formatCategoryName(category: string): string {
 export default function BookPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedDescriptionId, setExpandedDescriptionId] = useState<string | null>(null);
 
   const fetchServices = (showLoading = true) => {
     if (showLoading) setLoading(true);
@@ -122,9 +123,32 @@ export default function BookPage() {
                       <div className="min-w-0 flex-1">
                         <h3 className="font-medium text-slate-800">{s.name}</h3>
                         {s.description && (
-                          <p className="text-sm text-slate-500 mt-1">
-                            {s.description}
-                          </p>
+                          <div className="mt-1 w-full">
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setExpandedDescriptionId((id) => (id === s.id ? null : s.id));
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setExpandedDescriptionId((id) => (id === s.id ? null : s.id));
+                                }
+                              }}
+                              className="text-sm text-slate-600 hover:underline cursor-pointer"
+                            >
+                              {expandedDescriptionId === s.id ? "Hide description ▲" : "View description ▼"}
+                            </span>
+                            {expandedDescriptionId === s.id && (
+                              <p className="text-sm text-slate-500 mt-1.5 w-full">
+                                {s.description}
+                              </p>
+                            )}
+                          </div>
                         )}
                       </div>
                       <div className="text-left sm:text-right shrink-0 sm:ml-5 text-sm text-slate-900">
