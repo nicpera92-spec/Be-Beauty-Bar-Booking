@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { formatPriceShort, formatDurationHours } from "@/lib/format";
 
 type Service = {
@@ -34,12 +33,9 @@ function formatCategoryName(category: string): string {
 }
 
 export default function BookPage() {
-  const router = useRouter();
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedDescriptionId, setExpandedDescriptionId] = useState<string | null>(null);
-  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
-  const continueRef = useRef<HTMLDivElement>(null);
 
   const fetchServices = (showLoading = true) => {
     if (showLoading) setLoading(true);
@@ -88,16 +84,6 @@ export default function BookPage() {
     .filter((cat) => byCategory[cat] && byCategory[cat].length > 0)
     .sort();
 
-  const handleContinue = () => {
-    if (!selectedServiceId) return;
-    router.push(`/book/${selectedServiceId}`);
-  };
-
-  const handleServiceSelect = (serviceId: string) => {
-    setSelectedServiceId(serviceId);
-    continueRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-8 py-16 sm:py-20 md:py-28">
       <Link
@@ -128,14 +114,10 @@ export default function BookPage() {
               </h2>
               <div className="space-y-4">
                 {list.map((s) => (
-                  <div
+                  <Link
                     key={s.id}
-                    onClick={() => handleServiceSelect(s.id)}
-                    className={`block p-4 sm:p-6 rounded-lg border-2 cursor-pointer transition-all duration-200 touch-manipulation ${
-                      selectedServiceId === s.id
-                        ? "border-navy bg-navy/5 shadow-md"
-                        : "border-slate-200 bg-white hover:border-navy/30 hover:shadow-md"
-                    }`}
+                    href={`/book/${s.id}`}
+                    className="block p-4 sm:p-6 rounded-lg border border-slate-200 bg-white hover:border-navy/30 hover:shadow-md transition-all duration-200 touch-manipulation active:bg-slate-50"
                   >
                     <h3 className="font-medium text-slate-800">{s.name}</h3>
                     <p className="text-sm text-slate-900 mt-0.5">
@@ -148,11 +130,13 @@ export default function BookPage() {
                           tabIndex={0}
                           onClick={(e) => {
                             e.preventDefault();
+                            e.stopPropagation();
                             setExpandedDescriptionId((id) => (id === s.id ? null : s.id));
                           }}
                           onKeyDown={(e) => {
                             if (e.key === "Enter" || e.key === " ") {
                               e.preventDefault();
+                              e.stopPropagation();
                               setExpandedDescriptionId((id) => (id === s.id ? null : s.id));
                             }
                           }}
@@ -167,28 +151,17 @@ export default function BookPage() {
                         )}
                       </div>
                     )}
-                  </div>
+                  </Link>
                 ))}
               </div>
               {cat === "nails" && (
-                <p className="text-sm text-slate-600 mt-4">
+                <p className="text-sm font-semibold text-slate-700 mt-4 whitespace-nowrap overflow-x-auto">
                   Enhancements such as French, ombré or custom nail art are available at £1 per nail, added to the final price.
                 </p>
               )}
             </section>
           );
         })}
-      </div>
-
-      <div ref={continueRef} className="mt-12 pt-8 border-t border-slate-200">
-        <button
-          type="button"
-          onClick={handleContinue}
-          disabled={!selectedServiceId}
-          className="w-full bg-navy text-white py-4 rounded-lg font-medium hover:bg-navy/90 disabled:opacity-50 disabled:cursor-not-allowed transition touch-manipulation min-h-[48px] sm:min-h-[52px] shadow-sm"
-        >
-          Continue
-        </button>
       </div>
     </div>
   );
