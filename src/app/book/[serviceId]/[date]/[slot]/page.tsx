@@ -5,12 +5,15 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { formatBookingDate, formatCurrency } from "@/lib/format";
 
+type AddOn = { id: string; name: string; price: number };
+
 type Service = {
   id: string;
   name: string;
   durationMin: number;
   price: number;
   depositAmount: number;
+  addOns?: AddOn[];
 };
 
 type Slot = { start: string; end: string };
@@ -34,6 +37,7 @@ export default function BookFormPage() {
   const [notes, setNotes] = useState("");
   const [notifyByEmail, setNotifyByEmail] = useState(true);
   const [notifyBySMS, setNotifyBySMS] = useState(false);
+  const [selectedAddOnIds, setSelectedAddOnIds] = useState<string[]>([]);
 
   const fetchData = useCallback(() => {
     setLoading(true);
@@ -62,7 +66,19 @@ export default function BookFormPage() {
   const slot = slots.find((s) => s.start === startTime);
   const endTime = slot?.end ?? "";
 
+  const addOns = service?.addOns ?? [];
+  const selectedAddOns = addOns.filter((a) => selectedAddOnIds.includes(a.id));
+  const addOnTotal = selectedAddOns.reduce((sum, a) => sum + a.price, 0);
+  const totalPrice = (service?.price ?? 0) + addOnTotal;
+  const totalDeposit = (service?.depositAmount ?? 0) + addOnTotal + (notifyBySMS ? smsFee : 0);
+
   const dayLabel = formatBookingDate(date, "EEEE, dd/MM/yyyy");
+
+  const toggleAddOn = (id: string) => {
+    setSelectedAddOnIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,10 +109,7 @@ export default function BookFormPage() {
     }
 
     setSubmitting(true);
-    // Calculate total deposit (base deposit + SMS fee if SMS selected)
-    const baseDeposit = service?.depositAmount ?? 0;
-    const totalDeposit = baseDeposit + (notifyBySMS ? smsFee : 0);
-    
+
     fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -108,7 +121,7 @@ export default function BookFormPage() {
         date,
         startTime,
         endTime,
-        depositAmount: totalDeposit,
+        selectedAddOnIds,
         notes: notes || undefined,
         notifyByEmail,
         notifyBySMS,
@@ -164,13 +177,35 @@ export default function BookFormPage() {
       <h1 className="font-serif text-2xl md:text-3xl font-light text-slate-800 mb-3">
         {service.name}
       </h1>
-      <p className={`text-slate-600 text-sm ${notifyBySMS ? "mb-2" : "mb-12"}`}>
-        {dayLabel} · {startTime}–{endTime} · {formatCurrency(service.price)} total
-        {!notifyBySMS && <> · {formatCurrency(service.depositAmount)} deposit</>}
+      <p className={`text-slate-600 text-sm ${addOns.length > 0 || notifyBySMS ? "mb-2" : "mb-12"}`}>
+        {dayLabel} · {startTime}–{endTime} · {formatCurrency(totalPrice)} total
+        {addOns.length === 0 && !notifyBySMS && <> · {formatCurrency(service.depositAmount)} deposit</>}
       </p>
-      {notifyBySMS && (
+      {addOns.length > 0 && (
+        <div className="rounded-lg border border-slate-200 bg-slate-50/30 p-4 mb-4">
+          <p className="text-sm font-medium text-slate-700 mb-2">Add-ons (optional)</p>
+          <div className="space-y-2">
+            {addOns.map((a) => (
+              <label key={a.id} className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedAddOnIds.includes(a.id)}
+                  onChange={() => toggleAddOn(a.id)}
+                  className="w-4 h-4 rounded border-slate-300 text-navy focus:ring-navy/20"
+                />
+                <span className="text-sm text-slate-700">
+                  {a.name} +{formatCurrency(a.price)}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+      {(addOns.length > 0 || notifyBySMS) && (
         <p className="text-slate-600 text-sm mb-12">
-          {formatCurrency(service.depositAmount)} deposit + {formatCurrency(smsFee)} SMS fee = {formatCurrency(service.depositAmount + smsFee)} total deposit
+          {notifyBySMS
+            ? `${formatCurrency(service.depositAmount + addOnTotal)} deposit + ${formatCurrency(smsFee)} SMS fee = ${formatCurrency(totalDeposit)} total deposit`
+            : `${formatCurrency(totalDeposit)} deposit`}
         </p>
       )}
 
@@ -334,7 +369,7 @@ export default function BookFormPage() {
         )}
 
         <p className="text-sm text-slate-600 leading-relaxed">
-          By submitting, you request this slot. You will pay the {formatCurrency(service.depositAmount + (notifyBySMS ? smsFee : 0))} deposit to confirm; the remaining {formatCurrency(service.price - service.depositAmount)} is due once your treatment has been completed, by cash or bank transfer.
+          By submitting, you request this slot. You will pay the {formatCurrency(totalDeposit)} deposit to confirm; the remaining {formatCurrency(totalPrice - totalDeposit)} is due once your treatment has been completed, by cash or bank transfer.
         </p>
 
         <button

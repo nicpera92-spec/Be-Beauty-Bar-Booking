@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   if (id) {
     const booking = await prisma.booking.findUnique({
       where: { id },
-      include: { service: true },
+      include: { service: true, bookingAddOns: true },
     });
     if (!booking) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
       startTime,
       endTime,
       depositAmount,
+      selectedAddOnIds,
       notes,
       notifyByEmail,
       notifyBySMS,
@@ -54,8 +55,7 @@ export async function POST(req: NextRequest) {
       !customerName ||
       !date ||
       !startTime ||
-      !endTime ||
-      depositAmount == null
+      !endTime
     ) {
       return NextResponse.json(
         { error: "Missing required fields" },
@@ -117,10 +117,22 @@ export async function POST(req: NextRequest) {
 
     const service = await prisma.service.findUnique({
       where: { id: serviceId },
+      include: { addOns: true },
     });
     if (!service) {
       return NextResponse.json({ error: "Service not found" }, { status: 404 });
     }
+
+    const addOnIds = Array.isArray(selectedAddOnIds) ? selectedAddOnIds : [];
+    const selectedAddOns = service.addOns.filter((a) => addOnIds.includes(a.id));
+    const addOnTotal = selectedAddOns.reduce((sum, a) => sum + a.price, 0);
+    const servicePrice = service.price + addOnTotal;
+
+    const settings = await prisma.businessSettings.findUnique({
+      where: { id: "default" },
+    });
+    const smsFee = settings?.smsNotificationFee ?? 0.05;
+    const deposit = service.depositAmount + addOnTotal + (wantsSMS ? smsFee : 0);
 
     // Validate time format (HH:mm)
     const timeRegex = /^\d{1,2}:\d{2}$/;
@@ -145,8 +157,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const deposit = Number(depositAmount);
-    if (deposit > service.price) {
+    if (deposit > servicePrice) {
       return NextResponse.json(
         { error: "Deposit cannot exceed service price" },
         { status: 400 }
@@ -196,14 +207,23 @@ export async function POST(req: NextRequest) {
         date,
         startTime,
         endTime,
-        servicePrice: service.price,
+        servicePrice,
         depositAmount: deposit,
         notes: notes ?? "",
         status: "pending_deposit",
         notifyByEmail: wantsEmail,
         notifyBySMS: wantsSMS,
+        bookingAddOns: selectedAddOns.length > 0
+          ? {
+              create: selectedAddOns.map((a) => ({
+                addOnId: a.id,
+                addOnName: a.name,
+                addOnPrice: a.price,
+              })),
+            }
+          : undefined,
       },
-      include: { service: true },
+      include: { service: true, bookingAddOns: true },
     });
 
     const emailResult = await sendBookingCreatedEmails(booking.id);

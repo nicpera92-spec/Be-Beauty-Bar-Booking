@@ -19,7 +19,18 @@ model Service {
   active        Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  addOns        AddOn[]
   bookings      Booking[]
+}
+
+model AddOn {
+  id        String   @id @default(cuid())
+  serviceId String
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  name      String   // e.g. "French"
+  price     Float    // e.g. 10 (£)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model BusinessSettings {
@@ -51,10 +62,20 @@ model AvailabilityBlock {
   createdAt DateTime @default(now())
 }
 
+model BookingAddOn {
+  id          String  @id @default(cuid())
+  bookingId   String
+  booking     Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  addOnId     String
+  addOnName   String  // snapshot at booking time
+  addOnPrice  Float   // snapshot at booking time
+}
+
 model Booking {
-  id                String   @id @default(cuid())
+  id                String         @id @default(cuid())
   serviceId         String
-  service           Service  @relation(fields: [serviceId], references: [id])
+  service           Service        @relation(fields: [serviceId], references: [id])
+  bookingAddOns     BookingAddOn[]
   customerName      String
   customerEmail     String?  // optional, but at least one of email/phone required
   customerPhone     String?  // optional, but at least one of email/phone required

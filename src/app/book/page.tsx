@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { formatCurrency, formatPriceShort, formatDurationHours } from "@/lib/format";
 
+type AddOn = { id: string; name: string; price: number };
+
 type Service = {
   id: string;
   name: string;
@@ -12,6 +14,7 @@ type Service = {
   price: number;
   depositAmount: number;
   description: string | null;
+  addOns?: AddOn[];
 };
 
 const categoryLabels: Record<string, string> = {
@@ -122,6 +125,11 @@ export default function BookPage() {
                     <h3 className="font-medium text-slate-800">{s.name}</h3>
                     <p className="text-sm text-slate-900 mt-0.5">
                       Duration {formatDurationHours(s.durationMin)} · Price {formatPriceShort(s.price)} · {formatPriceShort(s.depositAmount)} deposit
+                      {s.addOns && s.addOns.length > 0 && (
+                        <span className="text-slate-500 text-xs block mt-0.5">
+                          Add-ons: {s.addOns.map((a) => `${a.name} +${formatPriceShort(a.price)}`).join(", ")}
+                        </span>
+                      )}
                     </p>
                     {s.description && (
                       <div className="mt-2 w-full">
