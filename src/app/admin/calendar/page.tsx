@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, parse, addMonths, subMonths, startOfMonth, endOfMonth, startOfDay, addDays } from "date-fns";
 import { formatCurrency } from "@/lib/format";
@@ -44,7 +44,6 @@ export default function AdminCalendarPage() {
   const [loading, setLoading] = useState(true);
   const [monthDate, setMonthDate] = useState(startOfMonth(new Date())); // Current month
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const overviewRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const t = typeof window !== "undefined" ? sessionStorage.getItem(ADMIN_TOKEN_KEY) : null;
@@ -109,8 +108,6 @@ export default function AdminCalendarPage() {
   const week2End = endOfWeek(month2End, { weekStartsOn: 1 });
   const daysInView1 = eachDayOfInterval({ start: week1Start, end: week1End });
   const daysInView2 = eachDayOfInterval({ start: week2Start, end: week2End });
-  const todayStart = startOfDay(new Date());
-  const isPast = (date: Date) => date < todayStart && format(startOfDay(date), "yyyy-MM-dd") !== format(todayStart, "yyyy-MM-dd");
 
   // Filter bookings for the visible month range (both months)
   const weekStart = week1Start;
@@ -152,26 +149,13 @@ export default function AdminCalendarPage() {
   // Use today's calendar date (yyyy-MM-dd) so the highlighted square always matches the actual current day
   const todayDateStr = format(startOfDay(new Date()), "yyyy-MM-dd");
   const isToday = (date: Date) => format(startOfDay(date), "yyyy-MM-dd") === todayDateStr;
+  const isPast = (date: Date) => date < startOfDay(new Date()) && !isToday(date);
 
   const goToPreviousMonth = () => setMonthDate(subMonths(monthDate, 1));
   const goToNextMonth = () => setMonthDate(addMonths(monthDate, 1));
   const goToThisMonth = () => setMonthDate(startOfMonth(new Date()));
 
   const selectedBookings = selectedDate ? bookingsByDate[selectedDate] || [] : [];
-
-  // On mobile: scroll to overview when a date is selected so booking details are visible
-  useEffect(() => {
-    if (!selectedDate || typeof window === "undefined") return;
-    if (!window.matchMedia("(max-width: 1023px)").matches) return;
-    const timer = setTimeout(() => {
-      try {
-        overviewRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      } catch {
-        // Ignore scroll errors
-      }
-    }, 100);
-    return () => clearTimeout(timer);
-  }, [selectedDate]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12 min-w-0">
@@ -260,11 +244,8 @@ export default function AdminCalendarPage() {
               {/* Calendar Days */}
               <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
                 {days.map((day) => {
-                  const dateStr = format(day, "yyyy-MM-dd");
-                  if (isPast(day)) {
-                    return <div key={dateStr} className="aspect-square min-h-[44px]" aria-hidden />;
-                  }
                   const dayBookings = getBookingsForDate(day);
+                  const dateStr = format(day, "yyyy-MM-dd");
                   const isSelected = selectedDate === dateStr;
                   const isCurrentMonth = day >= monthStart && day <= monthEnd;
                   const dayHasTimeOff = hasTimeOff(day);
@@ -277,14 +258,15 @@ export default function AdminCalendarPage() {
                       className={`
                         aspect-square p-1.5 sm:p-2 rounded-lg border-2 transition-all touch-manipulation min-h-[44px]
                         ${isToday(day) ? "border-navy bg-navy/5" : "border-slate-200"}
-                        ${!isCurrentMonth ? "bg-slate-50/50 text-slate-400" : ""}
-                        ${dayHasTimeOff ? "bg-violet-50/80 border-violet-200/60" : ""}
+                        ${isPast(day) ? "bg-slate-300 text-slate-500 hover:bg-slate-300" : ""}
+                        ${!isPast(day) && !isCurrentMonth ? "bg-slate-50/50 text-slate-400" : ""}
+                        ${dayHasTimeOff && !isPast(day) ? "bg-violet-50/80 border-violet-200/60" : ""}
                         ${isSelected ? "ring-2 ring-navy ring-offset-2" : ""}
-                        ${isCurrentMonth ? "hover:border-navy/50 hover:bg-slate-50" : ""}
+                        ${isCurrentMonth && !isPast(day) ? "hover:border-navy/50 hover:bg-slate-50" : ""}
                       `}
                     >
                       <div className="flex flex-col h-full">
-                        <div className={`text-sm font-medium mb-1 ${isToday(day) ? "text-navy" : !isCurrentMonth ? "text-slate-400" : "text-charcoal"}`}>
+                        <div className={`text-sm font-medium mb-1 ${isToday(day) ? "text-navy" : isPast(day) ? "text-slate-500" : !isCurrentMonth ? "text-slate-400" : "text-charcoal"}`}>
                           {format(day, "d")}
                         </div>
                         {dayHasTimeOff && (
@@ -301,9 +283,9 @@ export default function AdminCalendarPage() {
                                   text-xs px-1.5 py-0.5 rounded truncate
                                   ${booking.status === "confirmed" ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"}
                                 `}
-                                title={`${booking.customerName ?? ""} - ${booking.service?.name ?? ""} ${booking.startTime}`}
+                                title={`${booking.customerName} - ${booking.service.name} ${booking.startTime}`}
                               >
-                                {booking.startTime} {(booking.customerName ?? "").split(" ")[0] || "—"}
+                                {booking.startTime} {booking.customerName.split(" ")[0]}
                               </div>
                             ))}
                             {dayBookings.length > 3 && (
@@ -323,7 +305,7 @@ export default function AdminCalendarPage() {
         </div>
 
         {/* Overview - right */}
-        <div ref={overviewRef} className="w-full lg:w-80 lg:shrink-0 lg:sticky lg:top-4">
+        <div className="w-full lg:w-80 lg:shrink-0 lg:sticky lg:top-4">
           {selectedDate && selectedBookings.length > 0 && (
             <div className="bg-white rounded-xl border border-slate-200 p-6">
               <div className="flex items-center justify-between mb-4">
@@ -348,7 +330,7 @@ export default function AdminCalendarPage() {
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="font-medium text-charcoal">{booking.customerName ?? "—"}</span>
+                          <span className="font-medium text-charcoal">{booking.customerName}</span>
                           <span
                             className={`text-xs px-2 py-0.5 rounded shrink-0 ${
                               booking.status === "confirmed"
@@ -360,7 +342,7 @@ export default function AdminCalendarPage() {
                           </span>
                         </div>
                         <p className="text-sm text-charcoal/80">
-                          {booking.service?.name ?? "—"} · {booking.startTime}–{booking.endTime}
+                          {booking.service.name} · {booking.startTime}–{booking.endTime}
                         </p>
                         <p className="text-xs text-charcoal/60 mt-1">
                           {booking.customerEmail || booking.customerPhone || "No contact"} · {formatCurrency(booking.depositAmount)} deposit
