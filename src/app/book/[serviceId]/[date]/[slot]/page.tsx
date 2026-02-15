@@ -70,7 +70,7 @@ export default function BookFormPage() {
   const selectedAddOns = addOns.filter((a) => selectedAddOnIds.includes(a.id));
   const addOnTotal = selectedAddOns.reduce((sum, a) => sum + a.price, 0);
   const totalPrice = (service?.price ?? 0) + addOnTotal;
-  const totalDeposit = (service?.depositAmount ?? 0) + addOnTotal + (notifyBySMS ? smsFee : 0);
+  const totalDeposit = (service?.depositAmount ?? 0) + (notifyBySMS ? smsFee : 0);
 
   const dayLabel = formatBookingDate(date, "EEEE, dd/MM/yyyy");
 
@@ -183,8 +183,8 @@ export default function BookFormPage() {
       </p>
       {addOns.length > 0 && (
         <div className="rounded-lg border border-slate-200 bg-slate-50/30 p-4 mb-4">
-          <p className="text-sm font-medium text-slate-700 mb-1">Add-ons (optional)</p>
-          <p className="text-xs text-slate-500 mb-3">Select any add-ons to include — they will be added to your final price and deposit.</p>
+          <p className="text-sm font-medium text-slate-700 mb-1">Add-ons</p>
+          <p className="text-xs text-slate-500 mb-3">Select any add-ons to include — they will be added to your final price.</p>
           <div className="space-y-2">
             {addOns.map((a) => (
               <label key={a.id} className="flex items-center gap-3 cursor-pointer">
@@ -205,7 +205,7 @@ export default function BookFormPage() {
       {(addOns.length > 0 || notifyBySMS) && (
         <p className="text-slate-600 text-sm mb-12">
           {notifyBySMS
-            ? `${formatCurrency(service.depositAmount + addOnTotal)} deposit + ${formatCurrency(smsFee)} SMS fee = ${formatCurrency(totalDeposit)} total deposit`
+            ? `${formatCurrency(service.depositAmount)} deposit + ${formatCurrency(smsFee)} SMS fee = ${formatCurrency(totalDeposit)} total deposit`
             : `${formatCurrency(totalDeposit)} deposit`}
         </p>
       )}

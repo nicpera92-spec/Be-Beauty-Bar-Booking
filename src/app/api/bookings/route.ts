@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
       where: { id: "default" },
     });
     const smsFee = settings?.smsNotificationFee ?? 0.05;
-    const deposit = service.depositAmount + addOnTotal + (wantsSMS ? smsFee : 0);
+    const deposit = service.depositAmount + (wantsSMS ? smsFee : 0);
 
     // Validate time format (HH:mm)
     const timeRegex = /^\d{1,2}:\d{2}$/;
