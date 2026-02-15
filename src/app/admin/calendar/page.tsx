@@ -107,11 +107,10 @@ export default function AdminCalendarPage() {
   const week1End = endOfWeek(month1End, { weekStartsOn: 1 });
   const week2Start = startOfWeek(month2Start, { weekStartsOn: 1 });
   const week2End = endOfWeek(month2End, { weekStartsOn: 1 });
+  const daysInView1 = eachDayOfInterval({ start: week1Start, end: week1End });
+  const daysInView2 = eachDayOfInterval({ start: week2Start, end: week2End });
   const todayStart = startOfDay(new Date());
-  const allDays1 = eachDayOfInterval({ start: week1Start, end: week1End });
-  const allDays2 = eachDayOfInterval({ start: week2Start, end: week2End });
-  const daysInView1 = allDays1.filter((d) => d >= todayStart);
-  const daysInView2 = allDays2.filter((d) => d >= todayStart);
+  const isPast = (date: Date) => date < todayStart && format(startOfDay(date), "yyyy-MM-dd") !== format(todayStart, "yyyy-MM-dd");
 
   // Filter bookings for the visible month range (both months)
   const weekStart = week1Start;
@@ -162,9 +161,16 @@ export default function AdminCalendarPage() {
 
   // On mobile: scroll to overview when a date is selected so booking details are visible
   useEffect(() => {
-    if (selectedDate && typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches) {
-      overviewRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+    if (!selectedDate || typeof window === "undefined") return;
+    if (!window.matchMedia("(max-width: 1023px)").matches) return;
+    const timer = setTimeout(() => {
+      try {
+        overviewRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      } catch {
+        // Ignore scroll errors
+      }
+    }, 100);
+    return () => clearTimeout(timer);
   }, [selectedDate]);
 
   return (
@@ -254,8 +260,11 @@ export default function AdminCalendarPage() {
               {/* Calendar Days */}
               <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
                 {days.map((day) => {
-                  const dayBookings = getBookingsForDate(day);
                   const dateStr = format(day, "yyyy-MM-dd");
+                  if (isPast(day)) {
+                    return <div key={dateStr} className="aspect-square min-h-[44px]" aria-hidden />;
+                  }
+                  const dayBookings = getBookingsForDate(day);
                   const isSelected = selectedDate === dateStr;
                   const isCurrentMonth = day >= monthStart && day <= monthEnd;
                   const dayHasTimeOff = hasTimeOff(day);
@@ -292,9 +301,9 @@ export default function AdminCalendarPage() {
                                   text-xs px-1.5 py-0.5 rounded truncate
                                   ${booking.status === "confirmed" ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"}
                                 `}
-                                title={`${booking.customerName} - ${booking.service.name} ${booking.startTime}`}
+                                title={`${booking.customerName ?? ""} - ${booking.service?.name ?? ""} ${booking.startTime}`}
                               >
-                                {booking.startTime} {booking.customerName.split(" ")[0]}
+                                {booking.startTime} {(booking.customerName ?? "").split(" ")[0] || "—"}
                               </div>
                             ))}
                             {dayBookings.length > 3 && (
@@ -339,7 +348,7 @@ export default function AdminCalendarPage() {
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="font-medium text-charcoal">{booking.customerName}</span>
+                          <span className="font-medium text-charcoal">{booking.customerName ?? "—"}</span>
                           <span
                             className={`text-xs px-2 py-0.5 rounded shrink-0 ${
                               booking.status === "confirmed"
@@ -351,7 +360,7 @@ export default function AdminCalendarPage() {
                           </span>
                         </div>
                         <p className="text-sm text-charcoal/80">
-                          {booking.service.name} · {booking.startTime}–{booking.endTime}
+                          {booking.service?.name ?? "—"} · {booking.startTime}–{booking.endTime}
                         </p>
                         <p className="text-xs text-charcoal/60 mt-1">
                           {booking.customerEmail || booking.customerPhone || "No contact"} · {formatCurrency(booking.depositAmount)} deposit
