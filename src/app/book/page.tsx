@@ -150,7 +150,7 @@ export default function BookPage() {
                           }}
                           className="text-sm text-slate-600 hover:underline cursor-pointer"
                         >
-                          {expandedDescriptionId === s.id ? "Hide description ▲" : "View description ▼"}
+                          {expandedDescriptionId === s.id ? "Hide description" : "View description"}
                         </span>
                         {expandedDescriptionId === s.id && (
                           <p className="text-sm text-slate-500 mt-1.5 w-full">
