@@ -149,15 +149,13 @@ export default function BookPage() {
                       const totalPrice = addOn ? s.price + addOn.price : s.price;
                       return (
                         <p className="text-sm text-slate-900 mt-0.5">
-                          Duration {formatDurationHours(s.durationMin)} · Price {formatPriceShort(s.price)}
-                          {addOn && <span> + {addOn.name} {formatPriceShort(addOn.price)} = {formatPriceShort(totalPrice)} total</span>}
-                          {" · "}{formatPriceShort(s.depositAmount)} deposit
+                          Duration {formatDurationHours(s.durationMin)} · Price {formatPriceShort(totalPrice)} · {formatPriceShort(s.depositAmount)} deposit
                         </p>
                       );
                     })()}
                     {s.addOns && s.addOns.length > 0 && (
-                      <div className="mt-3" onClick={(e) => e.stopPropagation()}>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Add-ons</label>
+                      <div className="mt-2 flex items-center gap-2 text-sm text-slate-700" onClick={(e) => e.stopPropagation()}>
+                        <span>Add-ons</span>
                         <select
                           value={selectedAddOnId[s.id] ?? ""}
                           onChange={(e) => {
@@ -167,7 +165,7 @@ export default function BookPage() {
                               continueRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
                             }
                           }}
-                          className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 focus:border-navy focus:ring-1 focus:ring-navy/20"
+                          className="text-sm text-slate-700 bg-transparent border-none outline-none focus:ring-0 cursor-pointer py-1"
                         >
                           <option value="">None</option>
                           {s.addOns.map((a) => (
