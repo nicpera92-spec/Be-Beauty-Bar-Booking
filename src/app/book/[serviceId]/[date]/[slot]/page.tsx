@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { formatBookingDate, formatCurrency } from "@/lib/format";
@@ -37,7 +37,8 @@ export default function BookFormPage() {
   const [notes, setNotes] = useState("");
   const [notifyByEmail, setNotifyByEmail] = useState(true);
   const [notifyBySMS, setNotifyBySMS] = useState(false);
-  const [selectedAddOnIds, setSelectedAddOnIds] = useState<string[]>([]);
+
+  const searchParams = useSearchParams();
 
   const fetchData = useCallback(() => {
     setLoading(true);
@@ -67,18 +68,18 @@ export default function BookFormPage() {
   const endTime = slot?.end ?? "";
 
   const addOns = service?.addOns ?? [];
+  const selectedAddOnIds = (() => {
+    const addOnsParam = searchParams.get("addOns");
+    if (!addOnsParam) return [];
+    const ids = addOnsParam.split(",").filter(Boolean);
+    return ids.filter((id) => addOns.some((a) => a.id === id));
+  })();
   const selectedAddOns = addOns.filter((a) => selectedAddOnIds.includes(a.id));
   const addOnTotal = selectedAddOns.reduce((sum, a) => sum + a.price, 0);
   const totalPrice = (service?.price ?? 0) + addOnTotal;
   const totalDeposit = (service?.depositAmount ?? 0) + (notifyBySMS ? smsFee : 0);
 
   const dayLabel = formatBookingDate(date, "EEEE, dd/MM/yyyy");
-
-  const toggleAddOn = (id: string) => {
-    setSelectedAddOnIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -157,7 +158,10 @@ export default function BookFormPage() {
           Home
         </Link>
         <p className="text-slate-600 mb-6">This time slot is no longer available.</p>
-        <Link href={`/book/${serviceId}/${date}`} className="text-navy hover:underline">
+        <Link
+          href={`/book/${serviceId}/${date}${selectedAddOnIds.length > 0 ? `?addOns=${selectedAddOnIds.join(",")}` : ""}`}
+          className="text-navy hover:underline"
+        >
           Choose another time
         </Link>
       </div>
@@ -170,39 +174,26 @@ export default function BookFormPage() {
         <Link href="/" className="text-sm text-navy hover:underline">
           Home
         </Link>
-        <Link href={`/book/${serviceId}/${date}`} className="text-sm text-navy hover:underline">
+        <Link
+          href={`/book/${serviceId}/${date}${selectedAddOnIds.length > 0 ? `?addOns=${selectedAddOnIds.join(",")}` : ""}`}
+          className="text-sm text-navy hover:underline"
+        >
           ← Back to time slots
         </Link>
       </div>
       <h1 className="font-serif text-2xl md:text-3xl font-light text-slate-800 mb-3">
         {service.name}
       </h1>
-      <p className={`text-slate-600 text-sm ${addOns.length > 0 || notifyBySMS ? "mb-2" : "mb-12"}`}>
+      <p className={`text-slate-600 text-sm ${selectedAddOnIds.length > 0 || notifyBySMS ? "mb-2" : "mb-12"}`}>
         {dayLabel} · {startTime}–{endTime} · {formatCurrency(totalPrice)} total
-        {addOns.length === 0 && !notifyBySMS && <> · {formatCurrency(service.depositAmount)} deposit</>}
+        {selectedAddOnIds.length === 0 && !notifyBySMS && <> · {formatCurrency(service.depositAmount)} deposit</>}
       </p>
-      {addOns.length > 0 && (
-        <div className="rounded-lg border border-slate-200 bg-slate-50/30 p-4 mb-4">
-          <p className="text-sm font-medium text-slate-700 mb-1">Add-ons</p>
-          <p className="text-xs text-slate-500 mb-3">Select any add-ons to include — they will be added to your final price.</p>
-          <div className="space-y-2">
-            {addOns.map((a) => (
-              <label key={a.id} className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={selectedAddOnIds.includes(a.id)}
-                  onChange={() => toggleAddOn(a.id)}
-                  className="w-4 h-4 rounded border-slate-300 text-navy focus:ring-navy/20"
-                />
-                <span className="text-sm text-slate-700">
-                  {a.name} +{formatCurrency(a.price)}
-                </span>
-              </label>
-            ))}
-          </div>
-        </div>
+      {selectedAddOnIds.length > 0 && (
+        <p className="text-slate-600 text-sm mb-4">
+          Add-ons: {selectedAddOns.map((a) => `${a.name} +${formatCurrency(a.price)}`).join(", ")}
+        </p>
       )}
-      {(addOns.length > 0 || notifyBySMS) && (
+      {(selectedAddOnIds.length > 0 || notifyBySMS) && (
         <p className="text-slate-600 text-sm mb-12">
           {notifyBySMS
             ? `${formatCurrency(service.depositAmount)} deposit + ${formatCurrency(smsFee)} SMS fee = ${formatCurrency(totalDeposit)} total deposit`
@@ -359,7 +350,7 @@ export default function BookFormPage() {
             {error.toLowerCase().includes("no longer available") && (
               <p>
                 <Link
-                  href={`/book/${serviceId}/${date}`}
+                  href={`/book/${serviceId}/${date}${selectedAddOnIds.length > 0 ? `?addOns=${selectedAddOnIds.join(",")}` : ""}`}
                   className="text-sm text-navy hover:underline"
                 >
                   Choose another time →

@@ -1,16 +1,19 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { addDays, addMonths, eachDayOfInterval, endOfMonth, format, isBefore, parse, startOfMonth, startOfToday } from "date-fns";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/format";
+
+type AddOn = { id: string; name: string; price: number };
 
 type Service = {
   id: string;
   name: string;
   durationMin: number;
   depositAmount: number;
+  addOns?: AddOn[];
 };
 
 type Slot = { start: string; end: string };
@@ -35,6 +38,16 @@ export default function BookDatePage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
+  const searchParams = useSearchParams();
+  const [selectedAddOnIds, setSelectedAddOnIds] = useState<string[]>([]);
+  const [addOnsExpanded, setAddOnsExpanded] = useState(false);
+
+  useEffect(() => {
+    const addOnsParam = searchParams.get("addOns");
+    if (addOnsParam) {
+      setSelectedAddOnIds(addOnsParam.split(",").filter(Boolean));
+    }
+  }, [searchParams]);
   const timeSectionRef = useRef<HTMLDivElement>(null);
 
   const today = startOfToday();
@@ -103,6 +116,16 @@ export default function BookDatePage() {
       timeSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }, [selectedDate, slots.length]);
+
+  const addOns = service?.addOns ?? [];
+  const toggleAddOn = (id: string) => {
+    setSelectedAddOnIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+  const addOnsQuery = selectedAddOnIds.length > 0
+    ? `?addOns=${selectedAddOnIds.join(",")}`
+    : "";
 
   const selectedDateLabel = selectedDate
     ? (() => {
@@ -215,6 +238,43 @@ export default function BookDatePage() {
             </a>
             . (Double rates apply).
           </p>
+          {addOns.length > 0 && (
+            <div className="mt-6 rounded-lg border border-slate-200 bg-white overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setAddOnsExpanded((e) => !e)}
+                className="w-full px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 flex justify-between items-center"
+              >
+                Add-ons
+                {selectedAddOnIds.length > 0 && (
+                  <span className="text-xs text-slate-500">
+                    {selectedAddOnIds.length} selected
+                  </span>
+                )}
+                <span className="text-slate-400">{addOnsExpanded ? "−" : "+"}</span>
+              </button>
+              {addOnsExpanded && (
+                <div className="px-4 pb-4 pt-0 border-t border-slate-100">
+                  <p className="text-xs text-slate-500 mb-3">Select add-ons to add to your final price.</p>
+                  <div className="space-y-2">
+                    {addOns.map((a) => (
+                      <label key={a.id} className="flex items-center gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedAddOnIds.includes(a.id)}
+                          onChange={() => toggleAddOn(a.id)}
+                          className="w-4 h-4 rounded border-slate-300 text-navy focus:ring-navy/20"
+                        />
+                        <span className="text-sm text-slate-700">
+                          {a.name} +{formatCurrency(a.price)}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Available times */}
@@ -241,7 +301,7 @@ export default function BookDatePage() {
                 {slots.map((slot) => (
                   <Link
                     key={slot.start}
-                    href={`/book/${serviceId}/${selectedDate}/${encodeURIComponent(slot.start)}`}
+                    href={`/book/${serviceId}/${selectedDate}/${encodeURIComponent(slot.start)}${addOnsQuery}`}
                     className="flex items-center justify-center px-2 py-2 sm:py-2.5 rounded-lg border border-slate-200 bg-white text-slate-800 text-[11px] sm:text-xs font-medium hover:border-navy/40 hover:bg-navy/5 hover:text-navy transition touch-manipulation text-center min-h-[40px] sm:min-h-[44px] min-w-0"
                   >
                     {formatTime24to12(slot.start)} – {formatTime24to12(slot.end)}
