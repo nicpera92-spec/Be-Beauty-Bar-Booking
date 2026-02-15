@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatPriceShort } from "@/lib/format";
 
 type Service = {
   id: string;
@@ -127,14 +127,10 @@ export default function BookPage() {
                           </p>
                         )}
                       </div>
-                      <div className="text-left sm:text-right shrink-0 sm:ml-5">
-                        <span className="text-sm text-slate-500">
-                          {s.durationMin} min · {formatCurrency(s.price)}
-                        </span>
+                      <div className="text-left sm:text-right shrink-0 sm:ml-5 text-sm text-slate-900">
+                        <span>{s.durationMin}m · {formatPriceShort(s.price)}</span>
                         <br />
-                        <span className="text-navy font-medium">
-                          {formatCurrency(s.depositAmount)} deposit
-                        </span>
+                        <span>{formatPriceShort(s.depositAmount)} deposit</span>
                       </div>
                     </div>
                   </Link>

@@ -5,6 +5,12 @@ export function formatCurrency(amount: number): string {
   return "£" + Number(amount).toFixed(2);
 }
 
+/** Format price for service display: £50 for whole numbers, £12.50 for decimals */
+export function formatPriceShort(amount: number): string {
+  const n = Number(amount);
+  return "£" + (Number.isInteger(n) ? n.toString() : n.toFixed(2));
+}
+
 /** Format date string (yyyy-MM-dd) for display; returns dateStr on parse error */
 export function formatBookingDate(dateStr: string, formatStr: string): string {
   try {
