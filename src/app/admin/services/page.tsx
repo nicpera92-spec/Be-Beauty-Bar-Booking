@@ -105,10 +105,13 @@ export default function AdminServicesPage() {
       </p>
 
       <div className="space-y-4">
-        {services.map((s) => (
+        {services.map((s, index) => (
           <AdminServiceRow
             key={s.id}
             service={s}
+            index={index}
+            totalServices={services.length}
+            services={services}
             getAuthHeaders={getAuthHeaders}
             onUpdate={fetchServices}
             allServices={services}
@@ -128,11 +131,17 @@ export default function AdminServicesPage() {
 
 function AdminServiceRow({
   service,
+  index,
+  totalServices,
+  services,
   getAuthHeaders,
   onUpdate,
   allServices,
 }: {
   service: Service;
+  index: number;
+  totalServices: number;
+  services: Service[];
   getAuthHeaders: () => Record<string, string>;
   onUpdate: () => void;
   allServices: Service[];
@@ -255,6 +264,36 @@ function AdminServiceRow({
     })
       .then(() => onUpdate())
       .finally(() => setSaving(false));
+  };
+
+  const [reordering, setReordering] = useState(false);
+  const moveUp = () => {
+    if (index === 0) return;
+    setReordering(true);
+    const newOrder = [...services];
+    [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
+    fetch("/api/admin/services", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify({ ids: newOrder.map((s) => s.id) }),
+    })
+      .then((r) => (r.ok ? onUpdate() : Promise.reject()))
+      .catch(() => {})
+      .finally(() => setReordering(false));
+  };
+  const moveDown = () => {
+    if (index >= totalServices - 1) return;
+    setReordering(true);
+    const newOrder = [...services];
+    [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
+    fetch("/api/admin/services", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify({ ids: newOrder.map((s) => s.id) }),
+    })
+      .then((r) => (r.ok ? onUpdate() : Promise.reject()))
+      .catch(() => {})
+      .finally(() => setReordering(false));
   };
 
   const [removing, setRemoving] = useState(false);
@@ -420,6 +459,26 @@ function AdminServiceRow({
               </p>
             </div>
             <div className="flex flex-wrap gap-2 shrink-0 items-center">
+              <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden">
+                <button
+                  type="button"
+                  onClick={moveUp}
+                  disabled={index === 0 || reordering}
+                  className="px-2 py-1.5 text-charcoal/70 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed text-sm"
+                  title="Move up"
+                >
+                  ▲
+                </button>
+                <button
+                  type="button"
+                  onClick={moveDown}
+                  disabled={index >= totalServices - 1 || reordering}
+                  className="px-2 py-1.5 text-charcoal/70 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed text-sm border-l border-slate-200"
+                  title="Move down"
+                >
+                  ▼
+                </button>
+              </div>
               <button
                 type="button"
                 onClick={() => setEditing(true)}

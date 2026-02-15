@@ -36,7 +36,8 @@ async function main() {
   ];
 
   // Only create default services if they don't exist — never overwrite, so admin edits are preserved when you restart the app
-  for (const s of categories) {
+  for (let i = 0; i < categories.length; i++) {
+    const s = categories[i];
     const slug = s.name.toLowerCase().replace(/\s+/g, "-");
     const existing = await prisma.service.findUnique({ where: { id: slug } });
     if (!existing) {
@@ -45,6 +46,7 @@ async function main() {
           id: slug,
           name: s.name,
           category: s.category,
+          position: i,
           durationMin: s.durationMin,
           price: s.price,
           depositAmount: s.depositAmount,

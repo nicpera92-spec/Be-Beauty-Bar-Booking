@@ -7,7 +7,7 @@ export async function GET() {
   try {
     const services = await prisma.service.findMany({
       where: { active: true },
-      orderBy: [{ category: "asc" }, { name: "asc" }],
+      orderBy: [{ position: "asc" }, { category: "asc" }, { name: "asc" }],
     });
     const res = NextResponse.json(services);
     res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");

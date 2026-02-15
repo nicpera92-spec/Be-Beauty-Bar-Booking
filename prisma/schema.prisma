@@ -11,6 +11,7 @@ model Service {
   id            String   @id @default(cuid())
   name          String
   category      String   // nails | lash | permanent-makeup
+  position      Int      @default(0) // admin-defined order (lower = first)
   durationMin   Int      // minutes allotted per booking
   price         Float    @default(0) // full price; deposit is deducted from this
   depositAmount Float    // required to confirm; must be <= price
