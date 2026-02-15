@@ -119,43 +119,38 @@ export default function BookPage() {
                     href={`/book/${s.id}`}
                     className="block p-4 sm:p-6 rounded-lg border border-slate-200 bg-white hover:border-navy/30 hover:shadow-md transition-all duration-200 touch-manipulation active:bg-slate-50"
                   >
-                    <div className="flex flex-col sm:flex-row sm:justify-between items-start gap-2 sm:gap-0">
-                      <div className="min-w-0 flex-1">
-                        <h3 className="font-medium text-slate-800">{s.name}</h3>
-                        {s.description && (
-                          <div className="mt-1 w-full">
-                            <span
-                              role="button"
-                              tabIndex={0}
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setExpandedDescriptionId((id) => (id === s.id ? null : s.id));
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" || e.key === " ") {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  setExpandedDescriptionId((id) => (id === s.id ? null : s.id));
-                                }
-                              }}
-                              className="text-sm text-slate-600 hover:underline cursor-pointer"
-                            >
-                              {expandedDescriptionId === s.id ? "Hide description ▲" : "View description ▼"}
-                            </span>
-                            {expandedDescriptionId === s.id && (
-                              <p className="text-sm text-slate-500 mt-1.5 w-full">
-                                {s.description}
-                              </p>
-                            )}
-                          </div>
+                    <h3 className="font-medium text-slate-800">{s.name}</h3>
+                    <p className="text-sm text-slate-900 mt-0.5">
+                      Duration {formatDurationHours(s.durationMin)} · Price {formatPriceShort(s.price)} · {formatPriceShort(s.depositAmount)} deposit
+                    </p>
+                    {s.description && (
+                      <div className="mt-2 w-full">
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setExpandedDescriptionId((id) => (id === s.id ? null : s.id));
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setExpandedDescriptionId((id) => (id === s.id ? null : s.id));
+                            }
+                          }}
+                          className="text-sm text-slate-600 hover:underline cursor-pointer"
+                        >
+                          {expandedDescriptionId === s.id ? "Hide description ▲" : "View description ▼"}
+                        </span>
+                        {expandedDescriptionId === s.id && (
+                          <p className="text-sm text-slate-500 mt-1.5 w-full">
+                            {s.description}
+                          </p>
                         )}
                       </div>
-                      <div className="text-left sm:text-right shrink-0 sm:ml-5 text-sm text-slate-900">
-                        <div>Duration {formatDurationHours(s.durationMin)} · Price {formatPriceShort(s.price)}</div>
-                        <div className="mt-1">{formatPriceShort(s.depositAmount)} deposit</div>
-                      </div>
-                    </div>
+                    )}
                   </Link>
                 ))}
               </div>
