@@ -93,6 +93,7 @@ model Booking {
   stripeBalancePaymentIntentId  String?
   depositRefundedAt DateTime?
   balanceRefundedAt DateTime?
+  reminderSentAt    DateTime?  // 24h reminder sent
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }

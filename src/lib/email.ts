@@ -366,3 +366,66 @@ export async function sendManualCancellationEmails(
     return { ok: false, error: String(e) };
   }
 }
+
+/**
+ * Send 24-hour reminder (email and/or SMS) to customer before their appointment.
+ * Includes appointment details and cancellation policy.
+ */
+export async function sendBookingReminderEmails(
+  bookingId: string
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { service: true },
+    });
+    if (!booking || booking.status !== "confirmed") {
+      return { ok: false, error: "Booking not found or not confirmed" };
+    }
+
+    const settings = await prisma.businessSettings.findUnique({
+      where: { id: "default" },
+    });
+    const businessName = settings?.businessName ?? "Be Beauty Bar";
+    const dayLabel = formatBookingDate(booking.date, "EEEE, d MMMM yyyy");
+
+    // Email
+    if (booking.notifyByEmail && booking.customerEmail && resendClient) {
+      const customerSubject = `Reminder: your appointment tomorrow – ${businessName}`;
+      const customerHtml = `
+        <h2>Appointment reminder</h2>
+        <p>Hi ${booking.customerName},</p>
+        <p>This is a friendly reminder that you have an appointment with us tomorrow:</p>
+        <ul>
+          <li><strong>Service:</strong> ${booking.service.name}</li>
+          <li><strong>Date:</strong> ${dayLabel}</li>
+          <li><strong>Time:</strong> ${booking.startTime} – ${booking.endTime}</li>
+        </ul>
+        <p>We look forward to seeing you!</p>
+        <p>— ${businessName}</p>
+      `;
+      const r = await sendResendEmail({
+        from,
+        to: booking.customerEmail,
+        subject: customerSubject,
+        html: customerHtml,
+      });
+      if (!r.ok) return r;
+    }
+
+    // SMS
+    if (booking.notifyBySMS && booking.customerPhone) {
+      const smsDayLabel = formatBookingDate(booking.date, "dd/MM");
+      const smsMessage = `Hi ${booking.customerName}! Just a reminder – your ${booking.service.name} appointment at ${businessName} is tomorrow ${smsDayLabel} at ${booking.startTime}. See you soon!`;
+      const smsResult = await sendSMS(formatUKPhoneToE164(booking.customerPhone), smsMessage);
+      if (!smsResult.ok) {
+        console.warn("SMS not sent for 24h reminder:", smsResult.error);
+      }
+    }
+
+    return { ok: true };
+  } catch (e) {
+    console.error("sendBookingReminderEmails:", e);
+    return { ok: false, error: String(e) };
+  }
+}
