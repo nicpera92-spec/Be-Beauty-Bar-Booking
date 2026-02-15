@@ -203,23 +203,20 @@ export default function BookDatePage() {
               </div>
             </div>
           ))}
-          <p className="text-sm text-slate-600 mt-6 leading-relaxed">
-            Need an appointment outside our usual hours? Please feel free to contact us on our Instagram
-            {settings?.instagramHandle ? (
-              <>
-                {" "}
-                <a
-                  href={`https://instagram.com/${settings.instagramHandle.replace(/^@/, "")}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-navy hover:underline"
-                >
-                  @{settings.instagramHandle.replace(/^@/, "")}
-                </a>
-              </>
-            ) : null}
-            . Please note that appointments outside of our regular opening hours are charged at double the standard rate.
-          </p>
+          <div className="mt-6 rounded-lg border-2 border-navy/30 bg-navy/5 px-4 py-3">
+            <p className="text-sm text-slate-700 leading-relaxed">
+              Private after-hours appointments are available upon request. Enquire via{" "}
+              <a
+                href={`https://instagram.com/${(settings?.instagramHandle || "bebeauty.bar").replace(/^@/, "")}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-navy hover:underline underline decoration-2 decoration-navy/60"
+              >
+                @bebeauty.bar
+              </a>
+              . (Double rates apply).
+            </p>
+          </div>
         </div>
 
         {/* Available times */}
