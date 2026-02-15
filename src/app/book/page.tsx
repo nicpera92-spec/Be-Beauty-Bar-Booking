@@ -155,7 +155,7 @@ export default function BookPage() {
                 ))}
               </div>
               {cat === "nails" && (
-                <p className="text-xs font-semibold text-slate-700 mt-4">
+                <p className="text-sm font-semibold text-slate-700 mt-4 text-center">
                   Enhancements such as French, ombré or custom nail art are available at £1 per nail, added to the final price.
                 </p>
               )}
