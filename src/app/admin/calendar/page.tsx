@@ -146,6 +146,15 @@ export default function AdminCalendarPage() {
 
   const hasTimeOff = (date: Date) => timeOffByDate[format(date, "yyyy-MM-dd")] === true;
 
+  const getBlocksForDate = (dateStr: string): TimeOffBlock[] => {
+    return timeOffBlocks.filter((block) => {
+      const sel = parse(dateStr, "yyyy-MM-dd", new Date());
+      const start = parse(block.startDate, "yyyy-MM-dd", new Date());
+      const end = parse(block.endDate, "yyyy-MM-dd", new Date());
+      return sel >= start && sel <= end;
+    });
+  };
+
   // Use today's calendar date (yyyy-MM-dd) so the highlighted square always matches the actual current day
   const todayDateStr = format(startOfDay(new Date()), "yyyy-MM-dd");
   const isToday = (date: Date) => format(startOfDay(date), "yyyy-MM-dd") === todayDateStr;
@@ -156,6 +165,7 @@ export default function AdminCalendarPage() {
   const goToThisMonth = () => setMonthDate(startOfMonth(new Date()));
 
   const selectedBookings = selectedDate ? bookingsByDate[selectedDate] || [] : [];
+  const selectedBlocks = selectedDate ? getBlocksForDate(selectedDate) : [];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12 min-w-0">
@@ -306,7 +316,7 @@ export default function AdminCalendarPage() {
 
         {/* Overview - right */}
         <div className="w-full lg:w-80 lg:shrink-0 lg:sticky lg:top-4">
-          {selectedDate && selectedBookings.length > 0 && (
+          {selectedDate && (selectedBookings.length > 0 || selectedBlocks.length > 0) && (
             <div className="bg-white rounded-xl border border-slate-200 p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-charcoal">
@@ -320,7 +330,28 @@ export default function AdminCalendarPage() {
                   Close
                 </button>
               </div>
+              {selectedBlocks.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-sm font-medium text-violet-700 mb-2">Time off</p>
+                  <div className="space-y-2">
+                    {selectedBlocks.map((block) => (
+                      <div
+                        key={block.id}
+                        className="p-3 rounded-lg border border-violet-200 bg-violet-50/80 text-sm text-charcoal"
+                      >
+                        {block.startDate === block.endDate ? (
+                          <p>{block.startTime} – {block.endTime}</p>
+                        ) : (
+                          <p>{block.startDate} {block.startTime} – {block.endDate} {block.endTime}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {selectedBookings.length > 0 && (
               <div className="space-y-3">
+                {selectedBlocks.length > 0 && <p className="text-sm font-medium text-charcoal mt-2">Bookings</p>}
                 {selectedBookings
                   .sort((a, b) => a.startTime.localeCompare(b.startTime))
                   .map((booking) => (
@@ -356,10 +387,11 @@ export default function AdminCalendarPage() {
                     </div>
                   ))}
               </div>
+              )}
             </div>
           )}
 
-          {selectedDate && selectedBookings.length === 0 && (
+          {selectedDate && selectedBookings.length === 0 && selectedBlocks.length === 0 && (
             <div className="bg-white rounded-xl border border-slate-200 p-6 text-center">
               <p className="text-charcoal/60">
                 No bookings on {format(parse(selectedDate, "yyyy-MM-dd", new Date()), "d MMMM yyyy")}
