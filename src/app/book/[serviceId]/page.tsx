@@ -15,6 +15,8 @@ type Service = {
 
 type Slot = { start: string; end: string };
 
+type Settings = { instagramHandle?: string | null };
+
 function formatTime24to12(t: string): string {
   const [h, m] = t.split(":").map(Number);
   if (h === 12) return `12:${m.toString().padStart(2, "0")} PM`;
@@ -27,6 +29,7 @@ export default function BookDatePage() {
   const router = useRouter();
   const serviceId = params.serviceId as string;
   const [service, setService] = useState<Service | null>(null);
+  const [settings, setSettings] = useState<Settings | null>(null);
   const [availability, setAvailability] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -57,12 +60,14 @@ export default function BookDatePage() {
       fetch(
         `/api/slots/availability?serviceId=${encodeURIComponent(serviceId)}&from=${fromStr}&to=${toStr}`
       ).then((r) => r.json()),
+      fetch("/api/settings").then((r) => r.json()),
     ])
-      .then(([servicesData, availData]) => {
+      .then(([servicesData, availData, settingsData]) => {
         const list = Array.isArray(servicesData) ? servicesData : [];
         const s = list.find((x: { id: string }) => x.id === serviceId);
         setService(s ?? null);
         setAvailability(availData?.availability ?? {});
+        setSettings(settingsData?.error ? null : settingsData);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -198,6 +203,23 @@ export default function BookDatePage() {
               </div>
             </div>
           ))}
+          <p className="text-sm text-slate-600 mt-6 leading-relaxed">
+            Need an appointment outside our usual hours? Please feel free to contact us on our Instagram
+            {settings?.instagramHandle ? (
+              <>
+                {" "}
+                <a
+                  href={`https://instagram.com/${settings.instagramHandle.replace(/^@/, "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-navy hover:underline"
+                >
+                  @{settings.instagramHandle.replace(/^@/, "")}
+                </a>
+              </>
+            ) : null}
+            . Please note that appointments outside of our regular opening hours are charged at double the standard rate.
+          </p>
         </div>
 
         {/* Available times */}
