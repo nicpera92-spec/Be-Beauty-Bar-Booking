@@ -307,9 +307,12 @@ export default function BookFormPage() {
 
         <div className="rounded-lg border border-slate-200 bg-slate-50/30 px-4 py-3">
           <p className="text-sm font-medium text-slate-700 mb-1.5">Cancellation policy</p>
-          <p className="text-sm text-slate-600 leading-relaxed">
-            Please provide at least 24 hours&apos; notice if you need to cancel or reschedule. Deposits are non-refundable for cancellations made within 24 hours of your appointment. We may need to cancel your appointment if you arrive more than 20 minutes late. Thank you for your understanding.
-          </p>
+          <ul className="text-sm text-slate-600 leading-relaxed list-disc list-inside space-y-1 mb-2">
+            <li>Please provide at least 24 hours&apos; notice if you need to cancel or reschedule.</li>
+            <li>Deposits are non-refundable for cancellations made less than 24 hours before your appointment.</li>
+            <li>We may need to cancel your appointment if you arrive more than 20 minutes late.</li>
+          </ul>
+          <p className="text-sm text-slate-600">Thank you for your understanding.</p>
         </div>
 
         {error && (
