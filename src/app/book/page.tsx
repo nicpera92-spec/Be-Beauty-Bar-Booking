@@ -128,11 +128,8 @@ export default function BookPage() {
                         )}
                       </div>
                       <div className="text-left sm:text-right shrink-0 sm:ml-5 text-sm text-slate-900">
-                        <span>Duration {formatDurationHours(s.durationMin)}</span>
-                        <br />
-                        <span>Price {formatPriceShort(s.price)}</span>
-                        <br />
-                        <span>{formatPriceShort(s.depositAmount)} deposit</span>
+                        <div>Duration {formatDurationHours(s.durationMin)} · Price {formatPriceShort(s.price)}</div>
+                        <div className="mt-1">{formatPriceShort(s.depositAmount)} deposit</div>
                       </div>
                     </div>
                   </Link>
