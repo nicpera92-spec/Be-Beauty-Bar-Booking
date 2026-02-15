@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   if (id) {
     const booking = await prisma.booking.findUnique({
       where: { id },
-      include: { service: true, bookingAddOns: true },
+      include: { service: true },
     });
     if (!booking) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
@@ -43,8 +43,6 @@ export async function POST(req: NextRequest) {
       date,
       startTime,
       endTime,
-      depositAmount,
-      selectedAddOnIds,
       notes,
       notifyByEmail,
       notifyBySMS,
@@ -117,16 +115,12 @@ export async function POST(req: NextRequest) {
 
     const service = await prisma.service.findUnique({
       where: { id: serviceId },
-      include: { addOns: true },
     });
     if (!service) {
       return NextResponse.json({ error: "Service not found" }, { status: 404 });
     }
 
-    const addOnIds = Array.isArray(selectedAddOnIds) ? selectedAddOnIds : [];
-    const selectedAddOns = service.addOns.filter((a) => addOnIds.includes(a.id));
-    const addOnTotal = selectedAddOns.reduce((sum, a) => sum + a.price, 0);
-    const servicePrice = service.price + addOnTotal;
+    const servicePrice = service.price;
 
     const settings = await prisma.businessSettings.findUnique({
       where: { id: "default" },
@@ -213,17 +207,8 @@ export async function POST(req: NextRequest) {
         status: "pending_deposit",
         notifyByEmail: wantsEmail,
         notifyBySMS: wantsSMS,
-        bookingAddOns: selectedAddOns.length > 0
-          ? {
-              create: selectedAddOns.map((a) => ({
-                addOnId: a.id,
-                addOnName: a.name,
-                addOnPrice: a.price,
-              })),
-            }
-          : undefined,
       },
-      include: { service: true, bookingAddOns: true },
+      include: { service: true },
     });
 
     const emailResult = await sendBookingCreatedEmails(booking.id);

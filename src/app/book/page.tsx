@@ -3,9 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { formatCurrency, formatPriceShort, formatDurationHours } from "@/lib/format";
-
-type AddOn = { id: string; name: string; price: number };
+import { formatPriceShort, formatDurationHours } from "@/lib/format";
 
 type Service = {
   id: string;
@@ -15,7 +13,6 @@ type Service = {
   price: number;
   depositAmount: number;
   description: string | null;
-  addOns?: AddOn[];
 };
 
 const categoryLabels: Record<string, string> = {
@@ -42,7 +39,6 @@ export default function BookPage() {
   const [loading, setLoading] = useState(true);
   const [expandedDescriptionId, setExpandedDescriptionId] = useState<string | null>(null);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
-  const [selectedAddOnId, setSelectedAddOnId] = useState<Record<string, string>>({}); // serviceId -> addOnId (single)
   const continueRef = useRef<HTMLDivElement>(null);
 
   const fetchServices = (showLoading = true) => {
@@ -94,9 +90,7 @@ export default function BookPage() {
 
   const handleContinue = () => {
     if (!selectedServiceId) return;
-    const addOnId = selectedAddOnId[selectedServiceId];
-    const query = addOnId ? `?addOns=${addOnId}` : "";
-    router.push(`/book/${selectedServiceId}${query}`);
+    router.push(`/book/${selectedServiceId}`);
   };
 
   const handleServiceSelect = (serviceId: string) => {
@@ -143,41 +137,10 @@ export default function BookPage() {
                         : "border-slate-200 bg-white hover:border-navy/30 hover:shadow-md"
                     }`}
                   >
-                    <div className="flex items-center gap-4 sm:gap-6 flex-wrap">
-                      <h3 className="font-medium text-slate-800">{s.name}</h3>
-                      {s.addOns && s.addOns.length > 0 && (
-                        <div className="flex items-center gap-2 text-sm text-slate-700" onClick={(e) => e.stopPropagation()}>
-                          <span>Add-ons</span>
-                          <select
-                            value={selectedAddOnId[s.id] ?? ""}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              setSelectedAddOnId((prev) => ({ ...prev, [s.id]: value }));
-                              if (selectedServiceId === s.id) {
-                                continueRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-                              }
-                            }}
-                            className="text-sm text-slate-700 bg-transparent border-none outline-none focus:ring-0 cursor-pointer py-1"
-                          >
-                            <option value="">None</option>
-                            {s.addOns.map((a) => (
-                              <option key={a.id} value={a.id}>
-                                {a.name} +{formatCurrency(a.price)}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
-                    </div>
-                    {(() => {
-                      const addOn = s.addOns?.find((a) => a.id === selectedAddOnId[s.id]);
-                      const totalPrice = addOn ? s.price + addOn.price : s.price;
-                      return (
-                        <p className="text-sm text-slate-900 mt-0.5">
-                          Duration {formatDurationHours(s.durationMin)} · Price {formatPriceShort(totalPrice)} · {formatPriceShort(s.depositAmount)} deposit
-                        </p>
-                      );
-                    })()}
+                    <h3 className="font-medium text-slate-800">{s.name}</h3>
+                    <p className="text-sm text-slate-900 mt-0.5">
+                      Duration {formatDurationHours(s.durationMin)} · Price {formatPriceShort(s.price)} · {formatPriceShort(s.depositAmount)} deposit
+                    </p>
                     {s.description && (
                       <div className="mt-2 w-full" onClick={(e) => e.stopPropagation()}>
                         <span
@@ -207,6 +170,11 @@ export default function BookPage() {
                   </div>
                 ))}
               </div>
+              {cat === "nails" && (
+                <p className="text-sm text-slate-600 mt-4">
+                  Enhancements such as French, ombré or custom nail art are available at £1 per nail, added to the final price.
+                </p>
+              )}
             </section>
           );
         })}

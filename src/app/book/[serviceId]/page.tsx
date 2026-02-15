@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { addDays, addMonths, eachDayOfInterval, endOfMonth, format, isBefore, parse, startOfMonth, startOfToday } from "date-fns";
 import Link from "next/link";
@@ -34,12 +34,6 @@ export default function BookDatePage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
-  const searchParams = useSearchParams();
-  const addOnsQuery = (() => {
-    const addOnsParam = searchParams.get("addOns");
-    if (!addOnsParam) return "";
-    return `?addOns=${addOnsParam}`;
-  })();
   const timeSectionRef = useRef<HTMLDivElement>(null);
 
   const today = startOfToday();
@@ -246,7 +240,7 @@ export default function BookDatePage() {
                 {slots.map((slot) => (
                   <Link
                     key={slot.start}
-                    href={`/book/${serviceId}/${selectedDate}/${encodeURIComponent(slot.start)}${addOnsQuery}`}
+                    href={`/book/${serviceId}/${selectedDate}/${encodeURIComponent(slot.start)}`}
                     className="flex items-center justify-center px-2 py-2 sm:py-2.5 rounded-lg border border-slate-200 bg-white text-slate-800 text-[11px] sm:text-xs font-medium hover:border-navy/40 hover:bg-navy/5 hover:text-navy transition touch-manipulation text-center min-h-[40px] sm:min-h-[44px] min-w-0"
                   >
                     {formatTime24to12(slot.start)} – {formatTime24to12(slot.end)}

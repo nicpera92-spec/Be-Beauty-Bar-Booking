@@ -13,13 +13,6 @@ function getAuthHeaders(): Record<string, string> {
   return t ? { Authorization: `Bearer ${t}` } : {};
 }
 
-type AddOn = {
-  id: string;
-  serviceId: string;
-  name: string;
-  price: number;
-};
-
 type Service = {
   id: string;
   name: string;
@@ -29,7 +22,6 @@ type Service = {
   depositAmount: number;
   description: string | null;
   active: boolean;
-  addOns?: AddOn[];
 };
 
 const categoryLabels: Record<string, string> = {
@@ -531,193 +523,7 @@ function AdminServiceRow({
               )}
             </div>
           )}
-          <AdminAddOns
-            serviceId={service.id}
-            addOns={service.addOns ?? []}
-            getAuthHeaders={getAuthHeaders}
-            onUpdate={onUpdate}
-          />
         </>
-      )}
-    </div>
-  );
-}
-
-function AdminAddOns({
-  serviceId,
-  addOns,
-  getAuthHeaders,
-  onUpdate,
-}: {
-  serviceId: string;
-  addOns: AddOn[];
-  getAuthHeaders: () => Record<string, string>;
-  onUpdate: () => void;
-}) {
-  const [adding, setAdding] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newPrice, setNewPrice] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editPrice, setEditPrice] = useState("");
-
-  const handleAdd = (e: React.FormEvent) => {
-    e.preventDefault();
-    const name = newName.trim();
-    const price = parseFloat(newPrice);
-    if (!name || isNaN(price) || price < 0) return;
-    setSaving(true);
-    fetch("/api/admin/add-ons", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-      body: JSON.stringify({ serviceId, name, price }),
-    })
-      .then((r) => (r.ok ? onUpdate() : Promise.reject()))
-      .catch(() => {})
-      .finally(() => {
-        setSaving(false);
-        setAdding(false);
-        setNewName("");
-        setNewPrice("");
-      });
-  };
-
-  const handleUpdate = (id: string) => {
-    const name = editName.trim();
-    const price = parseFloat(editPrice);
-    if (!name || isNaN(price) || price < 0) return;
-    setSaving(true);
-    fetch(`/api/admin/add-ons/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-      body: JSON.stringify({ name, price }),
-    })
-      .then((r) => (r.ok ? onUpdate() : Promise.reject()))
-      .catch(() => {})
-      .finally(() => {
-        setSaving(false);
-        setEditingId(null);
-      });
-  };
-
-  const handleRemove = (id: string) => {
-    if (!confirm("Remove this add-on?")) return;
-    setSaving(true);
-    fetch(`/api/admin/add-ons/${id}`, {
-      method: "DELETE",
-      headers: getAuthHeaders(),
-    })
-      .then((r) => (r.ok ? onUpdate() : Promise.reject()))
-      .catch(() => {})
-      .finally(() => setSaving(false));
-  };
-
-  const startEdit = (a: AddOn) => {
-    setEditingId(a.id);
-    setEditName(a.name);
-    setEditPrice(String(a.price));
-  };
-
-  return (
-    <div className="mt-4 pt-4 border-t border-slate-200">
-      <p className="text-xs font-medium text-charcoal/60 mb-2">Add-ons</p>
-      <div className="space-y-2">
-        {addOns.map((a) => (
-          <div key={a.id} className="flex items-center gap-2">
-            {editingId === a.id ? (
-              <>
-                <input
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="flex-1 px-2 py-1.5 rounded border border-slate-200 text-sm"
-                  placeholder="Name"
-                />
-                <input
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={editPrice}
-                  onChange={(e) => setEditPrice(e.target.value)}
-                  className="w-20 px-2 py-1.5 rounded border border-slate-200 text-sm"
-                  placeholder="£"
-                />
-                <button
-                  type="button"
-                  onClick={() => handleUpdate(a.id)}
-                  disabled={saving}
-                  className="px-2 py-1 text-xs bg-slate-900 text-white rounded"
-                >
-                  Save
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEditingId(null)}
-                  className="px-2 py-1 text-xs border border-slate-200 rounded"
-                >
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <>
-                <span className="text-sm text-charcoal">
-                  {a.name} +{formatCurrency(a.price)}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => startEdit(a)}
-                  disabled={saving}
-                  className="text-xs text-sky-600 hover:underline"
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleRemove(a.id)}
-                  disabled={saving}
-                  className="text-xs text-red-600 hover:underline"
-                >
-                  Remove
-                </button>
-              </>
-            )}
-          </div>
-        ))}
-      </div>
-      {adding ? (
-        <form onSubmit={handleAdd} className="flex items-center gap-2 mt-2">
-          <input
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            className="flex-1 px-2 py-1.5 rounded border border-slate-200 text-sm"
-            placeholder="e.g. French"
-            required
-          />
-          <input
-            type="number"
-            min={0}
-            step={0.01}
-            value={newPrice}
-            onChange={(e) => setNewPrice(e.target.value)}
-            className="w-20 px-2 py-1.5 rounded border border-slate-200 text-sm"
-            placeholder="£"
-            required
-          />
-          <button type="submit" disabled={saving} className="px-2 py-1 text-xs bg-slate-900 text-white rounded">
-            Add
-          </button>
-          <button type="button" onClick={() => setAdding(false)} className="px-2 py-1 text-xs border border-slate-200 rounded">
-            Cancel
-          </button>
-        </form>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setAdding(true)}
-          className="mt-2 text-xs text-sky-600 hover:underline"
-        >
-          + Add add-on
-        </button>
       )}
     </div>
   );
