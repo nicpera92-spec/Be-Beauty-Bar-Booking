@@ -125,3 +125,4 @@ If a customer does not pay the deposit within **24 hours**, the booking is autom
 | `npm run start`   | Run production server      |
 | `npm run db:push` | Push Prisma schema to DB   |
 | `npm run db:seed` | Seed services & settings   |
+
