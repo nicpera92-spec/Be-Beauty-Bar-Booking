@@ -27,6 +27,8 @@ export default function BookFormPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [smsFee, setSmsFee] = useState<number>(0.05);
+  const [acceptedPolicy, setAcceptedPolicy] = useState(false);
+  const [policyError, setPolicyError] = useState(false);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -70,6 +72,14 @@ export default function BookFormPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    // Validate: cancellation policy acceptance
+    if (!acceptedPolicy) {
+      setPolicyError(true);
+      return;
+    }
+
+    setPolicyError(false);
 
     // Validate: at least one contact method
     if (!email.trim() && !phone.trim()) {
@@ -310,14 +320,40 @@ export default function BookFormPage() {
           />
         </div>
 
-        <div className="rounded-lg border-2 border-black bg-slate-50/30 px-4 py-3">
+        <div
+          className={`rounded-lg border-2 px-4 py-3 ${
+            policyError ? "border-red-400 bg-red-50" : "border-black bg-slate-50/30"
+          }`}
+        >
           <p className="text-sm font-medium text-slate-700 mb-1.5 underline">Cancellation policy</p>
           <ul className="text-xs text-slate-600 leading-relaxed list-disc list-outside pl-5 ml-1 space-y-1 mb-2">
             <li>Please provide at least 24 hours&apos; notice if you need to cancel or reschedule.</li>
             <li>Deposits are non-refundable for cancellations made less than 24 hours before your appointment.</li>
             <li>If you arrive more than 20 minutes late we may need to shorten your service or reschedule your appointment. In some cases, a late arrival may be treated as a no-show.</li>
           </ul>
-          <p className="text-xs text-slate-600">Thank you for your understanding.</p>
+          <p className="text-xs text-slate-600 mb-3">Thank you for your understanding.</p>
+          <label className="flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-3 cursor-pointer">
+            <div className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                checked={acceptedPolicy}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setAcceptedPolicy(checked);
+                  if (checked) {
+                    setPolicyError(false);
+                  }
+                }}
+                className={`mt-0.5 w-4 h-4 rounded border ${
+                  policyError ? "border-red-500 text-red-500 focus:ring-red-400/40" : "border-slate-300 text-navy focus:ring-navy/20"
+                }`}
+              />
+              <span className="text-xs text-slate-700">
+                I confirm that I have read and agree to the cancellation policy.
+              </span>
+            </div>
+            {policyError && !acceptedPolicy && null}
+          </label>
         </div>
 
         {error && (
