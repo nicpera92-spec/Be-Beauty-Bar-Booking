@@ -40,6 +40,14 @@ export default function AdminPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<
+    "confirmed" | "pending_deposit" | "cancelled"
+  >("confirmed");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const currentMonthKey = new Date().toISOString().slice(0, 7); // YYYY-MM
+  const [monthFilter, setMonthFilter] = useState<string>(currentMonthKey); // "all" | "YYYY-MM"
 
   useEffect(() => {
     const t = typeof window !== "undefined" ? sessionStorage.getItem(ADMIN_TOKEN_KEY) : null;
@@ -93,6 +101,21 @@ export default function AdminPage() {
       .then((data) => setBookings(Array.isArray(data) ? data : []))
       .catch(() => {});
   }, [token]);
+
+  useEffect(() => {
+    // Reset pagination when switching tabs / filters
+    setPage(1);
+  }, [statusFilter]);
+
+  useEffect(() => {
+    // Reset pagination when switching sorting
+    setPage(1);
+  }, [sortDir]);
+
+  useEffect(() => {
+    // Reset pagination when switching month
+    setPage(1);
+  }, [monthFilter]);
 
   useEffect(() => {
     if (!token) return;
@@ -177,9 +200,71 @@ export default function AdminPage() {
     );
   }
 
-  const pending = bookings.filter((b) => b.status === "pending_deposit");
-  const confirmed = bookings.filter((b) => b.status === "confirmed");
-  const cancelled = bookings.filter((b) => b.status === "cancelled");
+  const monthOptions = (() => {
+    const months = new Set<string>();
+    for (const b of bookings) {
+      if (typeof b.date === "string" && b.date.length >= 7) months.add(b.date.slice(0, 7));
+    }
+    // Ensure current month exists even if empty
+    months.add(currentMonthKey);
+    return Array.from(months).sort((a, b) => b.localeCompare(a)); // newest first
+  })();
+
+  function monthLabel(key: string) {
+    // key: YYYY-MM
+    const [y, m] = key.split("-").map((n) => Number(n));
+    if (!y || !m) return key;
+    const d = new Date(Date.UTC(y, m - 1, 1));
+    return new Intl.DateTimeFormat(undefined, { month: "long", year: "numeric" }).format(d);
+  }
+
+  function nextMonthStart(key: string) {
+    const [yStr, mStr] = key.split("-");
+    const y = Number(yStr);
+    const m = Number(mStr);
+    if (!y || !m) return null;
+    const d = new Date(Date.UTC(y, m - 1, 1));
+    d.setUTCMonth(d.getUTCMonth() + 1);
+    const yyyy = d.getUTCFullYear();
+    const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+    return `${yyyy}-${mm}-01`;
+  }
+
+  const rangeStartStr = monthFilter === "all" ? null : `${monthFilter}-01`;
+  const rangeEndStr = monthFilter === "all" ? null : nextMonthStart(monthFilter);
+
+  const inVisibleRange = (b: Booking) => {
+    if (!rangeStartStr || !rangeEndStr) return true;
+    return b.date >= rangeStartStr && b.date < rangeEndStr;
+  };
+
+  const pending = bookings.filter(
+    (b) => b.status === "pending_deposit" && inVisibleRange(b)
+  );
+  const confirmed = bookings.filter(
+    (b) => b.status === "confirmed" && inVisibleRange(b)
+  );
+  const cancelled = bookings.filter(
+    (b) => b.status === "cancelled" && inVisibleRange(b)
+  );
+
+  const filtered = (
+    statusFilter === "confirmed"
+      ? confirmed
+      : statusFilter === "pending_deposit"
+        ? pending
+        : cancelled
+  )
+    .slice()
+    .sort((a, b) => {
+      const da = a.date + a.startTime;
+      const db = b.date + b.startTime;
+      return sortDir === "desc" ? db.localeCompare(da) : da.localeCompare(db);
+    });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safePage = Math.min(Math.max(page, 1), totalPages);
+  const paged = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
@@ -238,66 +323,143 @@ export default function AdminPage() {
       </div>
 
       <section>
-        <h2 className="font-medium text-charcoal mb-4">
-          Confirmed ({confirmed.length})
-        </h2>
-        {confirmed.length === 0 ? (
-          <p className="text-charcoal/60 text-sm">No confirmed bookings yet.</p>
-        ) : (
-          <div className="space-y-3">
-            {confirmed.map((b) => (
-              <AdminBookingRow
-                key={b.id}
-                booking={b}
-                getAuthHeaders={getAuthHeaders}
-                onUpdate={refreshBookings}
-              />
-            ))}
-          </div>
-        )}
-      </section>
+        <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
+          <h2 className="font-medium text-charcoal">
+            {statusFilter === "confirmed"
+              ? `Confirmed (${confirmed.length})`
+              : statusFilter === "pending_deposit"
+                ? `Pending deposit (${pending.length})`
+                : `Cancelled (${cancelled.length})`}
+            {statusFilter === "cancelled" && (
+              <span className="text-charcoal/50 font-normal text-sm"> — for reference only</span>
+            )}
+          </h2>
+          <div className="flex items-center gap-3 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
+              className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-charcoal text-sm font-medium hover:bg-slate-50 transition"
+              title="Toggle sort order"
+            >
+              Sort: {sortDir === "desc" ? "Newest" : "Oldest"}
+            </button>
 
-      <section className="mt-10">
-        <h2 className="font-medium text-charcoal mb-4">
-          Pending deposit ({pending.length})
-        </h2>
-        {pending.length === 0 ? (
-          <p className="text-charcoal/60 text-sm">No bookings awaiting deposit.</p>
-        ) : (
-          <div className="space-y-3">
-            {pending.map((b) => (
-              <AdminBookingRow
-                key={b.id}
-                booking={b}
-                getAuthHeaders={getAuthHeaders}
-                onUpdate={refreshBookings}
-              />
-            ))}
-          </div>
-        )}
-      </section>
+            <label className="text-sm text-charcoal/60">
+              Month{" "}
+              <select
+                value={monthFilter}
+                onChange={(e) => setMonthFilter(e.target.value)}
+                className="ml-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-charcoal"
+              >
+                <option value="all">All time</option>
+                {monthOptions.map((m) => (
+                  <option key={m} value={m}>
+                    {monthLabel(m)}{m === currentMonthKey ? " (current)" : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-      <section className="mt-10">
-        <h2 className="font-medium text-charcoal mb-4">
-          Cancelled ({cancelled.length}) <span className="text-charcoal/50 font-normal text-sm">— for reference only</span>
-        </h2>
-        {cancelled.length === 0 ? (
-          <p className="text-charcoal/60 text-sm">No cancelled bookings.</p>
+            <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
+              <button
+                type="button"
+                onClick={() => setStatusFilter("confirmed")}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${
+                  statusFilter === "confirmed"
+                    ? "bg-slate-900 text-white"
+                    : "text-charcoal hover:bg-slate-50"
+                }`}
+              >
+                Confirmed
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter("pending_deposit")}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${
+                  statusFilter === "pending_deposit"
+                    ? "bg-slate-900 text-white"
+                    : "text-charcoal hover:bg-slate-50"
+                }`}
+              >
+                Pending deposit
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter("cancelled")}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${
+                  statusFilter === "cancelled"
+                    ? "bg-slate-900 text-white"
+                    : "text-charcoal hover:bg-slate-50"
+                }`}
+              >
+                Cancelled
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {filtered.length === 0 ? (
+          <p className="text-charcoal/60 text-sm">
+            {statusFilter === "confirmed"
+              ? "No confirmed bookings yet."
+              : statusFilter === "pending_deposit"
+                ? "No bookings awaiting deposit."
+                : "No cancelled bookings."}
+          </p>
         ) : (
           <div className="space-y-3">
-            {cancelled
-            .sort((a, b) => {
-              const da = a.date + a.startTime;
-              const db = b.date + b.startTime;
-              return db.localeCompare(da);
-            })
-            .map((b) => (
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <p className="text-sm text-charcoal/60">
+                {monthFilter === "all" ? "All time · " : `From ${rangeStartStr} · `}
+                Showing {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, filtered.length)} of {filtered.length}
+              </p>
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-charcoal/60">
+                  Per page{" "}
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setPage(1);
+                    }}
+                    className="ml-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-sm text-charcoal"
+                  >
+                    {[10, 20, 50, 100].map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={safePage <= 1}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-charcoal text-sm hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Prev
+                </button>
+                <span className="text-sm text-charcoal/70 tabular-nums">
+                  {safePage}/{totalPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safePage >= totalPages}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-charcoal text-sm hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+
+            {paged.map((b) => (
               <AdminBookingRow
                 key={b.id}
                 booking={b}
                 getAuthHeaders={getAuthHeaders}
                 onUpdate={refreshBookings}
-                readOnly
+                readOnly={statusFilter === "cancelled"}
               />
             ))}
           </div>
