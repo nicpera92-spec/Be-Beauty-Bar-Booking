@@ -43,8 +43,27 @@ export async function PATCH(req: NextRequest) {
   if (instagramHandle != null) data.instagramHandle = instagramHandle === "" ? null : instagramHandle;
   if (defaultDepositAmount != null) data.defaultDepositAmount = defaultDepositAmount === "" ? null : Number(defaultDepositAmount);
   if (defaultPrice != null) data.defaultPrice = defaultPrice === "" ? null : Number(defaultPrice);
-  if (openTime != null) data.openTime = String(openTime);
-  if (closeTime != null) data.closeTime = String(closeTime);
+  const timeRegex = /^\d{2}:00$/; // only full hours allowed, e.g. 09:00
+  if (openTime != null) {
+    const t = String(openTime);
+    if (!timeRegex.test(t)) {
+      return NextResponse.json(
+        { error: "Open time must be a whole hour, e.g. 09:00" },
+        { status: 400 }
+      );
+    }
+    data.openTime = t;
+  }
+  if (closeTime != null) {
+    const t = String(closeTime);
+    if (!timeRegex.test(t)) {
+      return NextResponse.json(
+        { error: "Close time must be a whole hour, e.g. 17:00" },
+        { status: 400 }
+      );
+    }
+    data.closeTime = t;
+  }
   if (slotInterval != null) data.slotInterval = Number(slotInterval);
   // Only update Stripe keys if a new value is provided (empty string means clear, undefined means don't change)
   if (stripeSecretKey !== undefined) {

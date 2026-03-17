@@ -13,12 +13,10 @@ function getAuthHeaders(): Record<string, string> {
   return { Authorization: `Bearer ${t}`, "X-Admin-Token": t };
 }
 
-// Time options every 15 mins: 00:00, 00:15, ..., 23:45
+// Time options every 60 mins: 00:00, 01:00, ..., 23:00
 const TIME_OPTIONS: string[] = [];
 for (let h = 0; h < 24; h++) {
-  for (let m = 0; m < 60; m += 15) {
-    TIME_OPTIONS.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
-  }
+  TIME_OPTIONS.push(`${String(h).padStart(2, "0")}:00`);
 }
 
 type Settings = {
