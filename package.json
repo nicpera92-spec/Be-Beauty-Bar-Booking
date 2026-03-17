@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3001",
-    "build": "prisma generate && (prisma migrate resolve --applied 20250213000000_open_close_to_time || true) && prisma migrate deploy && next build",
+    "build": "prisma generate && prisma migrate deploy && next build",
     "start": "next start -p 3001",
     "lint": "next lint",
     "db:generate": "prisma generate",
