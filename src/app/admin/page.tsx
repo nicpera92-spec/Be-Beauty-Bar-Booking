@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/format";
+import { CopyPhoneButton } from "@/components/CopyPhoneButton";
 
 const ADMIN_TOKEN_KEY = "admin-token";
 
@@ -544,7 +545,13 @@ function AdminBookingRow({
           {booking.service.name} · {booking.date} {booking.startTime}–{booking.endTime}
         </p>
         <p className="text-sm text-charcoal/60">
-          {booking.customerName} · {booking.customerPhone || booking.customerEmail || "No contact"} · {formatCurrency(booking.depositAmount)} deposit
+          {booking.customerName} ·{" "}
+          {booking.customerPhone ? (
+            <CopyPhoneButton phone={booking.customerPhone} />
+          ) : (
+            booking.customerEmail || "No contact"
+          )}{" "}
+          · {formatCurrency(booking.depositAmount)} deposit
           {booking.balancePaidOnline && " · balance paid online"}
           {booking.depositRefundedAt && " · deposit refunded"}
           {booking.balanceRefundedAt && " · balance refunded"}
