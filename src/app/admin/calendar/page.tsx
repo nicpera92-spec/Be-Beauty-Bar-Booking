@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
-import { format, startOfWeek, endOfWeek, eachDayOfInterval, parse, addMonths, subMonths, startOfMonth, endOfMonth, startOfDay, addDays } from "date-fns";
+import { format, startOfWeek, endOfWeek, eachDayOfInterval, parse, endOfMonth, startOfDay, addDays } from "date-fns";
 import { formatCurrency } from "@/lib/format";
 import { CopyPhoneButton } from "@/components/CopyPhoneButton";
+import { getCustomerBookableRange } from "@/lib/booking-calendar-range";
 
 const ADMIN_TOKEN_KEY = "admin-token";
 
@@ -43,8 +44,27 @@ export default function AdminCalendarPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [timeOffBlocks, setTimeOffBlocks] = useState<TimeOffBlock[]>([]);
   const [loading, setLoading] = useState(true);
-  const [monthDate, setMonthDate] = useState(startOfMonth(new Date())); // Current month
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const detailPanelRef = useRef<HTMLDivElement>(null);
+
+  const bookableRange = useMemo(() => getCustomerBookableRange(), []);
+
+  const calendarMonths = useMemo(() => {
+    return bookableRange.monthStarts.map((monthStart) => {
+      const monthEnd = endOfMonth(monthStart);
+      const weekStart = startOfWeek(monthStart, { weekStartsOn: 1 });
+      const weekEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+      return {
+        monthStart,
+        monthEnd,
+        days: eachDayOfInterval({ start: weekStart, end: weekEnd }),
+        title: format(monthStart, "MMMM yyyy"),
+      };
+    });
+  }, [bookableRange.monthStarts]);
+
+  const viewWeekStart = calendarMonths[0]?.days[0];
+  const viewWeekEnd = calendarMonths[calendarMonths.length - 1]?.days.at(-1);
 
   useEffect(() => {
     const t = typeof window !== "undefined" ? sessionStorage.getItem(ADMIN_TOKEN_KEY) : null;
@@ -82,13 +102,17 @@ export default function AdminCalendarPage() {
   }, [token]);
 
   useEffect(() => {
-    if (!token) return;
-    const month1Start = startOfMonth(monthDate);
-    const month2End = endOfMonth(addMonths(monthDate, 1));
-    const weekStart = startOfWeek(month1Start, { weekStartsOn: 1 });
-    const weekEnd = endOfWeek(month2End, { weekStartsOn: 1 });
-    fetchData(format(weekStart, "yyyy-MM-dd"), format(weekEnd, "yyyy-MM-dd"));
-  }, [token, monthDate, fetchData]);
+    if (!token || !viewWeekStart || !viewWeekEnd) return;
+    fetchData(format(viewWeekStart, "yyyy-MM-dd"), format(viewWeekEnd, "yyyy-MM-dd"));
+  }, [token, viewWeekStart, viewWeekEnd, fetchData]);
+
+  useEffect(() => {
+    if (!selectedDate) return;
+    const timer = window.setTimeout(() => {
+      detailPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [selectedDate]);
 
   if (!token || loading) {
     return (
@@ -98,21 +122,13 @@ export default function AdminCalendarPage() {
     );
   }
 
-  // Two months: build grids for monthDate and monthDate+1
-  const month1Start = startOfMonth(monthDate);
-  const month1End = endOfMonth(monthDate);
-  const month2Start = startOfMonth(addMonths(monthDate, 1));
-  const month2End = endOfMonth(addMonths(monthDate, 1));
-  const week1Start = startOfWeek(month1Start, { weekStartsOn: 1 });
-  const week1End = endOfWeek(month1End, { weekStartsOn: 1 });
-  const week2Start = startOfWeek(month2Start, { weekStartsOn: 1 });
-  const week2End = endOfWeek(month2End, { weekStartsOn: 1 });
-  const daysInView1 = eachDayOfInterval({ start: week1Start, end: week1End });
-  const daysInView2 = eachDayOfInterval({ start: week2Start, end: week2End });
+  const weekStart = viewWeekStart!;
+  const weekEnd = viewWeekEnd!;
 
-  // Filter bookings for the visible month range (both months)
-  const weekStart = week1Start;
-  const weekEnd = week2End;
+  const isCustomerBookableDate = (date: Date) => {
+    const d = startOfDay(date);
+    return d >= startOfDay(bookableRange.minBookableDate) && d <= startOfDay(bookableRange.rangeEnd);
+  };
 
   const activeBookings = bookings.filter((b) => {
     if (b.status === "cancelled") return false;
@@ -161,9 +177,7 @@ export default function AdminCalendarPage() {
   const isToday = (date: Date) => format(startOfDay(date), "yyyy-MM-dd") === todayDateStr;
   const isPast = (date: Date) => date < startOfDay(new Date()) && !isToday(date);
 
-  const goToPreviousMonth = () => setMonthDate(subMonths(monthDate, 1));
-  const goToNextMonth = () => setMonthDate(addMonths(monthDate, 1));
-  const goToThisMonth = () => setMonthDate(startOfMonth(new Date()));
+  const calendarTitle = calendarMonths.map((m) => m.title).join(" · ");
 
   const selectedBookings = selectedDate ? bookingsByDate[selectedDate] || [] : [];
   const selectedBlocks = selectedDate ? getBlocksForDate(selectedDate) : [];
@@ -176,10 +190,10 @@ export default function AdminCalendarPage() {
           <button
             type="button"
             onClick={() => {
-            const ws = startOfWeek(month1Start, { weekStartsOn: 1 });
-            const we = endOfWeek(month2End, { weekStartsOn: 1 });
-            fetchData(format(ws, "yyyy-MM-dd"), format(we, "yyyy-MM-dd"));
-          }}
+              if (viewWeekStart && viewWeekEnd) {
+                fetchData(format(viewWeekStart, "yyyy-MM-dd"), format(viewWeekEnd, "yyyy-MM-dd"));
+              }
+            }}
             className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-charcoal text-sm font-medium transition"
             title="Refresh calendar"
           >
@@ -204,44 +218,19 @@ export default function AdminCalendarPage() {
         </div>
       </div>
 
-      {/* Week Navigation */}
-      <div className="flex items-center justify-between mb-4 sm:mb-6 flex-wrap gap-2 sm:gap-4">
-        <button
-          type="button"
-          onClick={goToPreviousMonth}
-          className="px-3 sm:px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-charcoal text-xs sm:text-sm font-medium transition touch-manipulation min-h-[44px]"
-        >
-          ← Previous month
-        </button>
-        <div className="flex items-center gap-4">
-          <h2 className="text-base sm:text-xl font-semibold text-charcoal text-center">
-            {format(monthDate, "MMMM yyyy")} & {format(addMonths(monthDate, 1), "MMMM yyyy")}
-          </h2>
-          <button
-            type="button"
-            onClick={goToThisMonth}
-            className="px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-charcoal text-xs font-medium transition touch-manipulation min-h-[44px]"
-          >
-            This month
-          </button>
-        </div>
-        <button
-          type="button"
-          onClick={goToNextMonth}
-          className="px-3 sm:px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-charcoal text-xs sm:text-sm font-medium transition touch-manipulation min-h-[44px]"
-        >
-          Next month →
-        </button>
-      </div>
+      <p className="text-base sm:text-xl font-semibold text-charcoal mb-4 sm:mb-6 text-center sm:text-left">
+        {calendarTitle}
+      </p>
+      <p className="text-xs text-charcoal/60 mb-4 sm:mb-6 -mt-2 sm:-mt-4">
+        Same dates customers can book online (from tomorrow through{" "}
+        {format(bookableRange.rangeEnd, "d MMMM yyyy")}).
+      </p>
 
       {/* Calendar + Overview side by side */}
       <div className="flex flex-col lg:flex-row gap-6 items-start">
         {/* Calendar Grids - two months side by side */}
         <div className="flex-1 min-w-0 w-full flex flex-col sm:flex-row gap-6 overflow-x-auto">
-          {[
-            { days: daysInView1, monthStart: month1Start, monthEnd: month1End, title: format(monthDate, "MMMM yyyy") },
-            { days: daysInView2, monthStart: month2Start, monthEnd: month2End, title: format(addMonths(monthDate, 1), "MMMM yyyy") },
-          ].map(({ days, monthStart, monthEnd, title }) => (
+          {calendarMonths.map(({ days, monthStart, monthEnd, title }) => (
             <div key={title} className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 flex-1 min-w-[280px]">
               <h3 className="text-sm font-semibold text-charcoal mb-3">{title}</h3>
               {/* Day Headers */}
@@ -273,7 +262,8 @@ export default function AdminCalendarPage() {
                         ${!isPast(day) && !isCurrentMonth ? "bg-slate-50/50 text-slate-400" : ""}
                         ${dayHasTimeOff && !isPast(day) ? "bg-violet-50/80 border-violet-200/60" : ""}
                         ${isSelected ? "ring-2 ring-navy ring-offset-2" : ""}
-                        ${isCurrentMonth && !isPast(day) ? "hover:border-navy/50 hover:bg-slate-50" : ""}
+                        ${isCurrentMonth && !isPast(day) && isCustomerBookableDate(day) ? "hover:border-navy/50 hover:bg-slate-50" : ""}
+                        ${isCurrentMonth && !isPast(day) && !isCustomerBookableDate(day) ? "opacity-70" : ""}
                       `}
                     >
                       <div className="flex flex-col h-full">
@@ -316,7 +306,7 @@ export default function AdminCalendarPage() {
         </div>
 
         {/* Overview - right */}
-        <div className="w-full lg:w-80 lg:shrink-0 lg:sticky lg:top-4">
+        <div ref={detailPanelRef} className="w-full lg:w-80 lg:shrink-0 lg:top-4 scroll-mt-6">
           {selectedDate && (selectedBookings.length > 0 || selectedBlocks.length > 0) && (
             <div className="bg-white rounded-xl border border-slate-200 p-6">
               <div className="flex items-center justify-between mb-4">

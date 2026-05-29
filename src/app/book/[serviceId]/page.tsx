@@ -2,9 +2,10 @@
 
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { addDays, addMonths, differenceInCalendarDays, eachDayOfInterval, endOfMonth, format, isBefore, parse, startOfMonth, startOfToday } from "date-fns";
+import { eachDayOfInterval, endOfMonth, format, isBefore, parse } from "date-fns";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/format";
+import { getCustomerBookableRange } from "@/lib/booking-calendar-range";
 
 type Service = {
   id: string;
@@ -36,16 +37,8 @@ export default function BookDatePage() {
   const [slotsLoading, setSlotsLoading] = useState(false);
   const timeSectionRef = useRef<HTMLDivElement>(null);
 
-  const today = startOfToday();
-  const minBookableDate = addDays(today, 1);
-  const monthStart = startOfMonth(today);
-  const daysLeftInCurrentMonth = differenceInCalendarDays(endOfMonth(today), today);
-  // Default: through end of next month. When ≤2 weeks left in current month, also show month after next (e.g. July when late May).
-  const monthsAhead = daysLeftInCurrentMonth <= 14 ? 2 : 1;
-  const calendarEnd = endOfMonth(addMonths(monthStart, monthsAhead));
+  const { minBookableDate, rangeEnd: calendarEnd, fromStr, toStr } = getCustomerBookableRange();
   const dates = eachDayOfInterval({ start: minBookableDate, end: calendarEnd });
-  const fromStr = format(minBookableDate, "yyyy-MM-dd");
-  const toStr = format(calendarEnd, "yyyy-MM-dd");
 
   const monthsWithDates = (() => {
     const map = new Map<string, Date[]>();
