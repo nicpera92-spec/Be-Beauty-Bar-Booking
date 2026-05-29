@@ -544,7 +544,7 @@ function AdminBookingRow({
           {booking.service.name} · {booking.date} {booking.startTime}–{booking.endTime}
         </p>
         <p className="text-sm text-charcoal/60">
-          {booking.customerName} · {booking.customerEmail || booking.customerPhone || "No contact"} · {formatCurrency(booking.depositAmount)} deposit
+          {booking.customerName} · {booking.customerPhone || booking.customerEmail || "No contact"} · {formatCurrency(booking.depositAmount)} deposit
           {booking.balancePaidOnline && " · balance paid online"}
           {booking.depositRefundedAt && " · deposit refunded"}
           {booking.balanceRefundedAt && " · balance refunded"}

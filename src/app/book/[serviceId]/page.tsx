@@ -38,10 +38,11 @@ export default function BookDatePage() {
 
   const today = startOfToday();
   const minBookableDate = addDays(today, 1);
-  const endDate = endOfMonth(addMonths(startOfMonth(today), 1));
-  const dates = eachDayOfInterval({ start: minBookableDate, end: endDate });
+  const calendarStart = startOfMonth(today);
+  const calendarEnd = endOfMonth(addMonths(startOfMonth(today), 1));
+  const dates = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
   const fromStr = format(minBookableDate, "yyyy-MM-dd");
-  const toStr = format(endDate, "yyyy-MM-dd");
+  const toStr = format(calendarEnd, "yyyy-MM-dd");
 
   const monthsWithDates = (() => {
     const map = new Map<string, Date[]>();

@@ -376,7 +376,7 @@ export default function AdminCalendarPage() {
                           {booking.service.name} · {booking.startTime}–{booking.endTime}
                         </p>
                         <p className="text-xs text-charcoal/60 mt-1">
-                          {booking.customerEmail || booking.customerPhone || "No contact"} · {formatCurrency(booking.depositAmount)} deposit
+                          {booking.customerPhone || booking.customerEmail || "No contact"} · {formatCurrency(booking.depositAmount)} deposit
                         </p>
                         {booking.notes && booking.notes.trim() && (
                           <p className="text-sm text-navy mt-2 italic border-l-2 border-navy/30 pl-2">

@@ -34,8 +34,8 @@ export default function BookFormPage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
-  const [notifyByEmail, setNotifyByEmail] = useState(true);
-  const [notifyBySMS, setNotifyBySMS] = useState(false);
+  const [notifyByEmail, setNotifyByEmail] = useState(false);
+  const [notifyBySMS, setNotifyBySMS] = useState(true);
 
   const fetchData = useCallback(() => {
     setLoading(true);
@@ -205,23 +205,6 @@ export default function BookFormPage() {
           />
         </div>
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
-            Email {notifyByEmail && <span className="text-red-500">*</span>}
-          </label>
-          <input
-            id="email"
-            type="email"
-            required={notifyByEmail}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-3 sm:py-3.5 rounded-lg border border-slate-200 bg-white text-slate-800 placeholder-slate-400 focus:border-navy focus:ring-1 focus:ring-navy/20 outline-none text-base min-h-[48px]"
-            placeholder="you@example.com"
-          />
-          <p className="text-xs text-slate-500 mt-1">
-            Provide at least one: email or phone number
-          </p>
-        </div>
-        <div>
           <label htmlFor="phone" className="block text-sm font-medium text-slate-700 mb-2">
             Phone {notifyBySMS && <span className="text-red-500">*</span>}
           </label>
@@ -235,6 +218,23 @@ export default function BookFormPage() {
             placeholder="07xxx xxxxxx"
           />
         </div>
+        <div>
+          <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
+            Email {notifyByEmail && <span className="text-red-500">*</span>}
+          </label>
+          <input
+            id="email"
+            type="email"
+            required={notifyByEmail}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full px-4 py-3 sm:py-3.5 rounded-lg border border-slate-200 bg-white text-slate-800 placeholder-slate-400 focus:border-navy focus:ring-1 focus:ring-navy/20 outline-none text-base min-h-[48px]"
+            placeholder="you@example.com"
+          />
+          <p className="text-xs text-slate-500 mt-1">
+            Provide at least one: phone number or email
+          </p>
+        </div>
 
         <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-4">
           <p className="text-sm font-medium text-slate-700 mb-3">
@@ -247,34 +247,9 @@ export default function BookFormPage() {
             <label className="flex items-start gap-3 cursor-pointer">
               <input
                 type="checkbox"
-                checked={notifyByEmail}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  // Prevent unchecking if SMS is also unchecked
-                  if (!checked && !notifyBySMS) {
-                    return;
-                  }
-                  setNotifyByEmail(checked);
-                }}
-                className="mt-0.5 w-4 h-4 rounded border-slate-300 text-navy focus:ring-navy/20"
-              />
-              <div className="flex-1">
-                <span className="text-sm font-medium text-slate-700">Email</span>
-                <p className="text-xs text-slate-500">
-                  {notifyByEmail && !email.trim() && (
-                    <span className="text-red-500">Email address required above</span>
-                  )}
-                  {notifyByEmail && email.trim() && "We'll email you booking updates"}
-                </p>
-              </div>
-            </label>
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
                 checked={notifyBySMS}
                 onChange={(e) => {
                   const checked = e.target.checked;
-                  // Prevent unchecking if Email is also unchecked
                   if (!checked && !notifyByEmail) {
                     return;
                   }
@@ -290,17 +265,40 @@ export default function BookFormPage() {
                   )}
                   {notifyBySMS && phone.trim() && (
                     <>
-                      We'll text you booking updates
+                      We&apos;ll text you booking updates
                       <span className="block mt-1 text-slate-600 font-medium">
-                        ⚠️ SMS notifications include a {formatCurrency(smsFee)} charge (added to your deposit)
+                        SMS notifications include a {formatCurrency(smsFee)} charge (added to your deposit)
                       </span>
                     </>
                   )}
                   {!notifyBySMS && (
                     <span className="text-slate-500">
-                      SMS notifications include a £{smsFee.toFixed(2)} charge
+                      SMS notifications include a {formatCurrency(smsFee)} charge
                     </span>
                   )}
+                </p>
+              </div>
+            </label>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={notifyByEmail}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  if (!checked && !notifyBySMS) {
+                    return;
+                  }
+                  setNotifyByEmail(checked);
+                }}
+                className="mt-0.5 w-4 h-4 rounded border-slate-300 text-navy focus:ring-navy/20"
+              />
+              <div className="flex-1">
+                <span className="text-sm font-medium text-slate-700">Email</span>
+                <p className="text-xs text-slate-500">
+                  {notifyByEmail && !email.trim() && (
+                    <span className="text-red-500">Email address required above</span>
+                  )}
+                  {notifyByEmail && email.trim() && "We'll email you booking updates"}
                 </p>
               </div>
             </label>
