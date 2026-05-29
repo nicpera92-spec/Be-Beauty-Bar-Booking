@@ -179,15 +179,12 @@ export default function BookFormPage() {
       <h1 className="font-serif text-2xl md:text-3xl font-light text-slate-800 mb-3">
         {service.name}
       </h1>
-      <p className={`text-slate-600 text-sm ${notifyBySMS ? "mb-2" : "mb-12"}`}>
+      <p className="text-slate-600 text-sm mb-12">
         {dayLabel} · {startTime}–{endTime} · {formatCurrency(totalPrice)} total
-        {!notifyBySMS && <> · {formatCurrency(service.depositAmount)} deposit</>}
+        {notifyBySMS
+          ? <> · {formatCurrency(totalDeposit)} deposit</>
+          : <> · {formatCurrency(service.depositAmount)} deposit</>}
       </p>
-      {notifyBySMS && (
-        <p className="text-slate-600 text-sm mb-12">
-          {formatCurrency(service.depositAmount)} deposit + {formatCurrency(smsFee)} SMS fee = {formatCurrency(totalDeposit)} total deposit
-        </p>
-      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
@@ -259,16 +256,15 @@ export default function BookFormPage() {
               />
               <div className="flex-1">
                 <span className="text-sm font-medium text-slate-700">SMS (text message)</span>
-                {notifyBySMS && (
-                  <p className="text-xs text-slate-600 mt-0.5">
-                    {formatCurrency(smsFee)} charge for SMS notifications (added to your deposit)
-                  </p>
-                )}
                 <p className="text-xs text-slate-500 mt-0.5">
                   {notifyBySMS && !phone.trim() && (
-                    <span className="text-red-500">Phone number required above</span>
+                    <span className="text-red-500">
+                      Phone number required above ({formatCurrency(smsFee)} fee for SMS notification)
+                    </span>
                   )}
-                  {notifyBySMS && phone.trim() && "We'll text you booking updates"}
+                  {notifyBySMS && phone.trim() && (
+                    <>We&apos;ll text you booking updates ({formatCurrency(smsFee)} fee for SMS notification)</>
+                  )}
                   {!notifyBySMS && (
                     <span className="text-slate-500">
                       SMS notifications include a {formatCurrency(smsFee)} charge
