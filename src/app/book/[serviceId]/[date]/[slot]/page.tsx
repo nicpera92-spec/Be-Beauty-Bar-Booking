@@ -259,18 +259,16 @@ export default function BookFormPage() {
               />
               <div className="flex-1">
                 <span className="text-sm font-medium text-slate-700">SMS (text message)</span>
-                <p className="text-xs text-slate-500">
+                {notifyBySMS && (
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    {formatCurrency(smsFee)} charge for SMS notifications (added to your deposit)
+                  </p>
+                )}
+                <p className="text-xs text-slate-500 mt-0.5">
                   {notifyBySMS && !phone.trim() && (
                     <span className="text-red-500">Phone number required above</span>
                   )}
-                  {notifyBySMS && phone.trim() && (
-                    <>
-                      We&apos;ll text you booking updates
-                      <span className="block mt-1 text-slate-600 font-medium">
-                        SMS notifications include a {formatCurrency(smsFee)} charge (added to your deposit)
-                      </span>
-                    </>
-                  )}
+                  {notifyBySMS && phone.trim() && "We'll text you booking updates"}
                   {!notifyBySMS && (
                     <span className="text-slate-500">
                       SMS notifications include a {formatCurrency(smsFee)} charge
