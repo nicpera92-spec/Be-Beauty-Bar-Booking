@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { addDays, addMonths, eachDayOfInterval, endOfMonth, format, isBefore, parse, startOfMonth, startOfToday } from "date-fns";
+import { addDays, addMonths, differenceInCalendarDays, eachDayOfInterval, endOfMonth, format, isBefore, parse, startOfMonth, startOfToday } from "date-fns";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/format";
 
@@ -38,9 +38,12 @@ export default function BookDatePage() {
 
   const today = startOfToday();
   const minBookableDate = addDays(today, 1);
-  const calendarStart = startOfMonth(today);
-  const calendarEnd = endOfMonth(addMonths(startOfMonth(today), 1));
-  const dates = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+  const monthStart = startOfMonth(today);
+  const daysLeftInCurrentMonth = differenceInCalendarDays(endOfMonth(today), today);
+  // Default: through end of next month. When ≤2 weeks left in current month, also show month after next (e.g. July when late May).
+  const monthsAhead = daysLeftInCurrentMonth <= 14 ? 2 : 1;
+  const calendarEnd = endOfMonth(addMonths(monthStart, monthsAhead));
+  const dates = eachDayOfInterval({ start: minBookableDate, end: calendarEnd });
   const fromStr = format(minBookableDate, "yyyy-MM-dd");
   const toStr = format(calendarEnd, "yyyy-MM-dd");
 
