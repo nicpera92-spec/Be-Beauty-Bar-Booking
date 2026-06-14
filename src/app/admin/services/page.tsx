@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useMemo } from "react";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/format";
 import { useRouter } from "next/navigation";
+import { orderCategories } from "@/lib/categoryOrder";
 
 const ADMIN_TOKEN_KEY = "admin-token";
 
@@ -36,6 +37,7 @@ type Technician = {
   name: string;
   role: string;
   active: boolean;
+  categoryOrder?: string | null;
 };
 
 const categoryLabels: Record<string, string> = {
@@ -120,6 +122,12 @@ export default function AdminServicesPage() {
       .catch(() => {});
   }, [hasToken, isMaster]);
 
+  const techById = useMemo(() => {
+    const m = new Map<string, Technician>();
+    for (const t of technicians) m.set(t.id, t);
+    return m;
+  }, [technicians]);
+
   // Group services by technician so each technician's services sit together.
   // The owner (master) group is shown first, then the rest alphabetically.
   const serviceGroups = useMemo(() => {
@@ -177,6 +185,16 @@ export default function AdminServicesPage() {
                   </span>
                 )}
               </h2>
+            )}
+            {isMaster && group.tech && (
+              <CategoryOrderControl
+                technicianId={group.tech.id}
+                categories={orderCategories(
+                  Array.from(new Set(group.items.map((s) => s.category))),
+                  techById.get(group.tech.id)?.categoryOrder ?? null
+                )}
+                getAuthHeaders={getAuthHeaders}
+              />
             )}
             {group.items.map((s, index) => (
               <AdminServiceRow
@@ -610,6 +628,96 @@ function AdminServiceRow({
           )}
         </>
       )}
+    </div>
+  );
+}
+
+function CategoryOrderControl({
+  technicianId,
+  categories,
+  getAuthHeaders,
+}: {
+  technicianId: string;
+  categories: string[];
+  getAuthHeaders: () => Record<string, string>;
+}) {
+  const [order, setOrder] = useState<string[]>(categories);
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+
+  const categoriesKey = categories.join("|");
+  useEffect(() => {
+    setOrder(categories);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoriesKey]);
+
+  useEffect(() => {
+    if (savedAt == null) return;
+    const t = setTimeout(() => setSavedAt(null), 3000);
+    return () => clearTimeout(t);
+  }, [savedAt]);
+
+  const persist = (next: string[]) => {
+    setSaving(true);
+    fetch(`/api/admin/technicians/${technicianId}/category-order`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify({ order: next }),
+    })
+      .then((r) => {
+        if (r.ok) setSavedAt(Date.now());
+      })
+      .catch(() => {})
+      .finally(() => setSaving(false));
+  };
+
+  const move = (idx: number, dir: -1 | 1) => {
+    const j = idx + dir;
+    if (j < 0 || j >= order.length) return;
+    const next = [...order];
+    [next[idx], next[j]] = [next[j], next[idx]];
+    setOrder(next);
+    persist(next);
+  };
+
+  if (order.length < 2) return null;
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3">
+      <p className="text-xs font-medium text-charcoal/70 mb-2">
+        Category order on booking page
+      </p>
+      <div className="flex flex-col gap-1.5">
+        {order.map((cat, idx) => (
+          <div
+            key={cat}
+            className="flex items-center justify-between gap-2 rounded-md bg-white border border-slate-200 px-2.5 py-1.5"
+          >
+            <span className="text-sm text-charcoal">{formatCategoryName(cat)}</span>
+            <div className="flex items-center border border-slate-200 rounded-md overflow-hidden">
+              <button
+                type="button"
+                onClick={() => move(idx, -1)}
+                disabled={idx === 0 || saving}
+                className="px-2 py-1 text-charcoal/70 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed text-xs"
+                title="Move up"
+              >
+                ▲
+              </button>
+              <button
+                type="button"
+                onClick={() => move(idx, 1)}
+                disabled={idx === order.length - 1 || saving}
+                className="px-2 py-1 text-charcoal/70 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed text-xs border-l border-slate-200"
+                title="Move down"
+              >
+                ▼
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+      {savedAt && <p className="text-xs text-emerald-600 mt-2">Saved</p>}
     </div>
   );
 }

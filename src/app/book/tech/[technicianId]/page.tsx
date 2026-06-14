@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { formatPriceShort, formatDurationHours } from "@/lib/format";
+import { orderCategories } from "@/lib/categoryOrder";
 
 type Service = {
   id: string;
@@ -19,6 +20,7 @@ type Technician = {
   id: string;
   name: string;
   skillLevel: string | null;
+  categoryOrder?: string | null;
 };
 
 const categoryLabels: Record<string, string> = {
@@ -84,16 +86,9 @@ export default function TechnicianServicesPage() {
     (acc[s.category] = acc[s.category] ?? []).push(s);
     return acc;
   }, {});
-  // Nails first, then the other standard categories, then anything else A–Z.
-  const categoryOrder = ["nails", "lash", "permanent-makeup"];
-  const categoryRank = (cat: string) => {
-    const i = categoryOrder.indexOf(cat);
-    return i === -1 ? categoryOrder.length : i;
-  };
-  const allCategories = Object.keys(byCategory).sort((a, b) => {
-    const rankDiff = categoryRank(a) - categoryRank(b);
-    return rankDiff !== 0 ? rankDiff : a.localeCompare(b);
-  });
+  // Use the technician's chosen category order (falls back to a sensible
+  // default: nails → lash → permanent-makeup, then anything else A–Z).
+  const allCategories = orderCategories(Object.keys(byCategory), technician.categoryOrder);
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-8 py-16 sm:py-20 md:py-28">

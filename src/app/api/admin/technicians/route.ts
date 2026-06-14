@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
       loginEmail: true,
       position: true,
       active: true,
+      categoryOrder: true,
       createdAt: true,
       updatedAt: true,
     },
