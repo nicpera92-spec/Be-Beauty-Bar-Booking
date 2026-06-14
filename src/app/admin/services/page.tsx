@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/format";
 import { useRouter } from "next/navigation";
@@ -120,6 +120,26 @@ export default function AdminServicesPage() {
       .catch(() => {});
   }, [hasToken, isMaster]);
 
+  // Group services by technician so each technician's services sit together.
+  // The owner (master) group is shown first, then the rest alphabetically.
+  const serviceGroups = useMemo(() => {
+    if (!isMaster) {
+      return [{ tech: null as Service["technician"], items: services }];
+    }
+    const map = new Map<string, { tech: Service["technician"]; items: Service[] }>();
+    for (const s of services) {
+      const key = s.technicianId;
+      if (!map.has(key)) map.set(key, { tech: s.technician ?? null, items: [] });
+      map.get(key)!.items.push(s);
+    }
+    return Array.from(map.values()).sort((a, b) => {
+      const aMaster = a.tech?.role === "master" ? 0 : 1;
+      const bMaster = b.tech?.role === "master" ? 0 : 1;
+      if (aMaster !== bMaster) return aMaster - bMaster;
+      return (a.tech?.name ?? "").localeCompare(b.tech?.name ?? "");
+    });
+  }, [services, isMaster]);
+
   if (hasToken === null) return null;
   if (!hasToken) {
     router.replace("/admin");
@@ -145,19 +165,33 @@ export default function AdminServicesPage() {
         ; time slots use working hours and interval from there.
       </p>
 
-      <div className="space-y-4">
-        {services.map((s, index) => (
-          <AdminServiceRow
-            key={s.id}
-            service={s}
-            index={index}
-            totalServices={services.length}
-            services={services}
-            getAuthHeaders={getAuthHeaders}
-            onUpdate={fetchServices}
-            allServices={services}
-            isMaster={isMaster}
-          />
+      <div className="space-y-8">
+        {serviceGroups.map((group) => (
+          <div key={group.tech?.id ?? "all"} className="space-y-4">
+            {isMaster && group.tech && (
+              <h2 className="font-medium text-charcoal flex items-center gap-2 pb-1 border-b border-slate-200">
+                {group.tech.name}
+                {group.tech.role === "master" && (
+                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">
+                    Owner
+                  </span>
+                )}
+              </h2>
+            )}
+            {group.items.map((s, index) => (
+              <AdminServiceRow
+                key={s.id}
+                service={s}
+                index={index}
+                totalServices={group.items.length}
+                services={group.items}
+                getAuthHeaders={getAuthHeaders}
+                onUpdate={fetchServices}
+                allServices={services}
+                isMaster={isMaster}
+              />
+            ))}
+          </div>
         ))}
       </div>
 
