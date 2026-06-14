@@ -454,14 +454,13 @@ function AdminServiceRow({
                 min={0}
                 step={0.01}
                 value={form.price}
-                disabled={!isMaster}
                 onChange={(e) =>
                   setForm((f) => ({
                     ...f,
                     price: parseFloat(e.target.value) || 0,
                   }))
                 }
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white disabled:bg-slate-100 disabled:text-charcoal/50 disabled:cursor-not-allowed"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white"
               />
             </div>
             <div>
@@ -473,22 +472,16 @@ function AdminServiceRow({
                 min={0}
                 step={0.01}
                 value={form.depositAmount}
-                disabled={!isMaster}
                 onChange={(e) =>
                   setForm((f) => ({
                     ...f,
                     depositAmount: parseFloat(e.target.value) || 0,
                   }))
                 }
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white disabled:bg-slate-100 disabled:text-charcoal/50 disabled:cursor-not-allowed"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white"
               />
             </div>
           </div>
-          {!isMaster && (
-            <p className="text-xs text-charcoal/50">
-              Price and deposit are set by the salon owner.
-            </p>
-          )}
           {saveError && (
             <p className="text-sm text-red-600">{saveError}</p>
           )}
@@ -666,7 +659,7 @@ function AddServiceForm({
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (isMaster && form.depositAmount > form.price) {
+    if (form.depositAmount > form.price) {
       setSubmitError("Deposit cannot exceed full price.");
       return;
     }
@@ -808,7 +801,7 @@ function AddServiceForm({
               </div>
             )}
           </div>
-          <div className={`grid gap-3 ${isMaster ? "grid-cols-3" : "grid-cols-1"}`}>
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block text-xs text-charcoal/60 mb-1">Duration (min)</label>
               <input
@@ -824,48 +817,39 @@ function AddServiceForm({
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white"
               />
             </div>
-            {isMaster && (
-              <>
-                <div>
-                  <label className="block text-xs text-charcoal/60 mb-1">Full price (£)</label>
-                  <input
-                    type="number"
-                    min={0}
-                    step={0.01}
-                    value={form.price}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        price: parseFloat(e.target.value) || 0,
-                      }))
-                    }
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-charcoal/60 mb-1">Deposit (£)</label>
-                  <input
-                    type="number"
-                    min={0}
-                    step={0.01}
-                    value={form.depositAmount}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        depositAmount: parseFloat(e.target.value) || 0,
-                      }))
-                    }
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white"
-                  />
-                </div>
-              </>
-            )}
+            <div>
+              <label className="block text-xs text-charcoal/60 mb-1">Full price (£)</label>
+              <input
+                type="number"
+                min={0}
+                step={0.01}
+                value={form.price}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    price: parseFloat(e.target.value) || 0,
+                  }))
+                }
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-charcoal/60 mb-1">Deposit (£)</label>
+              <input
+                type="number"
+                min={0}
+                step={0.01}
+                value={form.depositAmount}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    depositAmount: parseFloat(e.target.value) || 0,
+                  }))
+                }
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white"
+              />
+            </div>
           </div>
-          {!isMaster && (
-            <p className="text-xs text-charcoal/50">
-              Price and deposit will use the salon defaults. The owner can adjust them afterwards.
-            </p>
-          )}
           {submitError && (
             <p className="text-sm text-red-600">{submitError}</p>
           )}

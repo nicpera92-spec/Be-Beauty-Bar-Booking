@@ -52,11 +52,10 @@ export async function PATCH(
     data.category = trimmed;
   }
   if (durationMin !== undefined) data.durationMin = Number(durationMin);
-  // Only the master may change price and deposit (on any service, including a
-  // technician's own). Technician-submitted price/deposit values are ignored.
-  const isMaster = admin.role === "master";
-  if (isMaster && price !== undefined) data.price = Number(price);
-  if (isMaster && depositAmount !== undefined) data.depositAmount = Number(depositAmount);
+  // A technician controls the price/deposit on their own services; the master
+  // can edit any service. Ownership is already enforced above, so apply both.
+  if (price !== undefined) data.price = Number(price);
+  if (depositAmount !== undefined) data.depositAmount = Number(depositAmount);
   if (description !== undefined) data.description = description === null ? "" : String(description);
   if (active !== undefined) data.active = Boolean(active);
 

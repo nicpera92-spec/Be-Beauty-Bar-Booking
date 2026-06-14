@@ -34,8 +34,6 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { name, category, durationMin, price, depositAmount, description, technicianId } = body;
 
-  const isMaster = staff.role === "master";
-
   if (!name || !category || durationMin == null) {
     return NextResponse.json(
       { error: "name, category, durationMin required" },
@@ -62,26 +60,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Technician not found" }, { status: 404 });
   }
 
-  // Only the master sets prices/deposits. Technician-created services start at
-  // the business default price/deposit; the master adjusts them afterwards.
-  let p: number;
-  let d: number;
-  if (isMaster) {
-    if (price == null || depositAmount == null) {
-      return NextResponse.json(
-        { error: "price and depositAmount required" },
-        { status: 400 }
-      );
-    }
-    p = Number(price);
-    d = Number(depositAmount);
-  } else {
-    const settings = await prisma.businessSettings.findUnique({
-      where: { id: "default" },
-    });
-    p = settings?.defaultPrice ?? 0;
-    d = settings?.defaultDepositAmount ?? 0;
-  }
+  // Whoever owns the service sets its price/deposit. If not supplied, fall back
+  // to the business defaults.
+  const settings = await prisma.businessSettings.findUnique({
+    where: { id: "default" },
+  });
+  const p = price != null ? Number(price) : settings?.defaultPrice ?? 0;
+  const d = depositAmount != null ? Number(depositAmount) : settings?.defaultDepositAmount ?? 0;
   if (d > p) {
     return NextResponse.json(
       { error: "Deposit cannot exceed full price" },
