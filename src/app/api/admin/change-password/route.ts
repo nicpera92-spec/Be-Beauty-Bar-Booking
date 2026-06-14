@@ -27,6 +27,33 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
+    // A technician changes their own login password (stored on their profile).
+    // The master (business owner) changes the owner login in BusinessSettings.
+    if (admin.role === "technician") {
+      const technician = admin.technicianId
+        ? await prisma.technician.findUnique({ where: { id: admin.technicianId } })
+        : await prisma.technician.findFirst({
+            where: { loginEmail: admin.email.toLowerCase() },
+          });
+      if (!technician?.passwordHash) {
+        return NextResponse.json({ error: "Account not found" }, { status: 404 });
+      }
+
+      const valid = await verifyPassword(currentPassword, technician.passwordHash);
+      if (!valid) {
+        return NextResponse.json(
+          { error: "Current password is incorrect" },
+          { status: 401 }
+        );
+      }
+
+      await prisma.technician.update({
+        where: { id: technician.id },
+        data: { passwordHash: await hashPassword(newPassword) },
+      });
+      return NextResponse.json({ ok: true });
+    }
+
     const settings = await prisma.businessSettings.findUnique({
       where: { id: "default" },
     });
