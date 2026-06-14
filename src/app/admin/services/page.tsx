@@ -535,17 +535,17 @@ function AdminServiceRow({
         <>
           <div className="flex justify-between items-start">
             <div>
-              <h3 className="font-medium text-charcoal">
-                {service.name}
-                <span className="ml-2 text-xs text-charcoal/50">
+              <h3 className="font-medium text-charcoal">{service.name}</h3>
+              <div className="flex flex-wrap items-center gap-2 mt-1">
+                <span className="text-xs text-charcoal/50">
                   {formatCategoryName(service.category)}
                 </span>
                 {isMaster && service.technician?.name && (
-                  <span className="ml-2 inline-block align-middle text-xs font-medium px-2 py-0.5 rounded-full bg-navy/10 text-navy">
+                  <span className="inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-navy/10 text-navy">
                     {service.technician.name}
                   </span>
                 )}
-              </h3>
+              </div>
               <p className="text-sm font-semibold text-charcoal mt-1">
                 {service.durationMin} min · {formatCurrency(service.price)} · {formatCurrency(service.depositAmount)} deposit
               </p>
