@@ -46,6 +46,7 @@ export default function AdminCalendarPage() {
   const [timeOffBlocks, setTimeOffBlocks] = useState<TimeOffBlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const detailPanelRef = useRef<HTMLDivElement>(null);
 
   const bookableRange = useMemo(() => getCustomerBookableRange(), []);
@@ -106,6 +107,30 @@ export default function AdminCalendarPage() {
     if (!token || !viewWeekStart || !viewWeekEnd) return;
     fetchData(format(viewWeekStart, "yyyy-MM-dd"), format(viewWeekEnd, "yyyy-MM-dd"));
   }, [token, viewWeekStart, viewWeekEnd, fetchData]);
+
+  const confirmDeposit = useCallback(
+    (bookingId: string) => {
+      setConfirmingId(bookingId);
+      fetch(`/api/bookings/${bookingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({ status: "confirmed" }),
+      })
+        .then((r) => {
+          if (r.status === 401) {
+            sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+            window.location.href = "/admin";
+            return;
+          }
+          if (viewWeekStart && viewWeekEnd) {
+            fetchData(format(viewWeekStart, "yyyy-MM-dd"), format(viewWeekEnd, "yyyy-MM-dd"));
+          }
+        })
+        .catch(() => {})
+        .finally(() => setConfirmingId(null));
+    },
+    [fetchData, viewWeekStart, viewWeekEnd]
+  );
 
   useEffect(() => {
     if (!selectedDate) return;
@@ -381,6 +406,16 @@ export default function AdminCalendarPage() {
                           <p className="text-sm text-navy mt-2 italic border-l-2 border-navy/30 pl-2">
                             📝 Special request: {booking.notes}
                           </p>
+                        )}
+                        {booking.status === "pending_deposit" && (
+                          <button
+                            type="button"
+                            onClick={() => confirmDeposit(booking.id)}
+                            disabled={confirmingId === booking.id}
+                            className="mt-3 px-3 py-1.5 rounded-lg bg-navy text-white text-sm font-medium hover:bg-navy-light disabled:opacity-50 transition"
+                          >
+                            {confirmingId === booking.id ? "Confirming…" : "Mark deposit paid"}
+                          </button>
                         )}
                       </div>
                     </div>
