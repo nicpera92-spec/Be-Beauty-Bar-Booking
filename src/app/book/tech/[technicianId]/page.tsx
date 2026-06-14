@@ -84,7 +84,16 @@ export default function TechnicianServicesPage() {
     (acc[s.category] = acc[s.category] ?? []).push(s);
     return acc;
   }, {});
-  const allCategories = Object.keys(byCategory).sort();
+  // Nails first, then the other standard categories, then anything else A–Z.
+  const categoryOrder = ["nails", "lash", "permanent-makeup"];
+  const categoryRank = (cat: string) => {
+    const i = categoryOrder.indexOf(cat);
+    return i === -1 ? categoryOrder.length : i;
+  };
+  const allCategories = Object.keys(byCategory).sort((a, b) => {
+    const rankDiff = categoryRank(a) - categoryRank(b);
+    return rankDiff !== 0 ? rankDiff : a.localeCompare(b);
+  });
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-8 py-16 sm:py-20 md:py-28">
