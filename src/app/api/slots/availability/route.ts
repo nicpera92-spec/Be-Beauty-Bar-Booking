@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { addDays, format, parse } from "date-fns";
+import { addDays, format, parse, startOfDay, isBefore, isSameDay } from "date-fns";
 import { getSlotsForDay } from "@/lib/slotUtils";
 import { getMaxConcurrentForCategory } from "@/lib/bookingAvailability";
 
@@ -30,6 +30,20 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Service does not match technician" }, { status: 400 });
     }
 
+    // If the technician is not bookable, no day has availability. This mirrors
+    // /api/slots so the calendar can't show an open day with no times behind it.
+    if (!service.technician?.active) {
+      const fromDate = parse(from, "yyyy-MM-dd", new Date());
+      const toDate = parse(to, "yyyy-MM-dd", new Date());
+      const numDays =
+        Math.round((toDate.getTime() - fromDate.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+      const availability: Record<string, boolean> = {};
+      for (let i = 0; i < numDays; i++) {
+        availability[format(addDays(fromDate, i), "yyyy-MM-dd")] = false;
+      }
+      return NextResponse.json({ availability });
+    }
+
     const [settings, bookings, blocks, maxConcurrent] = await Promise.all([
       prisma.businessSettings.findUnique({ where: { id: "default" } }),
       prisma.booking.findMany({
@@ -56,6 +70,8 @@ export async function GET(req: NextRequest) {
     const fromDate = parse(from, "yyyy-MM-dd", new Date());
     const toDate = parse(to, "yyyy-MM-dd", new Date());
     const now = new Date();
+    // Match /api/slots: nothing is bookable today or earlier.
+    const minBookableDate = addDays(startOfDay(now), 1);
     const numDays = Math.round((toDate.getTime() - fromDate.getTime()) / (24 * 60 * 60 * 1000)) + 1;
     const availability: Record<string, boolean> = {};
 
@@ -63,6 +79,12 @@ export async function GET(req: NextRequest) {
       const d = addDays(fromDate, i);
       const dateStr = format(d, "yyyy-MM-dd");
       const day = parse(dateStr, "yyyy-MM-dd", new Date());
+
+      if (isBefore(day, minBookableDate) || isSameDay(day, startOfDay(now))) {
+        availability[dateStr] = false;
+        continue;
+      }
+
       const dayBookings = bookings.filter((b) => b.date === dateStr);
       const dayBlocks = blocks.filter((b) => b.startDate <= dateStr && b.endDate >= dateStr);
 
