@@ -87,8 +87,7 @@ export default function AdminPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
-  const currentMonthKey = new Date().toISOString().slice(0, 7); // YYYY-MM
-  const [monthFilter, setMonthFilter] = useState<string>(currentMonthKey); // "all" | "YYYY-MM"
+  const [monthFilter] = useState<string>("all"); // bookings list shows all time
   const [staffRole, setStaffRole] = useState<"master" | "technician">("master");
   const [staffName, setStaffName] = useState<string | null>(null);
   const [businessName, setBusinessName] = useState("Be Beauty Bar");
@@ -285,24 +284,6 @@ export default function AdminPage() {
     );
   }
 
-  const monthOptions = (() => {
-    const months = new Set<string>();
-    for (const b of bookings) {
-      if (typeof b.date === "string" && b.date.length >= 7) months.add(b.date.slice(0, 7));
-    }
-    // Ensure current month exists even if empty
-    months.add(currentMonthKey);
-    return Array.from(months).sort((a, b) => b.localeCompare(a)); // newest first
-  })();
-
-  function monthLabel(key: string) {
-    // key: YYYY-MM
-    const [y, m] = key.split("-").map((n) => Number(n));
-    if (!y || !m) return key;
-    const d = new Date(Date.UTC(y, m - 1, 1));
-    return new Intl.DateTimeFormat(undefined, { month: "long", year: "numeric" }).format(d);
-  }
-
   function nextMonthStart(key: string) {
     const [yStr, mStr] = key.split("-");
     const y = Number(yStr);
@@ -447,22 +428,6 @@ export default function AdminPage() {
             >
               Sort: {sortDir === "desc" ? "Newest" : "Oldest"}
             </button>
-
-            <label className="text-sm text-charcoal/60">
-              Month{" "}
-              <select
-                value={monthFilter}
-                onChange={(e) => setMonthFilter(e.target.value)}
-                className="ml-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-charcoal"
-              >
-                <option value="all">All time</option>
-                {monthOptions.map((m) => (
-                  <option key={m} value={m}>
-                    {monthLabel(m)}{m === currentMonthKey ? " (current)" : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
 
             <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
               <button
