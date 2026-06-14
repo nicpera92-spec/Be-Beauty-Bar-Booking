@@ -355,18 +355,20 @@ export default function AdminPage() {
             <span className="block font-serif text-sm font-light uppercase tracking-[0.22em] text-navy truncate">
               {businessName}
             </span>
-            <h1 className="font-serif text-xl sm:text-2xl font-semibold text-charcoal leading-tight truncate">
-              Hello{staffName ? `, ${staffName}` : ""}
-            </h1>
-            <span
-              className={`inline-block mt-0.5 text-[11px] font-medium px-2 py-0.5 rounded-full ${
-                staffRole === "master"
-                  ? "bg-amber-50 text-amber-700"
-                  : "bg-navy/10 text-navy"
-              }`}
-            >
-              {staffRole === "master" ? "Owner" : "Technician"}
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="font-serif text-xl sm:text-2xl font-semibold text-charcoal leading-tight truncate">
+                Hello{staffName ? `, ${staffName}` : ""}
+              </h1>
+              <span
+                className={`inline-block text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                  staffRole === "master"
+                    ? "bg-amber-50 text-amber-700"
+                    : "bg-navy/10 text-navy"
+                }`}
+              >
+                {staffRole === "master" ? "Owner" : "Technician"}
+              </span>
+            </div>
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2">
             <Link
