@@ -7,5 +7,11 @@ export async function GET(req: NextRequest) {
   if (!admin) {
     return NextResponse.json({ error: "Admin session invalid or expired." }, { status: 401 });
   }
-  return NextResponse.json({ ok: true, email: admin.email });
+  return NextResponse.json({
+    ok: true,
+    email: admin.email,
+    role: admin.role,
+    technicianId: admin.technicianId ?? null,
+    name: admin.name ?? null,
+  });
 }

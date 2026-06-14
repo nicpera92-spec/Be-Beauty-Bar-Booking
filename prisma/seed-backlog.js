@@ -43,6 +43,9 @@ async function main() {
   if (!service) {
     throw new Error("No active service found. Run db:seed first to create services.");
   }
+  if (!service.technicianId) {
+    throw new Error("The selected service is not linked to a technician.");
+  }
 
   let created = 0;
   let skipped = 0;
@@ -67,6 +70,7 @@ async function main() {
     await prisma.booking.create({
       data: {
         serviceId: service.id,
+        technicianId: service.technicianId,
         customerName: b.clientService,
         customerEmail: null,
         customerPhone: null,

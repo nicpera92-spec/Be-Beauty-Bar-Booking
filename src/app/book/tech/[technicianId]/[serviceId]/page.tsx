@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { eachDayOfInterval, endOfMonth, format, isBefore, parse } from "date-fns";
+import { eachDayOfInterval, format, isBefore, parse } from "date-fns";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/format";
 import { getCustomerBookableRange } from "@/lib/booking-calendar-range";
@@ -12,10 +12,10 @@ type Service = {
   name: string;
   durationMin: number;
   depositAmount: number;
+  technicianId: string;
 };
 
 type Slot = { start: string; end: string };
-
 type Settings = { instagramHandle?: string | null };
 
 function formatTime24to12(t: string): string {
@@ -27,6 +27,7 @@ function formatTime24to12(t: string): string {
 
 export default function BookDatePage() {
   const params = useParams();
+  const technicianId = params.technicianId as string;
   const serviceId = params.serviceId as string;
   const [service, setService] = useState<Service | null>(null);
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -52,9 +53,11 @@ export default function BookDatePage() {
 
   useEffect(() => {
     Promise.all([
-      fetch(`/api/services?_=${Date.now()}`, { cache: "no-store" }).then((r) => r.json()),
+      fetch(`/api/services?technicianId=${encodeURIComponent(technicianId)}&_=${Date.now()}`, {
+        cache: "no-store",
+      }).then((r) => r.json()),
       fetch(
-        `/api/slots/availability?serviceId=${encodeURIComponent(serviceId)}&from=${fromStr}&to=${toStr}`
+        `/api/slots/availability?serviceId=${encodeURIComponent(serviceId)}&technicianId=${encodeURIComponent(technicianId)}&from=${fromStr}&to=${toStr}`
       ).then((r) => r.json()),
       fetch("/api/settings").then((r) => r.json()),
     ])
@@ -67,22 +70,22 @@ export default function BookDatePage() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [serviceId, fromStr, toStr]);
+  }, [serviceId, technicianId, fromStr, toStr]);
 
   const fetchSlots = useCallback(() => {
-    if (!selectedDate || !serviceId) {
+    if (!selectedDate || !serviceId || !technicianId) {
       setSlots([]);
       return;
     }
     setSlotsLoading(true);
-    fetch(`/api/slots?date=${selectedDate}&serviceId=${encodeURIComponent(serviceId)}`)
+    fetch(
+      `/api/slots?date=${selectedDate}&serviceId=${encodeURIComponent(serviceId)}&technicianId=${encodeURIComponent(technicianId)}`
+    )
       .then((r) => r.json())
-      .then((data) => {
-        setSlots(data.slots ?? []);
-      })
+      .then((data) => setSlots(data.slots ?? []))
       .catch(() => setSlots([]))
       .finally(() => setSlotsLoading(false));
-  }, [selectedDate, serviceId]);
+  }, [selectedDate, serviceId, technicianId]);
 
   useEffect(() => {
     fetchSlots();
@@ -114,9 +117,6 @@ export default function BookDatePage() {
   if (loading) {
     return (
       <div className="max-w-2xl mx-auto px-6 py-24 text-center">
-        <Link href="/" className="text-sm text-navy hover:underline mb-6 inline-block">
-          Home
-        </Link>
         <p className="text-slate-500">Loading…</p>
       </div>
     );
@@ -124,11 +124,8 @@ export default function BookDatePage() {
   if (!service) {
     return (
       <div className="max-w-2xl mx-auto px-6 py-24 text-center">
-        <Link href="/" className="text-sm text-navy hover:underline mb-6 inline-block">
-          Home
-        </Link>
         <p className="text-slate-600 mb-6">Service not found.</p>
-        <Link href="/book" className="text-navy hover:underline">
+        <Link href={`/book/tech/${technicianId}`} className="text-navy hover:underline">
           ← Back to services
         </Link>
       </div>
@@ -141,7 +138,7 @@ export default function BookDatePage() {
         <Link href="/" className="text-sm text-navy hover:underline">
           Home
         </Link>
-        <Link href="/book" className="text-sm text-navy hover:underline">
+        <Link href={`/book/tech/${technicianId}`} className="text-sm text-navy hover:underline">
           ← Back to services
         </Link>
       </div>
@@ -153,14 +150,11 @@ export default function BookDatePage() {
       </p>
 
       <div className="grid md:grid-cols-[1fr,1fr] gap-10 md:gap-12 items-start">
-        {/* Calendar */}
         <div>
           <h2 className="text-xs font-medium uppercase tracking-[0.2em] text-navy mb-4">
             1. Choose a date
           </h2>
-          <p className="text-slate-600 text-sm mb-6">
-            Tap a date to see available times.
-          </p>
+          <p className="text-slate-600 text-sm mb-6">Tap a date to see available times.</p>
           {monthsWithDates.map(([monthTitle, monthDates]) => (
             <div key={monthTitle} className="mb-8 last:mb-0">
               <h3 className="text-sm font-semibold text-navy mb-3">{monthTitle}</h3>
@@ -200,7 +194,8 @@ export default function BookDatePage() {
             </div>
           ))}
           <p className="mt-6 text-sm text-slate-600">
-            <span className="font-bold text-red-600">Emergency</span> after-hours appointments available upon request. Enquire via{" "}
+            <span className="font-bold text-red-600">Emergency</span> after-hours appointments
+            available upon request. Enquire via{" "}
             <a
               href={`https://instagram.com/${(settings?.instagramHandle || "bebeauty.bar").replace(/^@/, "")}`}
               target="_blank"
@@ -213,31 +208,27 @@ export default function BookDatePage() {
           </p>
         </div>
 
-        {/* Available times */}
-        <div ref={timeSectionRef} className="rounded-2xl border border-slate-200 bg-slate-50/50 p-6 min-h-[200px]">
+        <div
+          ref={timeSectionRef}
+          className="rounded-2xl border border-slate-200 bg-slate-50/50 p-6 min-h-[200px]"
+        >
           <h2 className="text-xs font-medium uppercase tracking-[0.2em] text-navy mb-4">
             2. Choose a time
           </h2>
           {!selectedDate ? (
-            <p className="text-slate-500 text-sm">
-              Select a date to see available times.
-            </p>
+            <p className="text-slate-500 text-sm">Select a date to see available times.</p>
           ) : slotsLoading ? (
             <p className="text-slate-500 text-sm">Loading times…</p>
           ) : slots.length === 0 ? (
-            <p className="text-slate-500 text-sm">
-              No times available for {selectedDateLabel}.
-            </p>
+            <p className="text-slate-500 text-sm">No times available for {selectedDateLabel}.</p>
           ) : (
             <>
-              <p className="text-slate-600 text-sm mb-4">
-                {selectedDateLabel}
-              </p>
+              <p className="text-slate-600 text-sm mb-4">{selectedDateLabel}</p>
               <div className="grid grid-cols-2 gap-2 sm:gap-3 min-w-0">
                 {slots.map((slot) => (
                   <Link
                     key={slot.start}
-                    href={`/book/${serviceId}/${selectedDate}/${encodeURIComponent(slot.start)}`}
+                    href={`/book/tech/${technicianId}/${serviceId}/${selectedDate}/${encodeURIComponent(slot.start)}`}
                     className="flex items-center justify-center px-2 py-2 sm:py-2.5 rounded-lg border border-slate-200 bg-white text-slate-800 text-[11px] sm:text-xs font-medium hover:border-navy/40 hover:bg-navy/5 hover:text-navy transition touch-manipulation text-center min-h-[40px] sm:min-h-[44px] min-w-0"
                   >
                     {formatTime24to12(slot.start)} – {formatTime24to12(slot.end)}

@@ -19,6 +19,13 @@ export async function PATCH(
   if (!current) {
     return NextResponse.json({ error: "Service not found" }, { status: 404 });
   }
+  if (
+    admin.role === "technician" &&
+    admin.technicianId &&
+    current.technicianId !== admin.technicianId
+  ) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const data: {
     name?: string;
@@ -45,8 +52,11 @@ export async function PATCH(
     data.category = trimmed;
   }
   if (durationMin !== undefined) data.durationMin = Number(durationMin);
-  if (price !== undefined) data.price = Number(price);
-  if (depositAmount !== undefined) data.depositAmount = Number(depositAmount);
+  // Only the master may change price and deposit (on any service, including a
+  // technician's own). Technician-submitted price/deposit values are ignored.
+  const isMaster = admin.role === "master";
+  if (isMaster && price !== undefined) data.price = Number(price);
+  if (isMaster && depositAmount !== undefined) data.depositAmount = Number(depositAmount);
   if (description !== undefined) data.description = description === null ? "" : String(description);
   if (active !== undefined) data.active = Boolean(active);
 
@@ -79,7 +89,18 @@ export async function DELETE(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { id } = params;
-  // Only block removal if there are active bookings (pending or confirmed), not cancelled
+  const current = await prisma.service.findUnique({ where: { id } });
+  if (!current) {
+    return NextResponse.json({ error: "Service not found" }, { status: 404 });
+  }
+  if (
+    admin.role === "technician" &&
+    admin.technicianId &&
+    current.technicianId !== admin.technicianId
+  ) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  // Only block removal if there are active bookings
   const activeBookingCount = await prisma.booking.count({
     where: {
       serviceId: id,

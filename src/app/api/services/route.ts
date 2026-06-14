@@ -1,12 +1,16 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const technicianId = new URL(req.url).searchParams.get("technicianId");
     const services = await prisma.service.findMany({
-      where: { active: true },
+      where: {
+        active: true,
+        ...(technicianId ? { technicianId } : {}),
+      },
       orderBy: [{ position: "asc" }, { category: "asc" }, { name: "asc" }],
     });
     const res = NextResponse.json(services);

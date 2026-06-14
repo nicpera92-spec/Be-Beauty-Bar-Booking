@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { verifyAdminRequest } from "@/lib/auth";
 import { blockOverlapsBooking } from "@/lib/blockOverlap";
 import { sendBookingCreatedEmails } from "@/lib/email";
+import { isBookingSlotAvailable } from "@/lib/bookingAvailability";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -12,7 +13,7 @@ export async function GET(req: NextRequest) {
   if (id) {
     const booking = await prisma.booking.findUnique({
       where: { id },
-      include: { service: true },
+      include: { service: true, technician: true },
     });
     if (!booking) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
@@ -26,7 +27,11 @@ export async function GET(req: NextRequest) {
   }
 
   const bookings = await prisma.booking.findMany({
-    include: { service: true },
+    where:
+      admin.role === "technician" && admin.technicianId
+        ? { technicianId: admin.technicianId }
+        : undefined,
+    include: { service: true, technician: true },
     orderBy: [{ date: "asc" }, { startTime: "asc" }],
   });
   return NextResponse.json(bookings);
@@ -37,6 +42,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       serviceId,
+      technicianId,
       customerName,
       customerEmail,
       customerPhone,
@@ -50,6 +56,7 @@ export async function POST(req: NextRequest) {
 
     if (
       !serviceId ||
+      !technicianId ||
       !customerName ||
       !date ||
       !startTime ||
@@ -115,12 +122,23 @@ export async function POST(req: NextRequest) {
 
     const service = await prisma.service.findUnique({
       where: { id: serviceId },
+      include: { technician: true },
     });
     if (!service) {
       return NextResponse.json({ error: "Service not found" }, { status: 404 });
     }
+    if (service.technicianId !== String(technicianId)) {
+      return NextResponse.json(
+        { error: "This service does not belong to the selected technician" },
+        { status: 400 }
+      );
+    }
+    if (!service.technician?.active) {
+      return NextResponse.json({ error: "Technician is not available" }, { status: 400 });
+    }
 
     const servicePrice = service.price;
+    const validTechnicianId = service.technicianId;
 
     const settings = await prisma.businessSettings.findUnique({
       where: { id: "default" },
@@ -158,28 +176,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const [existing, blocks] = await Promise.all([
-      prisma.booking.findMany({
-        where: { date, status: { not: "cancelled" } },
-        select: { startTime: true, endTime: true },
-      }),
+    const [blocks, slotCheck] = await Promise.all([
       prisma.availabilityBlock.findMany({
-        where: { startDate: { lte: date }, endDate: { gte: date } },
+        where: {
+          startDate: { lte: date },
+          endDate: { gte: date },
+          OR: [{ technicianId: null }, { technicianId: validTechnicianId }],
+        },
+      }),
+      isBookingSlotAvailable({
+        date,
+        startTime,
+        endTime,
+        technicianId: validTechnicianId,
+        serviceCategory: service.category,
       }),
     ]);
 
-    const overlapsBooking = existing.some((b) => {
-      const s1 = startTime;
-      const e1 = endTime;
-      const s2 = b.startTime;
-      const e2 = b.endTime;
-      return s1 < e2 && e1 > s2;
-    });
-    if (overlapsBooking) {
-      return NextResponse.json(
-        { error: "This time slot is no longer available. Please choose another." },
-        { status: 409 }
-      );
+    if (!slotCheck.ok) {
+      return NextResponse.json({ error: slotCheck.reason }, { status: 409 });
     }
 
     const overlapsBlock = blocks.some((b) =>
@@ -195,6 +210,7 @@ export async function POST(req: NextRequest) {
     const booking = await prisma.booking.create({
       data: {
         serviceId,
+        technicianId: validTechnicianId,
         customerName,
         customerEmail: customerEmail?.trim() || null,
         customerPhone: customerPhone?.trim() || null,
@@ -208,7 +224,7 @@ export async function POST(req: NextRequest) {
         notifyByEmail: wantsEmail,
         notifyBySMS: wantsSMS,
       },
-      include: { service: true },
+      include: { service: true, technician: true },
     });
 
     const emailResult = await sendBookingCreatedEmails(booking.id);

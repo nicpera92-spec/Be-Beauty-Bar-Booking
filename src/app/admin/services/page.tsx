@@ -45,6 +45,7 @@ function formatCategoryName(category: string): string {
 export default function AdminServicesPage() {
   const router = useRouter();
   const [hasToken, setHasToken] = useState<boolean | null>(null);
+  const [isMaster, setIsMaster] = useState(false);
   const [services, setServices] = useState<Service[]>([]);
   const [defaultDeposit, setDefaultDeposit] = useState<number | null>(null);
   const [defaultPrice, setDefaultPrice] = useState<number | null>(null);
@@ -64,7 +65,19 @@ export default function AdminServicesPage() {
   };
 
   useEffect(() => {
-    setHasToken(!!sessionStorage.getItem(ADMIN_TOKEN_KEY));
+    const token = sessionStorage.getItem(ADMIN_TOKEN_KEY);
+    setHasToken(!!token);
+    if (!token) return;
+    setIsMaster(sessionStorage.getItem("admin-role") === "master");
+    // Confirm role from the server so price/deposit locking is reliable.
+    fetch("/api/admin/verify-session", { headers: getAuthHeaders() })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data?.role) return;
+        sessionStorage.setItem("admin-role", data.role);
+        setIsMaster(data.role === "master");
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -93,7 +106,9 @@ export default function AdminServicesPage() {
         ← Back to admin
       </Link>
       <h1 className="font-serif text-2xl font-semibold text-charcoal mb-2">
-        Services & time slots
+        {typeof window !== "undefined" && sessionStorage.getItem("admin-role") === "technician"
+          ? "My services"
+          : "Services & time slots"}
       </h1>
       <p className="text-slate-500 text-sm mb-8">
         Each service has a <strong>full price</strong> and <strong>deposit</strong> (deposit ≤ price).
@@ -115,6 +130,7 @@ export default function AdminServicesPage() {
             getAuthHeaders={getAuthHeaders}
             onUpdate={fetchServices}
             allServices={services}
+            isMaster={isMaster}
           />
         ))}
       </div>
@@ -124,6 +140,7 @@ export default function AdminServicesPage() {
         defaultDeposit={defaultDeposit ?? 20}
         defaultPrice={defaultPrice ?? 50}
         onAdded={fetchServices}
+        isMaster={isMaster}
       />
     </div>
   );
@@ -137,6 +154,7 @@ function AdminServiceRow({
   getAuthHeaders,
   onUpdate,
   allServices,
+  isMaster,
 }: {
   service: Service;
   index: number;
@@ -145,6 +163,7 @@ function AdminServiceRow({
   getAuthHeaders: () => Record<string, string>;
   onUpdate: () => void;
   allServices: Service[];
+  isMaster: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
@@ -374,13 +393,14 @@ function AdminServiceRow({
                 min={0}
                 step={0.01}
                 value={form.price}
+                disabled={!isMaster}
                 onChange={(e) =>
                   setForm((f) => ({
                     ...f,
                     price: parseFloat(e.target.value) || 0,
                   }))
                 }
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white disabled:bg-slate-100 disabled:text-charcoal/50 disabled:cursor-not-allowed"
               />
             </div>
             <div>
@@ -392,16 +412,22 @@ function AdminServiceRow({
                 min={0}
                 step={0.01}
                 value={form.depositAmount}
+                disabled={!isMaster}
                 onChange={(e) =>
                   setForm((f) => ({
                     ...f,
                     depositAmount: parseFloat(e.target.value) || 0,
                   }))
                 }
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white disabled:bg-slate-100 disabled:text-charcoal/50 disabled:cursor-not-allowed"
               />
             </div>
           </div>
+          {!isMaster && (
+            <p className="text-xs text-charcoal/50">
+              Price and deposit are set by the salon owner.
+            </p>
+          )}
           {saveError && (
             <p className="text-sm text-red-600">{saveError}</p>
           )}
@@ -417,7 +443,7 @@ function AdminServiceRow({
               type="button"
               onClick={() => save(true)}
               disabled={saving}
-              className="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-black disabled:opacity-50"
+              className="px-4 py-2 rounded-lg bg-navy text-white text-sm font-medium hover:bg-navy-light disabled:opacity-50"
             >
               {saving ? "Saving…" : "Save"}
             </button>
@@ -534,11 +560,13 @@ function AddServiceForm({
   defaultDeposit,
   defaultPrice,
   onAdded,
+  isMaster,
 }: {
   getAuthHeaders: () => Record<string, string>;
   defaultDeposit: number;
   defaultPrice: number;
   onAdded: () => void;
+  isMaster: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
@@ -564,7 +592,7 @@ function AddServiceForm({
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (form.depositAmount > form.price) {
+    if (isMaster && form.depositAmount > form.price) {
       setSubmitError("Deposit cannot exceed full price.");
       return;
     }
@@ -669,7 +697,7 @@ function AddServiceForm({
               </div>
             )}
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className={`grid gap-3 ${isMaster ? "grid-cols-3" : "grid-cols-1"}`}>
             <div>
               <label className="block text-xs text-charcoal/60 mb-1">Duration (min)</label>
               <input
@@ -685,39 +713,48 @@ function AddServiceForm({
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white"
               />
             </div>
-            <div>
-              <label className="block text-xs text-charcoal/60 mb-1">Full price (£)</label>
-              <input
-                type="number"
-                min={0}
-                step={0.01}
-                value={form.price}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    price: parseFloat(e.target.value) || 0,
-                  }))
-                }
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-charcoal/60 mb-1">Deposit (£)</label>
-              <input
-                type="number"
-                min={0}
-                step={0.01}
-                value={form.depositAmount}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    depositAmount: parseFloat(e.target.value) || 0,
-                  }))
-                }
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white"
-              />
-            </div>
+            {isMaster && (
+              <>
+                <div>
+                  <label className="block text-xs text-charcoal/60 mb-1">Full price (£)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={form.price}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        price: parseFloat(e.target.value) || 0,
+                      }))
+                    }
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-charcoal/60 mb-1">Deposit (£)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={form.depositAmount}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        depositAmount: parseFloat(e.target.value) || 0,
+                      }))
+                    }
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white"
+                  />
+                </div>
+              </>
+            )}
           </div>
+          {!isMaster && (
+            <p className="text-xs text-charcoal/50">
+              Price and deposit will use the salon defaults. The owner can adjust them afterwards.
+            </p>
+          )}
           {submitError && (
             <p className="text-sm text-red-600">{submitError}</p>
           )}
@@ -732,7 +769,7 @@ function AddServiceForm({
             <button
               type="submit"
               disabled={saving}
-              className="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-black disabled:opacity-50"
+              className="px-4 py-2 rounded-lg bg-navy text-white text-sm font-medium hover:bg-navy-light disabled:opacity-50"
             >
               Add
             </button>

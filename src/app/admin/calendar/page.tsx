@@ -18,6 +18,7 @@ function getAuthHeaders(): Record<string, string> {
 type Booking = {
   id: string;
   service: { name: string };
+  technician?: { name: string } | null;
   customerName: string;
   customerEmail: string | null;
   customerPhone: string | null;
@@ -365,6 +366,7 @@ export default function AdminCalendarPage() {
                         </div>
                         <p className="text-sm text-charcoal/80">
                           {booking.service.name} · {booking.startTime}–{booking.endTime}
+                          {booking.technician?.name && <> · {booking.technician.name}</>}
                         </p>
                         <p className="text-xs text-charcoal/60 mt-1">
                           {booking.customerPhone ? (

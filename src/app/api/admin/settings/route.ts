@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyAdminRequest } from "@/lib/auth";
+import { verifyAdminRequest, requireMaster } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
-  const admin = await verifyAdminRequest(req);
-  if (!admin) {
+  const staff = await verifyAdminRequest(req);
+  if (!staff) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const settings = await prisma.businessSettings.findUnique({
@@ -17,9 +17,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const admin = await verifyAdminRequest(req);
-  if (!admin) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const master = await requireMaster(req);
+  if (!master) {
+    return NextResponse.json({ error: "Only the master account can change business settings" }, { status: 403 });
   }
 
   const body = await req.json();
@@ -35,9 +35,24 @@ export async function PATCH(req: NextRequest) {
     stripeSecretKey,
     stripeWebhookSecret,
     smsNotificationFee,
+    primaryColor,
+    secondaryColor,
   } = body;
 
+  const hexColor = /^#[0-9a-fA-F]{6}$/;
   const data: Record<string, unknown> = {};
+  if (primaryColor != null) {
+    if (!hexColor.test(String(primaryColor))) {
+      return NextResponse.json({ error: "Invalid primary colour" }, { status: 400 });
+    }
+    data.primaryColor = String(primaryColor);
+  }
+  if (secondaryColor != null) {
+    if (!hexColor.test(String(secondaryColor))) {
+      return NextResponse.json({ error: "Invalid secondary colour" }, { status: 400 });
+    }
+    data.secondaryColor = String(secondaryColor);
+  }
   if (businessName != null) data.businessName = businessName;
   if (businessEmail != null) data.businessEmail = businessEmail === "" ? null : businessEmail;
   if (instagramHandle != null) data.instagramHandle = instagramHandle === "" ? null : instagramHandle;
@@ -86,8 +101,8 @@ export async function PATCH(req: NextRequest) {
       openTime: (data.openTime as string) ?? "09:00",
       closeTime: (data.closeTime as string) ?? "17:00",
       slotInterval: (data.slotInterval as number) ?? 30,
-      primaryColor: "#1e3a5f",
-      secondaryColor: "#2c5282",
+      primaryColor: (data.primaryColor as string) ?? "#1e3a5f",
+      secondaryColor: (data.secondaryColor as string) ?? "#2c5282",
       stripeSecretKey: (data.stripeSecretKey as string | null) ?? null,
       stripeWebhookSecret: (data.stripeWebhookSecret as string | null) ?? null,
       smsNotificationFee: (data.smsNotificationFee as number | null) ?? 0.05,

@@ -134,7 +134,7 @@ export default function AdminChangePasswordPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-slate-900 text-white py-3 rounded-lg font-medium hover:bg-black disabled:opacity-50 transition"
+            className="w-full bg-navy text-white py-3 rounded-lg font-medium hover:bg-navy-light disabled:opacity-50 transition"
           >
             {loading ? "Updating…" : "Update password"}
           </button>

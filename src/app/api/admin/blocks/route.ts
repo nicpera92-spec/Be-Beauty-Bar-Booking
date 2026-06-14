@@ -12,7 +12,11 @@ export async function GET(req: NextRequest) {
   const from = searchParams.get("from"); // yyyy-MM-dd
   const to = searchParams.get("to"); // yyyy-MM-dd
 
-  const where: { endDate?: { gte?: string }; startDate?: { lte?: string } } = {};
+  const where: {
+    endDate?: { gte?: string };
+    startDate?: { lte?: string };
+    technicianId?: string | null;
+  } = {};
   if (from && to) {
     where.endDate = { gte: from };
     where.startDate = { lte: to };
@@ -21,6 +25,9 @@ export async function GET(req: NextRequest) {
   } else if (to) {
     where.startDate = { lte: to };
   }
+
+  // Technicians manage their own time off; the master manages salon-wide time off.
+  where.technicianId = admin.role === "technician" && admin.technicianId ? admin.technicianId : null;
 
   const blocks = await prisma.availabilityBlock.findMany({
     where,
@@ -63,8 +70,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // A technician's time off only needs to be clear of that technician's own
+  // bookings; the master's salon-wide time off must be clear of all bookings.
+  const ownerTechnicianId =
+    admin.role === "technician" && admin.technicianId ? admin.technicianId : null;
+
   const bookings = await prisma.booking.findMany({
-    where: { status: { not: "cancelled" } },
+    where: {
+      status: { not: "cancelled" },
+      ...(ownerTechnicianId ? { technicianId: ownerTechnicianId } : {}),
+    },
     select: { date: true, startTime: true, endTime: true },
   });
 
@@ -82,7 +97,7 @@ export async function POST(req: NextRequest) {
   }
 
   const block = await prisma.availabilityBlock.create({
-    data: { startDate, startTime, endDate, endTime },
+    data: { startDate, startTime, endDate, endTime, technicianId: ownerTechnicianId },
   });
   return NextResponse.json(block);
 }

@@ -9,6 +9,7 @@ import { formatCurrency } from "@/lib/format";
 type Booking = {
   id: string;
   service: { name: string; durationMin: number };
+  technician?: { name: string } | null;
   customerName: string;
   customerEmail: string | null;
   customerPhone: string | null;
@@ -216,6 +217,7 @@ export default function BookingPage() {
         </h1>
         <p className="text-slate-600 mb-5">
           {dayLabel} · {booking.startTime}–{booking.endTime}
+          {booking.technician?.name && <> · with {booking.technician.name}</>}
         </p>
         <p className="text-sm text-slate-600 mb-3">
           {booking.customerName} · {booking.customerEmail}

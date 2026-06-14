@@ -4,12 +4,19 @@ import { verifyAdminRequest } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
+function ownerTechnicianId(staff: { role: string; technicianId?: string }): string | null {
+  if (staff.role === "technician" && staff.technicianId) return staff.technicianId;
+  return null;
+}
+
 export async function GET(req: NextRequest) {
-  const admin = await verifyAdminRequest(req);
-  if (!admin) {
+  const staff = await verifyAdminRequest(req);
+  if (!staff) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const techId = ownerTechnicianId(staff);
   const services = await prisma.service.findMany({
+    where: techId ? { technicianId: techId } : undefined,
     orderBy: [{ position: "asc" }, { category: "asc" }, { name: "asc" }],
   });
   const res = NextResponse.json(services);
@@ -18,23 +25,54 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const admin = await verifyAdminRequest(req);
-  if (!admin) {
+  const staff = await verifyAdminRequest(req);
+  if (!staff) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const body = await req.json();
-  const { name, category, durationMin, price, depositAmount, description } = body;
+  const { name, category, durationMin, price, depositAmount, description, technicianId } = body;
 
-  if (!name || !category || durationMin == null || price == null || depositAmount == null) {
+  const isMaster = staff.role === "master";
+
+  if (!name || !category || durationMin == null) {
     return NextResponse.json(
-      { error: "name, category, durationMin, price, depositAmount required" },
+      { error: "name, category, durationMin required" },
       { status: 400 }
     );
   }
 
-  const p = Number(price);
-  const d = Number(depositAmount);
+  const techId =
+    staff.role === "technician" && staff.technicianId
+      ? staff.technicianId
+      : technicianId
+        ? String(technicianId)
+        : null;
+
+  if (!techId) {
+    return NextResponse.json({ error: "technicianId required" }, { status: 400 });
+  }
+
+  // Only the master sets prices/deposits. Technician-created services start at
+  // the business default price/deposit; the master adjusts them afterwards.
+  let p: number;
+  let d: number;
+  if (isMaster) {
+    if (price == null || depositAmount == null) {
+      return NextResponse.json(
+        { error: "price and depositAmount required" },
+        { status: 400 }
+      );
+    }
+    p = Number(price);
+    d = Number(depositAmount);
+  } else {
+    const settings = await prisma.businessSettings.findUnique({
+      where: { id: "default" },
+    });
+    p = settings?.defaultPrice ?? 0;
+    d = settings?.defaultDepositAmount ?? 0;
+  }
   if (d > p) {
     return NextResponse.json(
       { error: "Deposit cannot exceed full price" },
@@ -46,12 +84,16 @@ export async function POST(req: NextRequest) {
   const id = `${slug}-${Date.now().toString(36)}`;
 
   const maxPosition = await prisma.service
-    .aggregate({ _max: { position: true } })
+    .aggregate({
+      where: { technicianId: techId },
+      _max: { position: true },
+    })
     .then((r) => (r._max.position ?? -1) + 1);
 
   const service = await prisma.service.create({
     data: {
       id,
+      technicianId: techId,
       name,
       category,
       position: maxPosition,
@@ -65,8 +107,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  const admin = await verifyAdminRequest(req);
-  if (!admin) {
+  const staff = await verifyAdminRequest(req);
+  if (!staff) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -74,6 +116,17 @@ export async function PUT(req: NextRequest) {
   const { ids } = body;
   if (!Array.isArray(ids) || ids.length === 0) {
     return NextResponse.json({ error: "ids array required" }, { status: 400 });
+  }
+
+  const techId = ownerTechnicianId(staff);
+  if (techId) {
+    const owned = await prisma.service.findMany({
+      where: { id: { in: ids.map(String) } },
+      select: { id: true, technicianId: true },
+    });
+    if (owned.some((s) => s.technicianId !== techId)) {
+      return NextResponse.json({ error: "Cannot reorder another technician's services" }, { status: 403 });
+    }
   }
 
   await prisma.$transaction(
