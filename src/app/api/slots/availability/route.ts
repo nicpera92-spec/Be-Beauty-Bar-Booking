@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
         where: {
           startDate: { lte: to },
           endDate: { gte: from },
-          OR: [{ technicianId: null }, { technicianId }],
+          technicianId,
         },
       }),
       getMaxConcurrentForCategory(service.category),

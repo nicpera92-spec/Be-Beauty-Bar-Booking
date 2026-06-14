@@ -12,11 +12,17 @@ export async function GET(req: NextRequest) {
   const from = searchParams.get("from"); // yyyy-MM-dd
   const to = searchParams.get("to"); // yyyy-MM-dd
 
+  // Time off is personal to each technician (the owner included). Without a
+  // linked technician profile there is no calendar to block.
+  if (!admin.technicianId) {
+    return NextResponse.json([]);
+  }
+
   const where: {
     endDate?: { gte?: string };
     startDate?: { lte?: string };
-    technicianId?: string | null;
-  } = {};
+    technicianId?: string;
+  } = { technicianId: admin.technicianId };
   if (from && to) {
     where.endDate = { gte: from };
     where.startDate = { lte: to };
@@ -25,9 +31,6 @@ export async function GET(req: NextRequest) {
   } else if (to) {
     where.startDate = { lte: to };
   }
-
-  // Technicians manage their own time off; the master manages salon-wide time off.
-  where.technicianId = admin.role === "technician" && admin.technicianId ? admin.technicianId : null;
 
   const blocks = await prisma.availabilityBlock.findMany({
     where,
@@ -70,15 +73,20 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // A technician's time off only needs to be clear of that technician's own
-  // bookings; the master's salon-wide time off must be clear of all bookings.
-  const ownerTechnicianId =
-    admin.role === "technician" && admin.technicianId ? admin.technicianId : null;
+  // Time off is personal: it only needs to be clear of this technician's own
+  // bookings. Other technicians can still take bookings during this period.
+  const ownerTechnicianId = admin.technicianId;
+  if (!ownerTechnicianId) {
+    return NextResponse.json(
+      { error: "Your login has no technician profile, so time off cannot be added." },
+      { status: 400 }
+    );
+  }
 
   const bookings = await prisma.booking.findMany({
     where: {
       status: { not: "cancelled" },
-      ...(ownerTechnicianId ? { technicianId: ownerTechnicianId } : {}),
+      technicianId: ownerTechnicianId,
     },
     select: { date: true, startTime: true, endTime: true },
   });

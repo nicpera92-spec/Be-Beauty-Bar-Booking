@@ -36,7 +36,6 @@ function formatBlockLabel(b: Block): string {
 export default function AdminTimeOffPage() {
   const router = useRouter();
   const [hasToken, setHasToken] = useState<boolean | null>(null);
-  const [isMaster, setIsMaster] = useState(false);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({
@@ -50,11 +49,6 @@ export default function AdminTimeOffPage() {
 
   useEffect(() => {
     setHasToken(!!sessionStorage.getItem(ADMIN_TOKEN_KEY));
-    // Confirm role from the server so the copy/scope is accurate.
-    fetch("/api/admin/verify-session", { headers: getAuthHeaders() })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => setIsMaster(data?.role === "master"))
-      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -160,12 +154,13 @@ export default function AdminTimeOffPage() {
         ← Back to admin
       </Link>
       <h1 className="font-serif text-2xl font-semibold text-charcoal mb-2">
-        {isMaster ? "Time off & days off" : "My time off"}
+        My time off
       </h1>
       <p className="text-charcoal/60 text-sm mb-8">
         Block a date range (e.g. 10:00 28/01/26 to 13:00 29/01/26) so customers cannot book
-        {isMaster ? " with the salon" : " with you"}.
-        Time is by the hour. You cannot add time off if a customer is already booked in that period.
+        with you. This only affects your own calendar — other technicians can still take
+        bookings during this period. Time is by the hour, and you cannot add time off if a
+        customer is already booked with you in that period.
       </p>
 
       <form onSubmit={submit} className="space-y-6 mb-10">

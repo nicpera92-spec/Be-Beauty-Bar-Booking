@@ -181,7 +181,7 @@ export async function POST(req: NextRequest) {
         where: {
           startDate: { lte: date },
           endDate: { gte: date },
-          OR: [{ technicianId: null }, { technicianId: validTechnicianId }],
+          technicianId: validTechnicianId,
         },
       }),
       isBookingSlotAvailable({

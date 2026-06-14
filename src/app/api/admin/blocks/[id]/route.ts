@@ -17,11 +17,8 @@ export async function DELETE(
     return NextResponse.json({ error: "Time off not found" }, { status: 404 });
   }
 
-  // Technicians may only remove their own time off; the master may only remove
-  // salon-wide time off (their own scope).
-  const ownerTechnicianId =
-    admin.role === "technician" && admin.technicianId ? admin.technicianId : null;
-  if (block.technicianId !== ownerTechnicianId) {
+  // Each person may only remove their own time off.
+  if (!admin.technicianId || block.technicianId !== admin.technicianId) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
