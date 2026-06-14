@@ -15,12 +15,26 @@ function getAuthHeaders(): Record<string, string> {
 
 type Service = {
   id: string;
+  technicianId: string;
+  technician?: {
+    id: string;
+    name: string;
+    role: string;
+    active: boolean;
+  } | null;
   name: string;
   category: string;
   durationMin: number;
   price: number;
   depositAmount: number;
   description: string | null;
+  active: boolean;
+};
+
+type Technician = {
+  id: string;
+  name: string;
+  role: string;
   active: boolean;
 };
 
@@ -47,6 +61,7 @@ export default function AdminServicesPage() {
   const [hasToken, setHasToken] = useState<boolean | null>(null);
   const [isMaster, setIsMaster] = useState(false);
   const [services, setServices] = useState<Service[]>([]);
+  const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [defaultDeposit, setDefaultDeposit] = useState<number | null>(null);
   const [defaultPrice, setDefaultPrice] = useState<number | null>(null);
 
@@ -62,6 +77,16 @@ export default function AdminServicesPage() {
       })
       .then((data) => setServices(Array.isArray(data) ? data : []))
       .catch(() => {});
+  };
+
+  const fetchTechnicians = () => {
+    fetch(`/api/admin/technicians?_=${Date.now()}`, {
+      headers: getAuthHeaders(),
+      cache: "no-store",
+    })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setTechnicians(Array.isArray(data) ? data : []))
+      .catch(() => setTechnicians([]));
   };
 
   useEffect(() => {
@@ -83,6 +108,7 @@ export default function AdminServicesPage() {
   useEffect(() => {
     if (!hasToken) return;
     fetchServices();
+    if (isMaster) fetchTechnicians();
     fetch("/api/admin/settings", { headers: getAuthHeaders() })
       .then((r) => (r.status === 401 ? null : r.json()))
       .then((data) => {
@@ -92,7 +118,7 @@ export default function AdminServicesPage() {
         else setDefaultPrice(null);
       })
       .catch(() => {});
-  }, [hasToken]);
+  }, [hasToken, isMaster]);
 
   if (hasToken === null) return null;
   if (!hasToken) {
@@ -141,6 +167,7 @@ export default function AdminServicesPage() {
         defaultPrice={defaultPrice ?? 50}
         onAdded={fetchServices}
         isMaster={isMaster}
+        technicians={technicians}
       />
     </div>
   );
@@ -479,6 +506,11 @@ function AdminServiceRow({
                 <span className="ml-2 text-xs text-charcoal/50">
                   {formatCategoryName(service.category)}
                 </span>
+                {isMaster && service.technician?.name && (
+                  <span className="ml-2 inline-block align-middle text-xs font-medium px-2 py-0.5 rounded-full bg-navy/10 text-navy">
+                    {service.technician.name}
+                  </span>
+                )}
               </h3>
               <p className="text-sm font-semibold text-charcoal mt-1">
                 {service.durationMin} min · {formatCurrency(service.price)} · {formatCurrency(service.depositAmount)} deposit
@@ -561,15 +593,18 @@ function AddServiceForm({
   defaultPrice,
   onAdded,
   isMaster,
+  technicians,
 }: {
   getAuthHeaders: () => Record<string, string>;
   defaultDeposit: number;
   defaultPrice: number;
   onAdded: () => void;
   isMaster: boolean;
+  technicians: Technician[];
 }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
+    technicianId: "",
     name: "",
     category: "nails" as string,
     durationMin: 60,
@@ -583,7 +618,12 @@ function AddServiceForm({
   const [newCategoryName, setNewCategoryName] = useState("");
 
   const openForm = () => {
-    setForm((f) => ({ ...f, price: defaultPrice, depositAmount: defaultDeposit }));
+    setForm((f) => ({
+      ...f,
+      technicianId: f.technicianId || technicians.find((t) => t.active)?.id || technicians[0]?.id || "",
+      price: defaultPrice,
+      depositAmount: defaultDeposit,
+    }));
     setSubmitError(null);
     setCreatingNewCategory(false);
     setNewCategoryName("");
@@ -598,6 +638,10 @@ function AddServiceForm({
     }
     if (creatingNewCategory && !newCategoryName.trim()) {
       setSubmitError("Please enter a category name.");
+      return;
+    }
+    if (isMaster && !form.technicianId) {
+      setSubmitError("Please choose a technician.");
       return;
     }
     setSubmitError(null);
@@ -621,7 +665,15 @@ function AddServiceForm({
         if (ok) {
           onAdded();
           setOpen(false);
-          setForm({ name: "", category: "nails", durationMin: 60, price: defaultPrice, depositAmount: defaultDeposit, description: "" });
+          setForm({
+            technicianId: technicians.find((t) => t.active)?.id || technicians[0]?.id || "",
+            name: "",
+            category: "nails",
+            durationMin: 60,
+            price: defaultPrice,
+            depositAmount: defaultDeposit,
+            description: "",
+          });
           setCreatingNewCategory(false);
           setNewCategoryName("");
         } else {
@@ -645,6 +697,31 @@ function AddServiceForm({
       ) : (
         <form onSubmit={submit} className="space-y-3 p-4 rounded-xl border border-slate-200 bg-slate-50/50">
           <h3 className="font-medium text-charcoal">New service</h3>
+          {isMaster && (
+            <div>
+              <label className="block text-xs text-charcoal/60 mb-1">Technician</label>
+              <select
+                required
+                value={form.technicianId}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    technicianId: e.target.value,
+                  }))
+                }
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white"
+              >
+                <option value="">Choose technician</option>
+                {technicians.map((technician) => (
+                  <option key={technician.id} value={technician.id}>
+                    {technician.name}
+                    {!technician.active ? " (hidden)" : ""}
+                    {technician.role === "master" ? " (owner)" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <input
             type="text"
             required
