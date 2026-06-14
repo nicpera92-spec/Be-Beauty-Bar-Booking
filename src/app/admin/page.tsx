@@ -493,7 +493,7 @@ export default function AdminPage() {
                     }}
                     className="ml-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-sm text-charcoal"
                   >
-                    {[10, 20, 50, 100].map((n) => (
+                    {[5, 10, 20, 50, 100].map((n) => (
                       <option key={n} value={n}>
                         {n}
                       </option>
