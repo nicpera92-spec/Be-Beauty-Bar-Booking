@@ -63,7 +63,7 @@ export default function BookPage() {
         Welcome
       </p>
       <h1 className="font-serif text-3xl md:text-4xl font-light text-slate-800 mb-4">
-        Choose your technician
+        Choose your Technician
       </h1>
       <p className="text-slate-600 mb-12 max-w-xl">
         Select who you’d like for your appointment, then choose from their services and pick a time.
