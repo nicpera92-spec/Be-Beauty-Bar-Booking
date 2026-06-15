@@ -338,7 +338,6 @@ export default function AdminPage() {
     staffRole === "master"
       ? [
           { href: "/admin/calendar", label: "Calendar", icon: NAV_ICONS.calendar },
-          { href: "/admin/settings", label: "Business settings", icon: NAV_ICONS.settings },
           { href: "/admin/technicians", label: "Technicians", icon: NAV_ICONS.technicians },
           { href: "/admin/time-off", label: "Time off", icon: NAV_ICONS.timeoff },
           { href: "/admin/services", label: "Services", icon: NAV_ICONS.services },
@@ -374,24 +373,37 @@ export default function AdminPage() {
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2">
             <Link
-              href="/admin/change-password"
-              className="inline-flex items-center min-h-[38px] px-3 py-1.5 rounded-lg text-sm text-charcoal/70 hover:text-charcoal hover:bg-slate-50 transition"
-            >
-              Change password
-            </Link>
-            <Link
               href="/"
               className="inline-flex items-center min-h-[38px] px-3 py-1.5 rounded-lg text-sm text-charcoal/70 hover:text-charcoal hover:bg-slate-50 transition"
             >
               ← Back to site
             </Link>
-            <button
-              type="button"
-              onClick={logout}
-              className="inline-flex items-center min-h-[38px] px-3.5 py-1.5 rounded-lg border border-slate-200 text-sm font-medium text-charcoal hover:bg-slate-50 hover:border-slate-300 transition"
-            >
-              Log out
-            </button>
+            {staffRole === "master" ? (
+              <Link
+                href="/admin/settings"
+                title="Business settings"
+                aria-label="Business settings"
+                className="inline-flex items-center justify-center min-h-[38px] min-w-[38px] rounded-lg border border-slate-200 text-charcoal/70 hover:text-navy hover:bg-slate-50 hover:border-slate-300 transition"
+              >
+                {NAV_ICONS.settings}
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/admin/change-password"
+                  className="inline-flex items-center min-h-[38px] px-3 py-1.5 rounded-lg text-sm text-charcoal/70 hover:text-charcoal hover:bg-slate-50 transition"
+                >
+                  Change password
+                </Link>
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="inline-flex items-center min-h-[38px] px-3.5 py-1.5 rounded-lg border border-slate-200 text-sm font-medium text-charcoal hover:bg-slate-50 hover:border-slate-300 transition"
+                >
+                  Log out
+                </button>
+              </>
+            )}
           </div>
         </div>
 

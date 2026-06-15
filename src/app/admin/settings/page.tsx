@@ -203,14 +203,38 @@ export default function AdminSettingsPage() {
   const labelClass = "block text-sm text-charcoal/70 mb-1";
   const cardClass = "rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 space-y-4";
 
+  const logout = () => {
+    sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+    sessionStorage.removeItem("admin-role");
+    sessionStorage.removeItem("admin-name");
+    router.replace("/admin");
+  };
+
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
       <Link href="/admin" className="text-sm text-sky-600 hover:underline mb-6 inline-block">
         ← Back to admin
       </Link>
-      <h1 className="font-serif text-2xl font-semibold text-charcoal mb-8">
-        Business settings
-      </h1>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-8">
+        <h1 className="font-serif text-2xl font-semibold text-charcoal">
+          Business settings
+        </h1>
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <Link
+            href="/admin/change-password"
+            className="inline-flex items-center min-h-[38px] px-3 py-1.5 rounded-lg text-sm text-charcoal/70 hover:text-charcoal hover:bg-slate-50 transition"
+          >
+            Change password
+          </Link>
+          <button
+            type="button"
+            onClick={logout}
+            className="inline-flex items-center min-h-[38px] px-3.5 py-1.5 rounded-lg border border-slate-200 text-sm font-medium text-charcoal hover:bg-slate-50 hover:border-slate-300 transition"
+          >
+            Log out
+          </button>
+        </div>
+      </div>
 
       <form onSubmit={save} className="space-y-5">
         <section className={cardClass}>
