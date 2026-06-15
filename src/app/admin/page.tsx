@@ -424,8 +424,8 @@ export default function AdminPage() {
       </header>
 
       <section>
-        <div className="flex items-center gap-3 mb-4 flex-wrap">
-          <h2 className="font-medium text-charcoal mr-auto">
+        <div className="flex items-center gap-3 mb-4 flex-nowrap overflow-x-auto">
+          <h2 className="font-medium text-charcoal mr-auto shrink-0 whitespace-nowrap">
             {statusFilter === "confirmed"
               ? `Confirmed (${confirmed.length})`
               : statusFilter === "pending_deposit"
@@ -435,7 +435,7 @@ export default function AdminPage() {
               <span className="text-charcoal/50 font-normal text-sm"> — for reference only</span>
             )}
           </h2>
-          <label className="inline-flex items-center gap-1.5 text-sm text-charcoal/60">
+          <label className="inline-flex items-center gap-1.5 text-sm text-charcoal/60 shrink-0 whitespace-nowrap">
               Per page
               <select
                 value={pageSize}
@@ -456,13 +456,13 @@ export default function AdminPage() {
             <button
               type="button"
               onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-charcoal text-sm font-medium hover:bg-slate-50 transition"
+              className="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-charcoal text-sm font-medium hover:bg-slate-50 transition"
               title="Toggle sort order"
             >
               Sort: {sortDir === "desc" ? "Newest" : "Oldest"}
             </button>
 
-            <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
+            <div className="inline-flex shrink-0 rounded-lg border border-slate-200 bg-white p-1">
               <button
                 type="button"
                 onClick={() => setStatusFilter("confirmed")}
