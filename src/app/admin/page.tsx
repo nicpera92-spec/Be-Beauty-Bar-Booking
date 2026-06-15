@@ -424,8 +424,8 @@ export default function AdminPage() {
       </header>
 
       <section>
-        <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
-          <h2 className="font-medium text-charcoal">
+        <div className="flex items-center gap-3 mb-4 flex-wrap">
+          <h2 className="font-medium text-charcoal mr-auto">
             {statusFilter === "confirmed"
               ? `Confirmed (${confirmed.length})`
               : statusFilter === "pending_deposit"
@@ -435,8 +435,7 @@ export default function AdminPage() {
               <span className="text-charcoal/50 font-normal text-sm"> — for reference only</span>
             )}
           </h2>
-          <div className="flex items-center gap-3 flex-wrap">
-            <label className="inline-flex items-center gap-1.5 text-sm text-charcoal/60">
+          <label className="inline-flex items-center gap-1.5 text-sm text-charcoal/60">
               Per page
               <select
                 value={pageSize}
@@ -498,7 +497,6 @@ export default function AdminPage() {
                 Cancelled
               </button>
             </div>
-          </div>
         </div>
 
         {filtered.length === 0 ? (
