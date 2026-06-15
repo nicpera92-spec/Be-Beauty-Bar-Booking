@@ -94,7 +94,9 @@ export async function POST(req: NextRequest) {
         select: { smsNotificationFee: true },
       });
       const smsFee = settings?.smsNotificationFee ?? 0.05;
-      const baseDeposit = booking.depositAmount - (booking.notifyBySMS ? smsFee : 0);
+      const baseDeposit = booking.service.requiresDeposit === false
+        ? 0
+        : booking.depositAmount - (booking.notifyBySMS ? smsFee : 0);
       const remaining = booking.servicePrice - baseDeposit;
       if (remaining <= 0) {
         return NextResponse.json(

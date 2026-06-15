@@ -3,7 +3,7 @@ import { addDays, isBefore, parse, startOfDay } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { verifyAdminRequest } from "@/lib/auth";
 import { blockOverlapsBooking } from "@/lib/blockOverlap";
-import { sendBookingCreatedEmails } from "@/lib/email";
+import { sendBookingCreatedEmails, sendBookingConfirmationEmails } from "@/lib/email";
 import { isBookingSlotAvailable } from "@/lib/bookingAvailability";
 
 export async function GET(req: NextRequest) {
@@ -144,7 +144,10 @@ export async function POST(req: NextRequest) {
       where: { id: "default" },
     });
     const smsFee = settings?.smsNotificationFee ?? 0.05;
-    const deposit = service.depositAmount + (wantsSMS ? smsFee : 0);
+    // When a service doesn't require a deposit, nothing is charged up front and
+    // the booking is confirmed instantly (no deposit and no SMS fee collected).
+    const requiresDeposit = service.requiresDeposit;
+    const deposit = requiresDeposit ? service.depositAmount + (wantsSMS ? smsFee : 0) : 0;
 
     // Validate time format (HH:mm)
     const timeRegex = /^\d{1,2}:\d{2}$/;
@@ -220,16 +223,20 @@ export async function POST(req: NextRequest) {
         servicePrice,
         depositAmount: deposit,
         notes: notes ?? "",
-        status: "pending_deposit",
+        status: requiresDeposit ? "pending_deposit" : "confirmed",
         notifyByEmail: wantsEmail,
         notifyBySMS: wantsSMS,
       },
       include: { service: true, technician: true },
     });
 
-    const emailResult = await sendBookingCreatedEmails(booking.id);
+    // No deposit required → booking is already confirmed, so send the
+    // confirmation email instead of the "pay your deposit" email.
+    const emailResult = requiresDeposit
+      ? await sendBookingCreatedEmails(booking.id)
+      : await sendBookingConfirmationEmails(booking.id);
     if (!emailResult.ok) {
-      console.error("Booking-created emails failed:", emailResult.error);
+      console.error("Booking emails failed:", emailResult.error);
     }
 
     return NextResponse.json(booking);

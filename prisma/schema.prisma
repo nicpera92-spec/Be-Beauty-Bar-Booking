@@ -17,6 +17,7 @@ model Service {
   durationMin   Int
   price         Float      @default(0)
   depositAmount Float
+  requiresDeposit Boolean  @default(true) // when false, bookings confirm without a deposit payment
   description   String?    @default("")
   active        Boolean    @default(true)
   createdAt     DateTime   @default(now())

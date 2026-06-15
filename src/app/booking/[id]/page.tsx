@@ -8,7 +8,7 @@ import { formatCurrency } from "@/lib/format";
 
 type Booking = {
   id: string;
-  service: { name: string; durationMin: number };
+  service: { name: string; durationMin: number; requiresDeposit?: boolean };
   technician?: { name: string } | null;
   customerName: string;
   customerEmail: string | null;
@@ -184,10 +184,13 @@ export default function BookingPage() {
   const businessName = settings?.businessName ?? "Be Beauty Bar";
   const confirmed = booking.status === "confirmed";
   const pending = booking.status === "pending_deposit";
-  
+  const noDeposit = booking.service.requiresDeposit === false;
+
   // Calculate remaining balance (service price - base deposit, excluding SMS fee)
   const smsFee = settings?.smsNotificationFee ?? 0.05;
-  const baseDeposit = booking.depositAmount - (booking.notifyBySMS ? smsFee : 0);
+  const baseDeposit = noDeposit
+    ? 0
+    : booking.depositAmount - (booking.notifyBySMS ? smsFee : 0);
   const remaining = booking.servicePrice - baseDeposit;
   const hasRemaining = remaining > 0.001;
 
@@ -223,7 +226,12 @@ export default function BookingPage() {
           {booking.customerName} · {booking.customerEmail}
         </p>
         <p className="text-sm text-slate-500">
-          {formatCurrency(booking.servicePrice)} total · {formatCurrency(booking.depositAmount)} deposit
+          {formatCurrency(booking.servicePrice)} total
+          {noDeposit ? (
+            <> · No deposit required</>
+          ) : (
+            <> · {formatCurrency(booking.depositAmount)} deposit</>
+          )}
           {hasRemaining && (
             <> · {formatCurrency(remaining)} remaining</>
           )}
@@ -283,7 +291,7 @@ export default function BookingPage() {
           <div>
             <h2 className="font-serif text-xl font-light text-slate-800 mb-3">Your booking is confirmed</h2>
             <p className="text-slate-600 text-sm mb-3 leading-relaxed">
-              Your deposit has been received.
+              {noDeposit ? "No deposit was required." : "Your deposit has been received."}
               {booking.customerEmail && (
                 <> A confirmation email has been sent to{" "}
                 <strong className="text-slate-800">{booking.customerEmail}</strong>.</>
@@ -301,11 +309,14 @@ export default function BookingPage() {
           {hasRemaining && !booking.balancePaidOnline && (
             <div className="border-t border-slate-200 pt-8">
               <p className="text-sm font-medium text-slate-800 mb-3">
-                Remaining {formatCurrency(remaining)} (full price − deposit)
+                {noDeposit
+                  ? `Amount due ${formatCurrency(remaining)}`
+                  : `Remaining ${formatCurrency(remaining)} (full price − deposit)`}
               </p>
               <p className="text-slate-600 text-sm mb-5 leading-relaxed">
-                You can pay the remaining balance now online, or pay in person when you
-                arrive. The deposit is already deducted.
+                You can pay {noDeposit ? "the full amount" : "the remaining balance"} now
+                online, or pay in person when you arrive.
+                {!noDeposit && " The deposit is already deducted."}
               </p>
               <button
                 type="button"

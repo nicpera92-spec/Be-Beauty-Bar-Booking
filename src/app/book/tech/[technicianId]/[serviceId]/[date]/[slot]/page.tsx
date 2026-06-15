@@ -11,6 +11,7 @@ type Service = {
   durationMin: number;
   price: number;
   depositAmount: number;
+  requiresDeposit: boolean;
 };
 
 type Slot = { start: string; end: string };
@@ -69,8 +70,11 @@ export default function BookFormPage() {
   const slot = slots.find((s) => s.start === startTime);
   const endTime = slot?.end ?? "";
 
+  const requiresDeposit = service?.requiresDeposit ?? true;
   const totalPrice = service?.price ?? 0;
-  const totalDeposit = (service?.depositAmount ?? 0) + (notifyBySMS ? smsFee : 0);
+  const totalDeposit = requiresDeposit
+    ? (service?.depositAmount ?? 0) + (notifyBySMS ? smsFee : 0)
+    : 0;
 
   const dayLabel = formatBookingDate(date, "EEEE, dd/MM/yyyy");
 
@@ -166,10 +170,10 @@ export default function BookFormPage() {
       </h1>
       <p className="text-slate-600 text-sm mb-12">
         {dayLabel} · {startTime}–{endTime} · {formatCurrency(totalPrice)} total
-        {notifyBySMS ? (
+        {requiresDeposit ? (
           <> · {formatCurrency(totalDeposit)} deposit</>
         ) : (
-          <> · {formatCurrency(service.depositAmount)} deposit</>
+          <> · No deposit required</>
         )}
       </p>
 
@@ -281,10 +285,12 @@ export default function BookFormPage() {
           <p className="text-sm font-medium text-slate-700 mb-1.5 underline">Cancellation policy</p>
           <ul className="text-xs text-slate-600 leading-relaxed list-disc list-outside pl-5 ml-1 space-y-1 mb-2">
             <li>Please provide at least 24 hours&apos; notice if you need to cancel or reschedule.</li>
-            <li>
-              Deposits are non-refundable for cancellations made less than 24 hours before your
-              appointment.
-            </li>
+            {requiresDeposit && (
+              <li>
+                Deposits are non-refundable for cancellations made less than 24 hours before your
+                appointment.
+              </li>
+            )}
           </ul>
           <label className="flex items-start gap-3 cursor-pointer mt-3">
             <input
@@ -316,8 +322,17 @@ export default function BookFormPage() {
         )}
 
         <p className="text-sm text-slate-600 leading-relaxed">
-          By submitting, you request this slot. You will pay the {formatCurrency(totalDeposit)}{" "}
-          deposit to confirm.
+          {requiresDeposit ? (
+            <>
+              By submitting, you request this slot. You will pay the{" "}
+              {formatCurrency(totalDeposit)} deposit to confirm.
+            </>
+          ) : (
+            <>
+              By submitting, your booking is confirmed instantly — no deposit
+              required. You can pay in person at your appointment.
+            </>
+          )}
         </p>
 
         <button
@@ -325,7 +340,7 @@ export default function BookFormPage() {
           disabled={submitting}
           className="w-full bg-navy text-white py-4 rounded-lg font-medium hover:bg-navy-light disabled:opacity-50 transition touch-manipulation min-h-[48px] shadow-sm"
         >
-          {submitting ? "Booking…" : "Request booking"}
+          {submitting ? "Booking…" : requiresDeposit ? "Request booking" : "Confirm booking"}
         </button>
       </form>
     </div>

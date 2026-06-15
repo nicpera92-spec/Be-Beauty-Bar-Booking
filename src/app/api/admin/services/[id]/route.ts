@@ -13,7 +13,7 @@ export async function PATCH(
 
   const { id } = params;
   const body = await req.json().catch(() => ({}));
-  const { name, category, durationMin, price, depositAmount, description, active } = body;
+  const { name, category, durationMin, price, depositAmount, description, active, requiresDeposit } = body;
 
   const current = await prisma.service.findUnique({ where: { id } });
   if (!current) {
@@ -33,6 +33,7 @@ export async function PATCH(
     durationMin?: number;
     price?: number;
     depositAmount?: number;
+    requiresDeposit?: boolean;
     description?: string | null;
     active?: boolean;
   } = {};
@@ -56,6 +57,11 @@ export async function PATCH(
   // can edit any service. Ownership is already enforced above, so apply both.
   if (price !== undefined) data.price = Number(price);
   if (depositAmount !== undefined) data.depositAmount = Number(depositAmount);
+  if (requiresDeposit !== undefined) {
+    data.requiresDeposit = Boolean(requiresDeposit);
+    // No deposit required → clear any deposit amount so nothing is charged.
+    if (!data.requiresDeposit) data.depositAmount = 0;
+  }
   if (description !== undefined) data.description = description === null ? "" : String(description);
   if (active !== undefined) data.active = Boolean(active);
 

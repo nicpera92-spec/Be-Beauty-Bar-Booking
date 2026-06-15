@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { name, category, durationMin, price, depositAmount, description, technicianId } = body;
+  const { name, category, durationMin, price, depositAmount, description, technicianId, requiresDeposit } = body;
 
   if (!name || !category || durationMin == null) {
     return NextResponse.json(
@@ -84,6 +84,8 @@ export async function POST(req: NextRequest) {
     })
     .then((r) => (r._max.position ?? -1) + 1);
 
+  const needsDeposit = requiresDeposit === undefined ? true : Boolean(requiresDeposit);
+
   const service = await prisma.service.create({
     data: {
       id,
@@ -93,7 +95,8 @@ export async function POST(req: NextRequest) {
       position: maxPosition,
       durationMin: Number(durationMin),
       price: p,
-      depositAmount: d,
+      depositAmount: needsDeposit ? d : 0,
+      requiresDeposit: needsDeposit,
       description: description ?? "",
     },
   });

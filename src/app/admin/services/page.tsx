@@ -28,6 +28,7 @@ type Service = {
   durationMin: number;
   price: number;
   depositAmount: number;
+  requiresDeposit: boolean;
   description: string | null;
   active: boolean;
 };
@@ -252,6 +253,7 @@ function AdminServiceRow({
     durationMin: service.durationMin,
     price: service.price,
     depositAmount: service.depositAmount,
+    requiresDeposit: service.requiresDeposit ?? true,
     description: service.description ?? "",
   });
   const [saving, setSaving] = useState(false);
@@ -267,10 +269,11 @@ function AdminServiceRow({
         durationMin: service.durationMin,
         price: service.price,
         depositAmount: service.depositAmount,
+        requiresDeposit: service.requiresDeposit ?? true,
         description: service.description ?? "",
       });
     }
-  }, [editing, service.id, service.name, service.category, service.durationMin, service.price, service.depositAmount, service.description]);
+  }, [editing, service.id, service.name, service.category, service.durationMin, service.price, service.depositAmount, service.requiresDeposit, service.description]);
 
   useEffect(() => {
     if (savedAt == null) return;
@@ -284,7 +287,7 @@ function AdminServiceRow({
     .filter((cat) => cat);
 
   const save = (closeAfterSave = true) => {
-    if (form.depositAmount > form.price) {
+    if (form.requiresDeposit && form.depositAmount > form.price) {
       setSaveError("Deposit cannot exceed full price.");
       return;
     }
@@ -295,7 +298,8 @@ function AdminServiceRow({
       category: String(form.category).trim(),
       durationMin: Number(form.durationMin) || 30,
       price: Number(form.price) || 0,
-      depositAmount: Number(form.depositAmount) || 0,
+      depositAmount: form.requiresDeposit ? Number(form.depositAmount) || 0 : 0,
+      requiresDeposit: form.requiresDeposit,
       description: form.description == null ? "" : String(form.description),
     };
     fetch(`/api/admin/services/${service.id}`, {
@@ -328,8 +332,10 @@ function AdminServiceRow({
     form.durationMin !== service.durationMin ||
     form.price !== service.price ||
     form.depositAmount !== service.depositAmount ||
+    form.requiresDeposit !== (service.requiresDeposit ?? true) ||
     (form.description ?? "") !== (service.description ?? "");
-  const canSave = editing && formChanged && form.depositAmount <= form.price;
+  const canSave =
+    editing && formChanged && (!form.requiresDeposit || form.depositAmount <= form.price);
 
   useEffect(() => {
     if (!canSave) return;
@@ -490,16 +496,35 @@ function AdminServiceRow({
                 min={0}
                 step={0.01}
                 value={form.depositAmount}
+                disabled={!form.requiresDeposit}
                 onChange={(e) =>
                   setForm((f) => ({
                     ...f,
                     depositAmount: parseFloat(e.target.value) || 0,
                   }))
                 }
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white disabled:bg-slate-100 disabled:text-charcoal/40"
               />
             </div>
           </div>
+          <label className="flex items-center gap-2.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.requiresDeposit}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, requiresDeposit: e.target.checked }))
+              }
+              className="w-4 h-4 rounded border-slate-300 text-navy focus:ring-navy/20"
+            />
+            <span className="text-sm text-charcoal">
+              Require a deposit to confirm bookings
+            </span>
+          </label>
+          {!form.requiresDeposit && (
+            <p className="text-xs text-charcoal/50 -mt-1">
+              No deposit needed — bookings for this service are confirmed instantly.
+            </p>
+          )}
           {saveError && (
             <p className="text-sm text-red-600">{saveError}</p>
           )}
@@ -533,6 +558,7 @@ function AdminServiceRow({
                   durationMin: service.durationMin,
                   price: service.price,
                   depositAmount: service.depositAmount,
+                  requiresDeposit: service.requiresDeposit ?? true,
                   description: service.description ?? "",
                 });
               }}
@@ -558,7 +584,10 @@ function AdminServiceRow({
                 )}
               </div>
               <p className="text-sm font-semibold text-charcoal mt-1">
-                {service.durationMin} min · {formatCurrency(service.price)} · {formatCurrency(service.depositAmount)} deposit
+                {service.durationMin} min · {formatCurrency(service.price)} ·{" "}
+                {service.requiresDeposit
+                  ? `${formatCurrency(service.depositAmount)} deposit`
+                  : "No deposit"}
               </p>
             </div>
             <div className="flex flex-wrap gap-2 shrink-0 items-center">
@@ -745,6 +774,7 @@ function AddServiceForm({
     durationMin: 60,
     price: defaultPrice,
     depositAmount: defaultDeposit,
+    requiresDeposit: true,
     description: "",
   });
   const [saving, setSaving] = useState(false);
@@ -767,7 +797,7 @@ function AddServiceForm({
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (form.depositAmount > form.price) {
+    if (form.requiresDeposit && form.depositAmount > form.price) {
       setSubmitError("Deposit cannot exceed full price.");
       return;
     }
@@ -807,6 +837,7 @@ function AddServiceForm({
             durationMin: 60,
             price: defaultPrice,
             depositAmount: defaultDeposit,
+            requiresDeposit: true,
             description: "",
           });
           setCreatingNewCategory(false);
@@ -948,16 +979,35 @@ function AddServiceForm({
                 min={0}
                 step={0.01}
                 value={form.depositAmount}
+                disabled={!form.requiresDeposit}
                 onChange={(e) =>
                   setForm((f) => ({
                     ...f,
                     depositAmount: parseFloat(e.target.value) || 0,
                   }))
                 }
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white disabled:bg-slate-100 disabled:text-charcoal/40"
               />
             </div>
           </div>
+          <label className="flex items-center gap-2.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.requiresDeposit}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, requiresDeposit: e.target.checked }))
+              }
+              className="w-4 h-4 rounded border-slate-300 text-navy focus:ring-navy/20"
+            />
+            <span className="text-sm text-charcoal">
+              Require a deposit to confirm bookings
+            </span>
+          </label>
+          {!form.requiresDeposit && (
+            <p className="text-xs text-charcoal/50 -mt-1">
+              No deposit needed — bookings for this service are confirmed instantly.
+            </p>
+          )}
           {submitError && (
             <p className="text-sm text-red-600">{submitError}</p>
           )}
