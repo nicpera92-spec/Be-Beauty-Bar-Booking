@@ -436,6 +436,24 @@ export default function AdminPage() {
             )}
           </h2>
           <div className="flex items-center gap-3 flex-wrap">
+            <label className="inline-flex items-center gap-1.5 text-sm text-charcoal/60">
+              Per page
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setPage(1);
+                }}
+                className="rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm text-charcoal"
+              >
+                {[5, 10, 20, 50, 100].map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </label>
+
             <button
               type="button"
               onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
@@ -493,29 +511,18 @@ export default function AdminPage() {
           </p>
         ) : (
           <div className="space-y-3">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <p className="text-sm text-charcoal/60">
-                {monthFilter === "all" ? "All time · " : `From ${rangeStartStr} · `}
-                Showing {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, filtered.length)} of {filtered.length}
-              </p>
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-charcoal/60">
-                  Per page{" "}
-                  <select
-                    value={pageSize}
-                    onChange={(e) => {
-                      setPageSize(Number(e.target.value));
-                      setPage(1);
-                    }}
-                    className="ml-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-sm text-charcoal"
-                  >
-                    {[5, 10, 20, 50, 100].map((n) => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+            {paged.map((b) => (
+              <AdminBookingRow
+                key={b.id}
+                booking={b}
+                getAuthHeaders={getAuthHeaders}
+                onUpdate={refreshBookings}
+                readOnly={statusFilter === "cancelled"}
+              />
+            ))}
+
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 pt-3">
                 <button
                   type="button"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
@@ -536,17 +543,7 @@ export default function AdminPage() {
                   Next
                 </button>
               </div>
-            </div>
-
-            {paged.map((b) => (
-              <AdminBookingRow
-                key={b.id}
-                booking={b}
-                getAuthHeaders={getAuthHeaders}
-                onUpdate={refreshBookings}
-                readOnly={statusFilter === "cancelled"}
-              />
-            ))}
+            )}
           </div>
         )}
       </section>
