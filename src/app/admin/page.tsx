@@ -72,6 +72,7 @@ type Booking = {
   stripeBalancePaymentIntentId: string | null;
   depositRefundedAt: string | null;
   balanceRefundedAt: string | null;
+  createdAt: string;
 };
 
 export default function AdminPage() {
@@ -85,7 +86,7 @@ export default function AdminPage() {
     "confirmed" | "pending_deposit" | "cancelled"
   >("confirmed");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(10);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [monthFilter] = useState<string>("all"); // bookings list shows all time
   const [staffRole, setStaffRole] = useState<"master" | "technician">("master");
@@ -323,8 +324,9 @@ export default function AdminPage() {
   )
     .slice()
     .sort((a, b) => {
-      const da = a.date + a.startTime;
-      const db = b.date + b.startTime;
+      // "Newest" = most recently booked (by creation time), not appointment date.
+      const da = a.createdAt ?? "";
+      const db = b.createdAt ?? "";
       return sortDir === "desc" ? db.localeCompare(da) : da.localeCompare(db);
     });
 
