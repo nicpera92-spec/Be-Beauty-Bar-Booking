@@ -13,6 +13,7 @@ type Service = {
   durationMin: number;
   price: number;
   depositAmount: number;
+  requiresDeposit: boolean;
   description: string | null;
 };
 
@@ -136,7 +137,10 @@ export default function TechnicianServicesPage() {
                       <h3 className="font-medium text-slate-800">{s.name}</h3>
                       <p className="text-sm text-slate-900 mt-0.5">
                         Duration {formatDurationHours(s.durationMin)} · Price{" "}
-                        {formatPriceShort(s.price)} · {formatPriceShort(s.depositAmount)} deposit
+                        {formatPriceShort(s.price)}
+                        {s.requiresDeposit && (
+                          <> · {formatPriceShort(s.depositAmount)} deposit</>
+                        )}
                       </p>
                       {s.description && (
                         <div className="mt-2 w-full" onClick={(e) => e.stopPropagation()}>
