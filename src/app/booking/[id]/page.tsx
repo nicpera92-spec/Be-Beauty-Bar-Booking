@@ -291,7 +291,7 @@ export default function BookingPage() {
           <div>
             <h2 className="font-serif text-xl font-light text-slate-800 mb-3">Your booking is confirmed</h2>
             <p className="text-slate-600 text-sm mb-3 leading-relaxed">
-              {noDeposit ? "No deposit was required." : "Your deposit has been received."}
+              {!noDeposit && "Your deposit has been received."}
               {booking.customerEmail && (
                 <> A confirmation email has been sent to{" "}
                 <strong className="text-slate-800">{booking.customerEmail}</strong>.</>
