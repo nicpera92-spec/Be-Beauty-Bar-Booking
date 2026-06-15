@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { eachDayOfInterval, format, isBefore, parse } from "date-fns";
+import { eachDayOfInterval, format, isBefore, parse, getDay } from "date-fns";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/format";
 import { getCustomerBookableRange } from "@/lib/booking-calendar-range";
@@ -155,10 +155,26 @@ export default function BookDatePage() {
             1. Choose a date
           </h2>
           <p className="text-slate-600 text-sm mb-6">Tap a date to see available times.</p>
-          {monthsWithDates.map(([monthTitle, monthDates]) => (
+          {monthsWithDates.map(([monthTitle, monthDates]) => {
+            // Align the first bookable day to its weekday column (Monday first).
+            const leadingBlanks = (getDay(monthDates[0]) + 6) % 7;
+            return (
             <div key={monthTitle} className="mb-8 last:mb-0">
               <h3 className="text-sm font-semibold text-navy mb-3">{monthTitle}</h3>
+              <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-1.5">
+                {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((w) => (
+                  <div
+                    key={w}
+                    className="text-center text-[10px] sm:text-xs font-medium text-slate-400"
+                  >
+                    {w}
+                  </div>
+                ))}
+              </div>
               <div className="grid grid-cols-7 gap-1 sm:gap-2 min-w-0">
+                {Array.from({ length: leadingBlanks }).map((_, i) => (
+                  <div key={`blank-${i}`} aria-hidden className="min-h-[36px] sm:min-h-[40px]" />
+                ))}
                 {monthDates.map((d) => {
                   const dateStr = format(d, "yyyy-MM-dd");
                   const isPast = isBefore(d, minBookableDate);
@@ -192,7 +208,8 @@ export default function BookDatePage() {
                 })}
               </div>
             </div>
-          ))}
+            );
+          })}
           <p className="mt-6 text-sm text-slate-600">
             <span className="font-bold text-red-600">Emergency</span> after-hours appointments
             available upon request. Enquire via{" "}
