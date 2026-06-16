@@ -400,8 +400,20 @@ export default function AdminCalendarPage() {
                   .map((booking) => (
                     <div
                       key={booking.id}
-                      className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-lg border border-slate-200 bg-slate-50"
+                      className="relative flex flex-wrap items-center justify-between gap-4 p-4 pr-10 rounded-lg border border-slate-200 bg-slate-50"
                     >
+                      <button
+                        type="button"
+                        onClick={() => cancelBooking(booking.id)}
+                        disabled={cancellingId === booking.id}
+                        aria-label="Cancel booking"
+                        title="Cancel booking"
+                        className="absolute top-2 right-2 inline-flex items-center justify-center w-6 h-6 rounded-full text-red-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-50 transition"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                          <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+                        </svg>
+                      </button>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="font-medium text-charcoal">{booking.customerName}</span>
@@ -433,26 +445,16 @@ export default function AdminCalendarPage() {
                             📝 Special request: {booking.notes}
                           </p>
                         )}
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {booking.status === "pending_deposit" && (
-                            <button
-                              type="button"
-                              onClick={() => confirmDeposit(booking.id)}
-                              disabled={confirmingId === booking.id}
-                              className="px-3 py-1.5 rounded-lg bg-navy text-white text-sm font-medium hover:bg-navy-light disabled:opacity-50 transition"
-                            >
-                              {confirmingId === booking.id ? "Confirming…" : "Mark deposit paid"}
-                            </button>
-                          )}
+                        {booking.status === "pending_deposit" && (
                           <button
                             type="button"
-                            onClick={() => cancelBooking(booking.id)}
-                            disabled={cancellingId === booking.id}
-                            className="px-3 py-1.5 rounded-lg border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 disabled:opacity-50 transition"
+                            onClick={() => confirmDeposit(booking.id)}
+                            disabled={confirmingId === booking.id}
+                            className="mt-3 px-3 py-1.5 rounded-lg bg-navy text-white text-sm font-medium hover:bg-navy-light disabled:opacity-50 transition"
                           >
-                            {cancellingId === booking.id ? "Cancelling…" : "Cancel"}
+                            {confirmingId === booking.id ? "Confirming…" : "Mark deposit paid"}
                           </button>
-                        </div>
+                        )}
                       </div>
                     </div>
                   ))}
