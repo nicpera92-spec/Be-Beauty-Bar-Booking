@@ -88,6 +88,7 @@ export default function AdminPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [dateFilter, setDateFilter] = useState<string>(""); // yyyy-MM-dd; empty = all dates
   const [monthFilter] = useState<string>("all"); // bookings list shows all time
   const [staffRole, setStaffRole] = useState<"master" | "technician">("master");
   const [staffName, setStaffName] = useState<string | null>(null);
@@ -189,9 +190,9 @@ export default function AdminPage() {
   }, [statusFilter]);
 
   useEffect(() => {
-    // Reset pagination when switching sorting
+    // Reset pagination when switching sorting or date filter
     setPage(1);
-  }, [sortDir]);
+  }, [sortDir, dateFilter]);
 
   useEffect(() => {
     // Reset pagination when switching month
@@ -301,6 +302,7 @@ export default function AdminPage() {
   const rangeEndStr = monthFilter === "all" ? null : nextMonthStart(monthFilter);
 
   const inVisibleRange = (b: Booking) => {
+    if (dateFilter) return b.date === dateFilter;
     if (!rangeStartStr || !rangeEndStr) return true;
     return b.date >= rangeStartStr && b.date < rangeEndStr;
   };
@@ -424,18 +426,38 @@ export default function AdminPage() {
       </header>
 
       <section>
-        <div className="flex items-center gap-3 mb-4 flex-nowrap overflow-x-auto">
-          <h2 className="font-medium text-charcoal mr-auto shrink-0 whitespace-nowrap">
-            {statusFilter === "confirmed"
-              ? `Confirmed (${confirmed.length})`
-              : statusFilter === "pending_deposit"
-                ? `Pending deposit (${pending.length})`
-                : `Cancelled (${cancelled.length})`}
-            {statusFilter === "cancelled" && (
-              <span className="text-charcoal/50 font-normal text-sm"> — for reference only</span>
+        <div className="mb-4 space-y-3">
+          {/* Line 1: count · date filter · per page */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <h2 className="font-medium text-charcoal mr-auto whitespace-nowrap">
+              {statusFilter === "confirmed"
+                ? `Confirmed (${confirmed.length})`
+                : statusFilter === "pending_deposit"
+                  ? `Pending deposit (${pending.length})`
+                  : `Cancelled (${cancelled.length})`}
+              {statusFilter === "cancelled" && (
+                <span className="text-charcoal/50 font-normal text-sm"> — for reference only</span>
+              )}
+            </h2>
+            <label className="inline-flex items-center gap-1.5 text-sm text-charcoal/60 whitespace-nowrap">
+              Date
+              <input
+                type="date"
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm text-charcoal"
+              />
+            </label>
+            {dateFilter && (
+              <button
+                type="button"
+                onClick={() => setDateFilter("")}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-charcoal text-sm hover:bg-slate-50 transition whitespace-nowrap"
+              >
+                Clear
+              </button>
             )}
-          </h2>
-          <label className="inline-flex items-center gap-1.5 text-sm text-charcoal/60 shrink-0 whitespace-nowrap">
+            <label className="inline-flex items-center gap-1.5 text-sm text-charcoal/60 whitespace-nowrap">
               Per page
               <select
                 value={pageSize}
@@ -452,17 +474,20 @@ export default function AdminPage() {
                 ))}
               </select>
             </label>
+          </div>
 
+          {/* Line 2: sort · status tabs */}
+          <div className="flex items-center gap-3 flex-wrap">
             <button
               type="button"
               onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
-              className="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-charcoal text-sm font-medium hover:bg-slate-50 transition"
+              className="whitespace-nowrap px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-charcoal text-sm font-medium hover:bg-slate-50 transition"
               title="Toggle sort order"
             >
               Sort: {sortDir === "desc" ? "Newest" : "Oldest"}
             </button>
 
-            <div className="inline-flex shrink-0 rounded-lg border border-slate-200 bg-white p-1">
+            <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
               <button
                 type="button"
                 onClick={() => setStatusFilter("confirmed")}
@@ -497,6 +522,7 @@ export default function AdminPage() {
                 Cancelled
               </button>
             </div>
+          </div>
         </div>
 
         {filtered.length === 0 ? (

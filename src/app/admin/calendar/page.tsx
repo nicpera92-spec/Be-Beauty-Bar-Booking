@@ -47,6 +47,7 @@ export default function AdminCalendarPage() {
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
   const detailPanelRef = useRef<HTMLDivElement>(null);
 
   const bookableRange = useMemo(() => getCustomerBookableRange(), []);
@@ -128,6 +129,31 @@ export default function AdminCalendarPage() {
         })
         .catch(() => {})
         .finally(() => setConfirmingId(null));
+    },
+    [fetchData, viewWeekStart, viewWeekEnd]
+  );
+
+  const cancelBooking = useCallback(
+    (bookingId: string) => {
+      if (!confirm("Cancel this booking?")) return;
+      setCancellingId(bookingId);
+      fetch(`/api/bookings/${bookingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({ status: "cancelled" }),
+      })
+        .then((r) => {
+          if (r.status === 401) {
+            sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+            window.location.href = "/admin";
+            return;
+          }
+          if (viewWeekStart && viewWeekEnd) {
+            fetchData(format(viewWeekStart, "yyyy-MM-dd"), format(viewWeekEnd, "yyyy-MM-dd"));
+          }
+        })
+        .catch(() => {})
+        .finally(() => setCancellingId(null));
     },
     [fetchData, viewWeekStart, viewWeekEnd]
   );
@@ -407,16 +433,26 @@ export default function AdminCalendarPage() {
                             📝 Special request: {booking.notes}
                           </p>
                         )}
-                        {booking.status === "pending_deposit" && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {booking.status === "pending_deposit" && (
+                            <button
+                              type="button"
+                              onClick={() => confirmDeposit(booking.id)}
+                              disabled={confirmingId === booking.id}
+                              className="px-3 py-1.5 rounded-lg bg-navy text-white text-sm font-medium hover:bg-navy-light disabled:opacity-50 transition"
+                            >
+                              {confirmingId === booking.id ? "Confirming…" : "Mark deposit paid"}
+                            </button>
+                          )}
                           <button
                             type="button"
-                            onClick={() => confirmDeposit(booking.id)}
-                            disabled={confirmingId === booking.id}
-                            className="mt-3 px-3 py-1.5 rounded-lg bg-navy text-white text-sm font-medium hover:bg-navy-light disabled:opacity-50 transition"
+                            onClick={() => cancelBooking(booking.id)}
+                            disabled={cancellingId === booking.id}
+                            className="px-3 py-1.5 rounded-lg border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 disabled:opacity-50 transition"
                           >
-                            {confirmingId === booking.id ? "Confirming…" : "Mark deposit paid"}
+                            {cancellingId === booking.id ? "Cancelling…" : "Cancel"}
                           </button>
-                        )}
+                        </div>
                       </div>
                     </div>
                   ))}
