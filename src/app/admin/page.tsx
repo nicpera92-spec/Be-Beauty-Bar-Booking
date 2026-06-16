@@ -426,102 +426,85 @@ export default function AdminPage() {
       </header>
 
       <section>
-        <div className="mb-4 space-y-3">
-          {/* Line 1: count · date filter · per page */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <h2 className="font-medium text-charcoal mr-auto whitespace-nowrap">
-              {statusFilter === "confirmed"
-                ? `Confirmed (${confirmed.length})`
-                : statusFilter === "pending_deposit"
-                  ? `Pending deposit (${pending.length})`
-                  : `Cancelled (${cancelled.length})`}
-              {statusFilter === "cancelled" && (
-                <span className="text-charcoal/50 font-normal text-sm"> — for reference only</span>
-              )}
-            </h2>
-            <label className="inline-flex items-center gap-1.5 text-sm text-charcoal/60 whitespace-nowrap">
-              Date
+        <div className="mb-4 rounded-xl border border-slate-200 bg-white p-2 space-y-2">
+          {/* Status tabs with live counts (replaces the heading) */}
+          <div className="grid grid-cols-3 gap-1">
+            {([
+              { key: "confirmed", label: "Confirmed", count: confirmed.length },
+              { key: "pending_deposit", label: "Pending", count: pending.length },
+              { key: "cancelled", label: "Cancelled", count: cancelled.length },
+            ] as const).map((t) => {
+              const active = statusFilter === t.key;
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => setStatusFilter(t.key)}
+                  className={`flex flex-col items-center justify-center py-1.5 rounded-lg transition ${
+                    active ? "bg-navy text-white" : "text-charcoal hover:bg-slate-50"
+                  }`}
+                >
+                  <span className="text-sm font-medium leading-tight">{t.label}</span>
+                  <span className={`text-xs tabular-nums ${active ? "text-white/80" : "text-charcoal/50"}`}>
+                    {t.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Compact controls: sort · date · per page */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
+              title="Toggle sort order"
+              className="shrink-0 inline-flex items-center gap-1 px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-charcoal text-sm font-medium hover:bg-slate-50 transition"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-slate-400">
+                <path fillRule="evenodd" d="M2.24 6.8a.75.75 0 0 0 1.06-.04l1.95-2.1v8.59a.75.75 0 0 0 1.5 0V4.66l1.95 2.1a.75.75 0 1 0 1.1-1.02l-3.25-3.5a.75.75 0 0 0-1.1 0L2.2 5.74a.75.75 0 0 0 .04 1.06Zm8 6.4a.75.75 0 0 0-.04 1.06l3.25 3.5a.75.75 0 0 0 1.1 0l3.25-3.5a.75.75 0 1 0-1.1-1.02l-1.95 2.1V6.25a.75.75 0 0 0-1.5 0v9.09l-1.95-2.1a.75.75 0 0 0-1.06-.04Z" clipRule="evenodd" />
+              </svg>
+              {sortDir === "desc" ? "Newest" : "Oldest"}
+            </button>
+
+            <div className="relative flex-1 min-w-[130px]">
               <input
                 type="date"
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
-                className="rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm text-charcoal"
+                title="Filter by date"
+                className="w-full rounded-lg border border-slate-200 bg-white pl-2.5 pr-7 py-2 text-sm text-charcoal"
               />
-            </label>
-            {dateFilter && (
-              <button
-                type="button"
-                onClick={() => setDateFilter("")}
-                className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-charcoal text-sm hover:bg-slate-50 transition whitespace-nowrap"
-              >
-                Clear
-              </button>
-            )}
-            <label className="inline-flex items-center gap-1.5 text-sm text-charcoal/60 whitespace-nowrap">
-              Per page
-              <select
-                value={pageSize}
-                onChange={(e) => {
-                  setPageSize(Number(e.target.value));
-                  setPage(1);
-                }}
-                className="rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm text-charcoal"
-              >
-                {[5, 10, 20, 50, 100].map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          {/* Line 2: sort · status tabs */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <button
-              type="button"
-              onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
-              className="whitespace-nowrap px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-charcoal text-sm font-medium hover:bg-slate-50 transition"
-              title="Toggle sort order"
-            >
-              Sort: {sortDir === "desc" ? "Newest" : "Oldest"}
-            </button>
-
-            <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
-              <button
-                type="button"
-                onClick={() => setStatusFilter("confirmed")}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${
-                  statusFilter === "confirmed"
-                    ? "bg-navy text-white"
-                    : "text-charcoal hover:bg-slate-50"
-                }`}
-              >
-                Confirmed
-              </button>
-              <button
-                type="button"
-                onClick={() => setStatusFilter("pending_deposit")}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${
-                  statusFilter === "pending_deposit"
-                    ? "bg-navy text-white"
-                    : "text-charcoal hover:bg-slate-50"
-                }`}
-              >
-                Pending deposit
-              </button>
-              <button
-                type="button"
-                onClick={() => setStatusFilter("cancelled")}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${
-                  statusFilter === "cancelled"
-                    ? "bg-navy text-white"
-                    : "text-charcoal hover:bg-slate-50"
-                }`}
-              >
-                Cancelled
-              </button>
+              {dateFilter && (
+                <button
+                  type="button"
+                  onClick={() => setDateFilter("")}
+                  aria-label="Clear date filter"
+                  title="Clear date"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-5 h-5 rounded-full text-charcoal/50 hover:bg-slate-100 hover:text-charcoal transition"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                    <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+                  </svg>
+                </button>
+              )}
             </div>
+
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setPage(1);
+              }}
+              title="Results per page"
+              className="shrink-0 rounded-lg border border-slate-200 bg-white px-2 py-2 text-sm text-charcoal"
+            >
+              {[5, 10, 20, 50, 100].map((n) => (
+                <option key={n} value={n}>
+                  {n} / page
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
