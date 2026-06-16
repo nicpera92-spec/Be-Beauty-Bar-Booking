@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { formatCurrency } from "@/lib/format";
 import { CopyPhoneButton } from "@/components/CopyPhoneButton";
 
@@ -75,7 +76,21 @@ type Booking = {
   createdAt: string;
 };
 
+function navShortLabel(label: string): string {
+  if (label === "Technicians") return "Staff";
+  if (label === "My services") return "Services";
+  if (label === "My calendar") return "Calendar";
+  if (label === "My time off") return "Time off";
+  return label;
+}
+
+function isNavActive(pathname: string, href: string): boolean {
+  if (href === "/admin") return pathname === "/admin";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export default function AdminPage() {
+  const pathname = usePathname();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [token, setToken] = useState<string | null>(null);
@@ -409,19 +424,58 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <nav className="flex flex-wrap items-center gap-x-6 gap-y-1 px-4 sm:px-5">
-          {navItems.map((item) => (
-            <Link
-              key={item.href + item.label}
-              href={item.href}
-              className="group inline-flex items-center gap-2 min-h-[44px] py-2.5 -mb-px border-b-2 border-transparent text-charcoal/70 text-sm font-medium hover:text-navy hover:border-navy transition-colors touch-manipulation"
-            >
-              <span className="text-slate-400 group-hover:text-navy transition-colors">
-                {item.icon}
-              </span>
-              {item.label}
-            </Link>
-          ))}
+        <nav className="px-3 pb-3 sm:px-5 sm:pb-0">
+          {/* Mobile: compact icon grid */}
+          <div
+            className={`grid gap-1 p-1 sm:hidden ${
+              navItems.length === 3 ? "grid-cols-3" : "grid-cols-4"
+            }`}
+          >
+            {navItems.map((item) => {
+              const active = isNavActive(pathname, item.href);
+              return (
+                <Link
+                  key={item.href + item.label}
+                  href={item.href}
+                  className={`flex flex-col items-center justify-center gap-0.5 py-2 rounded-lg transition touch-manipulation ${
+                    active ? "bg-navy text-white" : "text-charcoal hover:bg-slate-50"
+                  }`}
+                >
+                  <span className={active ? "text-white" : "text-slate-400"}>{item.icon}</span>
+                  <span className="text-[11px] font-medium leading-tight text-center px-1">
+                    {navShortLabel(item.label)}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+
+          {/* Desktop: linear underline tabs */}
+          <div className="hidden sm:flex flex-wrap items-center gap-x-6 gap-y-1">
+            {navItems.map((item) => {
+              const active = isNavActive(pathname, item.href);
+              return (
+                <Link
+                  key={item.href + item.label}
+                  href={item.href}
+                  className={`group inline-flex items-center gap-2 min-h-[44px] py-2.5 -mb-px border-b-2 text-sm font-medium transition-colors touch-manipulation ${
+                    active
+                      ? "border-navy text-navy"
+                      : "border-transparent text-charcoal/70 hover:text-navy hover:border-navy"
+                  }`}
+                >
+                  <span
+                    className={`transition-colors ${
+                      active ? "text-navy" : "text-slate-400 group-hover:text-navy"
+                    }`}
+                  >
+                    {item.icon}
+                  </span>
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
         </nav>
       </header>
 
