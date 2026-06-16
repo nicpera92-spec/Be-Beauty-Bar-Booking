@@ -281,9 +281,9 @@ export default function AdminCalendarPage() {
       {/* Calendar + Overview side by side */}
       <div className="flex flex-col lg:flex-row gap-6 items-start">
         {/* Calendar Grids - two months side by side */}
-        <div className="flex-1 min-w-0 w-full flex flex-col sm:flex-row gap-6 overflow-x-auto">
+        <div className="flex-1 min-w-0 w-full flex flex-col sm:flex-row sm:flex-wrap gap-6">
           {calendarMonths.map(({ days, monthStart, monthEnd, title }) => (
-            <div key={title} className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 flex-1 min-w-[280px]">
+            <div key={title} className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 flex-1 min-w-[300px]">
               <h3 className="text-sm font-semibold text-charcoal mb-3">{title}</h3>
               {/* Day Headers */}
               <div className="grid grid-cols-7 gap-1.5 sm:gap-2 mb-2">
@@ -308,7 +308,7 @@ export default function AdminCalendarPage() {
                       type="button"
                       onClick={() => setSelectedDate(isSelected ? null : dateStr)}
                       className={`
-                        aspect-square p-1.5 sm:p-2 rounded-lg border-2 transition-all touch-manipulation min-h-[44px]
+                        aspect-square overflow-hidden p-1.5 sm:p-2 rounded-lg border-2 transition-all touch-manipulation min-h-[44px]
                         ${isToday(day) ? "border-navy bg-navy/5" : "border-slate-200"}
                         ${isPast(day) ? "bg-slate-300 text-slate-500 hover:bg-slate-300" : ""}
                         ${!isPast(day) && !isCurrentMonth ? "bg-slate-50/50 text-slate-400" : ""}
