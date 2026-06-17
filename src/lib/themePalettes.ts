@@ -23,6 +23,8 @@ export const THEME_PALETTES: ThemePalette[] = [
   { id: "rust", name: "Rust", primary: "#8a3b1e", secondary: "#a85433" },
   { id: "ochre", name: "Ochre", primary: "#6f5511", secondary: "#8a6c1f" },
   { id: "rose", name: "Rose", primary: "#8a2d52", secondary: "#a8385f" },
+  { id: "ocean", name: "Ocean", primary: "#0c4a6e", secondary: "#0e7490" },
+  { id: "copper", name: "Copper", primary: "#7a4520", secondary: "#9a5a2e" },
 ];
 
 export const DEFAULT_PRIMARY = THEME_PALETTES[0].primary;
