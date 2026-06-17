@@ -17,8 +17,9 @@ function getAuthHeaders(): Record<string, string> {
 
 type Booking = {
   id: string;
+  technicianId: string;
   service: { name: string };
-  technician?: { name: string } | null;
+  technician?: { id: string; name: string } | null;
   customerName: string;
   customerEmail: string | null;
   customerPhone: string | null;
@@ -34,14 +35,24 @@ type Booking = {
 
 type TimeOffBlock = {
   id: string;
+  technicianId?: string | null;
   startDate: string; // yyyy-MM-dd
   startTime: string;
   endDate: string;
   endTime: string;
 };
 
+type Technician = {
+  id: string;
+  name: string;
+  active: boolean;
+};
+
 export default function AdminCalendarPage() {
   const [token, setToken] = useState<string | null>(null);
+  const [isMaster, setIsMaster] = useState(false);
+  const [technicians, setTechnicians] = useState<Technician[]>([]);
+  const [technicianFilter, setTechnicianFilter] = useState<string>("all");
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [timeOffBlocks, setTimeOffBlocks] = useState<TimeOffBlock[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,15 +84,31 @@ export default function AdminCalendarPage() {
     const t = typeof window !== "undefined" ? sessionStorage.getItem(ADMIN_TOKEN_KEY) : null;
     if (t) {
       setToken(t);
+      fetch("/api/admin/verify-session", { headers: getAuthHeaders() })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (data?.role === "master") {
+            setIsMaster(true);
+            fetch("/api/admin/technicians", { headers: getAuthHeaders() })
+              .then((r) => (r.ok ? r.json() : []))
+              .then((list) => setTechnicians(Array.isArray(list) ? list : []))
+              .catch(() => setTechnicians([]));
+          }
+        })
+        .catch(() => {});
     } else {
       window.location.href = "/admin";
     }
   }, []);
 
-  const fetchData = useCallback((from: string, to: string) => {
+  const fetchData = useCallback((from: string, to: string, techFilter: string) => {
     if (!token) return;
     setLoading(true);
     const headers = getAuthHeaders();
+    const blocksUrl =
+      techFilter && techFilter !== "all"
+        ? `/api/admin/blocks?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&technicianId=${encodeURIComponent(techFilter)}`
+        : `/api/admin/blocks?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&technicianId=all`;
     Promise.all([
       fetch("/api/bookings", { headers }).then((r) => {
         if (r.status === 401) {
@@ -91,7 +118,7 @@ export default function AdminCalendarPage() {
         }
         return r.json();
       }),
-      fetch(`/api/admin/blocks?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, { headers }).then((r) => {
+      fetch(blocksUrl, { headers }).then((r) => {
         if (r.status === 401) return [];
         return r.json();
       }),
@@ -106,8 +133,9 @@ export default function AdminCalendarPage() {
 
   useEffect(() => {
     if (!token || !viewWeekStart || !viewWeekEnd) return;
-    fetchData(format(viewWeekStart, "yyyy-MM-dd"), format(viewWeekEnd, "yyyy-MM-dd"));
-  }, [token, viewWeekStart, viewWeekEnd, fetchData]);
+    const techFilter = isMaster ? technicianFilter : "all";
+    fetchData(format(viewWeekStart, "yyyy-MM-dd"), format(viewWeekEnd, "yyyy-MM-dd"), techFilter);
+  }, [token, viewWeekStart, viewWeekEnd, technicianFilter, isMaster, fetchData]);
 
   const confirmDeposit = useCallback(
     (bookingId: string) => {
@@ -124,13 +152,17 @@ export default function AdminCalendarPage() {
             return;
           }
           if (viewWeekStart && viewWeekEnd) {
-            fetchData(format(viewWeekStart, "yyyy-MM-dd"), format(viewWeekEnd, "yyyy-MM-dd"));
+            fetchData(
+              format(viewWeekStart, "yyyy-MM-dd"),
+              format(viewWeekEnd, "yyyy-MM-dd"),
+              isMaster ? technicianFilter : "all"
+            );
           }
         })
         .catch(() => {})
         .finally(() => setConfirmingId(null));
     },
-    [fetchData, viewWeekStart, viewWeekEnd]
+    [fetchData, viewWeekStart, viewWeekEnd, isMaster, technicianFilter]
   );
 
   const cancelBooking = useCallback(
@@ -149,13 +181,17 @@ export default function AdminCalendarPage() {
             return;
           }
           if (viewWeekStart && viewWeekEnd) {
-            fetchData(format(viewWeekStart, "yyyy-MM-dd"), format(viewWeekEnd, "yyyy-MM-dd"));
+            fetchData(
+              format(viewWeekStart, "yyyy-MM-dd"),
+              format(viewWeekEnd, "yyyy-MM-dd"),
+              isMaster ? technicianFilter : "all"
+            );
           }
         })
         .catch(() => {})
         .finally(() => setCancellingId(null));
     },
-    [fetchData, viewWeekStart, viewWeekEnd]
+    [fetchData, viewWeekStart, viewWeekEnd, isMaster, technicianFilter]
   );
 
   useEffect(() => {
@@ -184,9 +220,14 @@ export default function AdminCalendarPage() {
 
   const activeBookings = bookings.filter((b) => {
     if (b.status === "cancelled") return false;
+    if (isMaster && technicianFilter !== "all" && b.technicianId !== technicianFilter) {
+      return false;
+    }
     const bookingDate = parse(b.date, "yyyy-MM-dd", new Date());
     return bookingDate >= weekStart && bookingDate <= weekEnd;
   });
+
+  const showAllTechnicians = isMaster && technicianFilter === "all";
 
   // Group bookings by date
   const bookingsByDate: Record<string, Booking[]> = {};
@@ -243,7 +284,11 @@ export default function AdminCalendarPage() {
             type="button"
             onClick={() => {
               if (viewWeekStart && viewWeekEnd) {
-                fetchData(format(viewWeekStart, "yyyy-MM-dd"), format(viewWeekEnd, "yyyy-MM-dd"));
+                fetchData(
+                  format(viewWeekStart, "yyyy-MM-dd"),
+                  format(viewWeekEnd, "yyyy-MM-dd"),
+                  isMaster ? technicianFilter : "all"
+                );
               }
             }}
             className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-charcoal text-sm font-medium transition"
@@ -277,6 +322,40 @@ export default function AdminCalendarPage() {
         Same dates customers can book online (from tomorrow through{" "}
         {format(bookableRange.rangeEnd, "d MMMM yyyy")}).
       </p>
+
+      {isMaster && technicians.length > 0 && (
+        <div className="mb-4 sm:mb-6 rounded-xl border border-slate-200 bg-white p-2">
+          <p className="text-xs font-medium text-charcoal/60 px-1 mb-1.5">View schedule</p>
+          <div className="flex flex-wrap gap-1">
+            <button
+              type="button"
+              onClick={() => setTechnicianFilter("all")}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
+                technicianFilter === "all"
+                  ? "bg-navy text-white"
+                  : "text-charcoal hover:bg-slate-50"
+              }`}
+            >
+              Everyone
+            </button>
+            {technicians.map((tech) => (
+              <button
+                key={tech.id}
+                type="button"
+                onClick={() => setTechnicianFilter(tech.id)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
+                  technicianFilter === tech.id
+                    ? "bg-navy text-white"
+                    : "text-charcoal hover:bg-slate-50"
+                }`}
+              >
+                {tech.name}
+                {!tech.active ? " (hidden)" : ""}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Calendar + Overview side by side */}
       <div className="flex flex-col lg:flex-row gap-6 items-start">
@@ -336,9 +415,13 @@ export default function AdminCalendarPage() {
                                   text-xs px-1.5 py-0.5 rounded truncate
                                   ${booking.status === "confirmed" ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"}
                                 `}
-                                title={`${booking.customerName} - ${booking.service.name} ${booking.startTime}`}
+                                title={`${booking.customerName} - ${booking.service.name} ${booking.startTime}${booking.technician?.name ? ` (${booking.technician.name})` : ""}`}
                               >
-                                {booking.startTime} {booking.customerName.split(" ")[0]}
+                                {booking.startTime}{" "}
+                                {showAllTechnicians && booking.technician?.name
+                                  ? `${booking.technician.name.split(" ")[0]} `
+                                  : ""}
+                                {booking.customerName.split(" ")[0]}
                               </div>
                             ))}
                             {dayBookings.length > 3 && (

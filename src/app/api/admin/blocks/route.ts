@@ -11,18 +11,27 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const from = searchParams.get("from"); // yyyy-MM-dd
   const to = searchParams.get("to"); // yyyy-MM-dd
-
-  // Time off is personal to each technician (the owner included). Without a
-  // linked technician profile there is no calendar to block.
-  if (!admin.technicianId) {
-    return NextResponse.json([]);
-  }
+  const technicianFilter = searchParams.get("technicianId"); // master only: "all" or a technician id
 
   const where: {
     endDate?: { gte?: string };
     startDate?: { lte?: string };
     technicianId?: string;
-  } = { technicianId: admin.technicianId };
+  } = {};
+
+  if (admin.role === "master") {
+    // Owner can view everyone's time off or filter to one technician.
+    if (technicianFilter && technicianFilter !== "all") {
+      where.technicianId = technicianFilter;
+    }
+  } else {
+    // Time off is personal to each technician.
+    if (!admin.technicianId) {
+      return NextResponse.json([]);
+    }
+    where.technicianId = admin.technicianId;
+  }
+
   if (from && to) {
     where.endDate = { gte: from };
     where.startDate = { lte: to };
