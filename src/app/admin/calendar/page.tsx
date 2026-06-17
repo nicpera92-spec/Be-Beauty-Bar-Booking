@@ -324,36 +324,24 @@ export default function AdminCalendarPage() {
       </p>
 
       {isMaster && technicians.length > 0 && (
-        <div className="mb-4 sm:mb-6 rounded-xl border border-slate-200 bg-white p-2">
-          <p className="text-xs font-medium text-charcoal/60 px-1 mb-1.5">View schedule</p>
-          <div className="flex flex-wrap gap-1">
-            <button
-              type="button"
-              onClick={() => setTechnicianFilter("all")}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
-                technicianFilter === "all"
-                  ? "bg-navy text-white"
-                  : "text-charcoal hover:bg-slate-50"
-              }`}
-            >
-              Everyone
-            </button>
+        <div className="mb-4 sm:mb-6 flex items-center gap-2 flex-wrap">
+          <label htmlFor="calendar-technician-filter" className="text-sm text-charcoal/60 whitespace-nowrap">
+            View schedule
+          </label>
+          <select
+            id="calendar-technician-filter"
+            value={technicianFilter}
+            onChange={(e) => setTechnicianFilter(e.target.value)}
+            className="flex-1 min-w-[180px] max-w-xs rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-charcoal"
+          >
+            <option value="all">Everyone</option>
             {technicians.map((tech) => (
-              <button
-                key={tech.id}
-                type="button"
-                onClick={() => setTechnicianFilter(tech.id)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
-                  technicianFilter === tech.id
-                    ? "bg-navy text-white"
-                    : "text-charcoal hover:bg-slate-50"
-                }`}
-              >
+              <option key={tech.id} value={tech.id}>
                 {tech.name}
                 {!tech.active ? " (hidden)" : ""}
-              </button>
+              </option>
             ))}
-          </div>
+          </select>
         </div>
       )}
 
