@@ -270,16 +270,34 @@ export default function AdminCalendarPage() {
   const isToday = (date: Date) => format(startOfDay(date), "yyyy-MM-dd") === todayDateStr;
   const isPast = (date: Date) => date < startOfDay(new Date()) && !isToday(date);
 
-  const calendarTitle = calendarMonths.map((m) => m.title).join(" · ");
-
   const selectedBookings = selectedDate ? bookingsByDate[selectedDate] || [] : [];
   const selectedBlocks = selectedDate ? getBlocksForDate(selectedDate) : [];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12 min-w-0">
-      <div className="flex items-center justify-between mb-4 sm:mb-8 flex-wrap gap-3 sm:gap-4">
-        <h1 className="font-serif text-2xl font-semibold text-charcoal">Calendar</h1>
-        <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between mb-4 sm:mb-6 flex-wrap gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap min-w-0">
+          <h1 className="font-serif text-2xl font-semibold text-charcoal shrink-0">Calendar</h1>
+          {isMaster && technicians.length > 0 && (
+            <select
+              id="calendar-technician-filter"
+              value={technicianFilter}
+              onChange={(e) => setTechnicianFilter(e.target.value)}
+              aria-label="Technician schedule"
+              title="Technician schedule"
+              className="min-w-[140px] max-w-[200px] rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-charcoal"
+            >
+              <option value="all">Everyone</option>
+              {technicians.map((tech) => (
+                <option key={tech.id} value={tech.id}>
+                  {tech.name}
+                  {!tech.active ? " (hidden)" : ""}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+        <div className="flex items-center gap-3 sm:gap-4">
           <button
             type="button"
             onClick={() => {
@@ -314,36 +332,6 @@ export default function AdminCalendarPage() {
           </button>
         </div>
       </div>
-
-      <p className="text-base sm:text-xl font-semibold text-charcoal mb-4 sm:mb-6 text-center sm:text-left">
-        {calendarTitle}
-      </p>
-      <p className="text-xs text-charcoal/60 mb-4 sm:mb-6 -mt-2 sm:-mt-4">
-        Same dates customers can book online (from tomorrow through{" "}
-        {format(bookableRange.rangeEnd, "d MMMM yyyy")}).
-      </p>
-
-      {isMaster && technicians.length > 0 && (
-        <div className="mb-4 sm:mb-6 flex items-center gap-2 flex-wrap">
-          <label htmlFor="calendar-technician-filter" className="text-sm text-charcoal/60 whitespace-nowrap">
-            View schedule
-          </label>
-          <select
-            id="calendar-technician-filter"
-            value={technicianFilter}
-            onChange={(e) => setTechnicianFilter(e.target.value)}
-            className="flex-1 min-w-[180px] max-w-xs rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-charcoal"
-          >
-            <option value="all">Everyone</option>
-            {technicians.map((tech) => (
-              <option key={tech.id} value={tech.id}>
-                {tech.name}
-                {!tech.active ? " (hidden)" : ""}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
 
       {/* Calendar + Overview side by side */}
       <div className="flex flex-col lg:flex-row gap-6 items-start">
