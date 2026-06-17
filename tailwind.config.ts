@@ -11,8 +11,16 @@ const config: Config = {
       colors: {
         navy: "var(--navy, #1e3a5f)",
         "navy-light": "var(--navy-light, #2c5282)",
-        "elegant-grey": "#475569",
-        "elegant-grey-deep": "#334155",
+        charcoal: "rgb(var(--theme-text-rgb, 30 58 95) / <alpha-value>)",
+        "elegant-grey": "rgb(var(--theme-text-muted-rgb, 71 85 105) / <alpha-value>)",
+        "elegant-grey-deep": "rgb(var(--theme-text-rgb, 30 58 95) / <alpha-value>)",
+        slate: {
+          50: "rgb(var(--theme-bg-rgb, 248 250 252) / <alpha-value>)",
+          500: "rgb(var(--theme-text-muted-rgb, 100 116 139) / <alpha-value>)",
+          600: "rgb(var(--theme-text-muted-rgb, 71 85 105) / <alpha-value>)",
+          700: "rgb(var(--theme-text-rgb, 51 65 85) / <alpha-value>)",
+          800: "rgb(var(--theme-text-rgb, 30 41 59) / <alpha-value>)",
+        },
       },
       keyframes: {
         "home-bg-drift": {

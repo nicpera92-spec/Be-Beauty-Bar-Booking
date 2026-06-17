@@ -55,7 +55,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${playfair.variable} ${dmSans.variable}`}>
-      <body className="font-sans min-h-screen flex flex-col bg-slate-50 text-slate-700 antialiased">
+      <body className="font-sans min-h-screen flex flex-col antialiased">
         <ColorThemeProvider />
         <main className="flex-1">{children}</main>
         <Footer />

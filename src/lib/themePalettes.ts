@@ -1,6 +1,6 @@
-// Curated theme palettes. Every primary colour is intentionally dark enough
-// that white text on top stays readable, and dark enough to read as text on a
-// white background — so contrast holds in every option.
+// Curated theme palettes. Colours are expanded into page background + text tokens
+// with contrast checks so copy stays readable on every option.
+
 export type ThemePalette = {
   id: string;
   name: string;
@@ -27,3 +27,101 @@ export const THEME_PALETTES: ThemePalette[] = [
 
 export const DEFAULT_PRIMARY = THEME_PALETTES[0].primary;
 export const DEFAULT_SECONDARY = THEME_PALETTES[0].secondary;
+
+export type ThemeTokens = {
+  primary: string;
+  secondary: string;
+  pageBg: string;
+  text: string;
+  textMuted: string;
+  onPrimary: string;
+};
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const h = hex.replace("#", "");
+  const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+  const n = parseInt(full, 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
+  return `#${[clamp(r), clamp(g), clamp(b)]
+    .map((v) => v.toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+
+function luminance(r: number, g: number, b: number): number {
+  const f = (c: number) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+}
+
+function contrastRatio(l1: number, l2: number): number {
+  const lighter = Math.max(l1, l2);
+  const darker = Math.min(l1, l2);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function mixHex(a: string, b: string, weightA: number): string {
+  const c1 = hexToRgb(a);
+  const c2 = hexToRgb(b);
+  const w = Math.max(0, Math.min(1, weightA));
+  return rgbToHex(
+    c1.r * w + c2.r * (1 - w),
+    c1.g * w + c2.g * (1 - w),
+    c1.b * w + c2.b * (1 - w)
+  );
+}
+
+function darken(hex: string, amount: number): string {
+  const { r, g, b } = hexToRgb(hex);
+  const f = 1 - amount;
+  return rgbToHex(r * f, g * f, b * f);
+}
+
+function ensureContrast(textHex: string, bgHex: string, minRatio = 4.5): string {
+  let text = textHex;
+  const bg = hexToRgb(bgHex);
+  const bgLum = luminance(bg.r, bg.g, bg.b);
+  for (let i = 0; i < 12; i++) {
+    const fg = hexToRgb(text);
+    if (contrastRatio(luminance(fg.r, fg.g, fg.b), bgLum) >= minRatio) return text;
+    text = darken(text, 0.08);
+  }
+  return text;
+}
+
+/** Build readable page background + text colours from the chosen accent palette. */
+export function buildThemeTokens(primary: string, secondary: string): ThemeTokens {
+  const pageBg = mixHex(primary, "#ffffff", 0.07);
+  const text = ensureContrast(primary, pageBg);
+  const textMuted = ensureContrast(mixHex(text, "#64748b", 0.45), pageBg, 4.5);
+
+  return { primary, secondary, pageBg, text, textMuted, onPrimary: "#ffffff" };
+}
+
+function setRgbVar(root: HTMLElement, name: string, hex: string) {
+  const { r, g, b } = hexToRgb(hex);
+  root.style.setProperty(name, `${r} ${g} ${b}`);
+}
+
+/** Apply theme tokens to the document root (booking + admin). */
+export function applyThemeColors(primary: string, secondary: string) {
+  if (typeof document === "undefined") return;
+  const tokens = buildThemeTokens(primary, secondary);
+  const root = document.documentElement;
+
+  root.style.setProperty("--navy", tokens.primary);
+  root.style.setProperty("--navy-light", tokens.secondary);
+  root.style.setProperty("--theme-bg", tokens.pageBg);
+  root.style.setProperty("--theme-text", tokens.text);
+  root.style.setProperty("--theme-text-muted", tokens.textMuted);
+  root.style.setProperty("--theme-on-primary", tokens.onPrimary);
+
+  setRgbVar(root, "--theme-text-rgb", tokens.text);
+  setRgbVar(root, "--theme-text-muted-rgb", tokens.textMuted);
+  setRgbVar(root, "--theme-bg-rgb", tokens.pageBg);
+}

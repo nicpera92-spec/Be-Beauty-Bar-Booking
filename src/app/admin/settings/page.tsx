@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { THEME_PALETTES, DEFAULT_PRIMARY, DEFAULT_SECONDARY } from "@/lib/themePalettes";
+import { THEME_PALETTES, DEFAULT_PRIMARY, DEFAULT_SECONDARY, applyThemeColors } from "@/lib/themePalettes";
 
 const ADMIN_TOKEN_KEY = "admin-token";
 
@@ -114,6 +114,10 @@ export default function AdminSettingsPage() {
             primaryColor: data.primaryColor ?? DEFAULT_PRIMARY,
             secondaryColor: data.secondaryColor ?? DEFAULT_SECONDARY,
           });
+          applyThemeColors(
+            data.primaryColor ?? DEFAULT_PRIMARY,
+            data.secondaryColor ?? DEFAULT_SECONDARY
+          );
           setStripeKeysChanged({ secret: false, webhook: false });
         }
       })
@@ -177,6 +181,10 @@ export default function AdminSettingsPage() {
             primaryColor: data.primaryColor ?? DEFAULT_PRIMARY,
             secondaryColor: data.secondaryColor ?? DEFAULT_SECONDARY,
           });
+          applyThemeColors(
+            data.primaryColor ?? DEFAULT_PRIMARY,
+            data.secondaryColor ?? DEFAULT_SECONDARY
+          );
           setStripeKeysChanged({ secret: false, webhook: false });
         }
       })
@@ -185,11 +193,7 @@ export default function AdminSettingsPage() {
 
   const selectPalette = (primary: string, secondary: string) => {
     setForm((f) => ({ ...f, primaryColor: primary, secondaryColor: secondary }));
-    // Apply live so the change is visible immediately across the app.
-    if (typeof document !== "undefined") {
-      document.documentElement.style.setProperty("--navy", primary);
-      document.documentElement.style.setProperty("--navy-light", secondary);
-    }
+    applyThemeColors(primary, secondary);
   };
 
   if (hasToken === null) return null;
@@ -240,7 +244,7 @@ export default function AdminSettingsPage() {
         <section className={cardClass}>
           <h2 className="font-medium text-charcoal">Theme colour</h2>
           <p className="text-sm text-slate-500">
-            Choose a colour for the whole system — booking pages and admin.
+            Sets the page background, text, buttons, and links across booking and admin. Text contrast is checked on every palette.
           </p>
           <div className="grid grid-cols-4 sm:grid-cols-8 gap-3">
             {THEME_PALETTES.map((p) => {
