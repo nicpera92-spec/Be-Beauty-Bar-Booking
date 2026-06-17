@@ -297,40 +297,16 @@ export default function AdminCalendarPage() {
             </select>
           )}
         </div>
-        <div className="flex items-center gap-3 sm:gap-4">
-          <button
-            type="button"
-            onClick={() => {
-              if (viewWeekStart && viewWeekEnd) {
-                fetchData(
-                  format(viewWeekStart, "yyyy-MM-dd"),
-                  format(viewWeekEnd, "yyyy-MM-dd"),
-                  isMaster ? technicianFilter : "all"
-                );
-              }
-            }}
-            className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-charcoal text-sm font-medium transition"
-            title="Refresh calendar"
-          >
-            ↻ Refresh
-          </button>
-          <Link
-            href="/admin"
-            className="text-sm text-sky-600 hover:underline"
-          >
-            ← Back to admin
-          </Link>
-          <button
-            type="button"
-            onClick={() => {
-              sessionStorage.removeItem(ADMIN_TOKEN_KEY);
-              window.location.href = "/admin";
-            }}
-            className="text-sm text-charcoal/60 hover:text-charcoal"
-          >
-            Log out
-          </button>
-        </div>
+        <Link
+          href="/admin"
+          title="Admin home"
+          aria-label="Admin home"
+          className="inline-flex items-center justify-center min-h-[38px] min-w-[38px] rounded-lg border border-slate-200 text-charcoal/70 hover:text-navy hover:bg-slate-50 hover:border-slate-300 transition shrink-0"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="w-[18px] h-[18px]">
+            <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+          </svg>
+        </Link>
       </div>
 
       {/* Calendar + Overview side by side */}
