@@ -96,7 +96,7 @@ function ensureContrast(textHex: string, bgHex: string, minRatio = 4.5): string 
 
 /** Build readable page background + text colours from the chosen accent palette. */
 export function buildThemeTokens(primary: string, secondary: string): ThemeTokens {
-  const pageBg = mixHex(primary, "#ffffff", 0.07);
+  const pageBg = mixHex(primary, "#ffffff", 0.1);
   const text = ensureContrast(primary, pageBg);
   const textMuted = ensureContrast(mixHex(text, "#64748b", 0.45), pageBg, 4.5);
 
@@ -121,6 +121,7 @@ export function applyThemeColors(primary: string, secondary: string) {
   root.style.setProperty("--theme-text-muted", tokens.textMuted);
   root.style.setProperty("--theme-on-primary", tokens.onPrimary);
 
+  setRgbVar(root, "--navy-rgb", tokens.primary);
   setRgbVar(root, "--theme-text-rgb", tokens.text);
   setRgbVar(root, "--theme-text-muted-rgb", tokens.textMuted);
   setRgbVar(root, "--theme-bg-rgb", tokens.pageBg);

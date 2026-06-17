@@ -25,21 +25,16 @@ export default function HomePage() {
 
   return (
     <div className="relative min-h-[70vh] overflow-hidden">
-      {/* Discrete, slow background animation — gradient + soft orbs */}
       <div
-        className="absolute inset-0 -z-10 animate-home-bg-gradient"
-        style={{
-          backgroundImage:
-            "linear-gradient(135deg, #ffffff 0%, #f8fafc 35%, #f1f5f9 60%, #e2e8f0 85%, rgba(30, 58, 95, 0.06) 100%)",
-          backgroundSize: "200% 200%",
-        }}
-      />
-      <div
-        className="absolute -top-[20%] -right-[10%] h-[50vmax] w-[50vmax] rounded-full bg-[rgba(30,58,95,0.04)] blur-[80px] animate-home-bg-drift"
+        className="absolute inset-0 -z-10 animate-home-bg-gradient home-theme-gradient"
         aria-hidden
       />
       <div
-        className="absolute -bottom-[15%] -left-[5%] h-[40vmax] w-[40vmax] rounded-full bg-[rgba(30,58,95,0.03)] blur-[90px] animate-home-bg-drift"
+        className="absolute -top-[20%] -right-[10%] h-[50vmax] w-[50vmax] rounded-full home-theme-orb blur-[80px] animate-home-bg-drift"
+        aria-hidden
+      />
+      <div
+        className="absolute -bottom-[15%] -left-[5%] h-[40vmax] w-[40vmax] rounded-full home-theme-orb blur-[90px] animate-home-bg-drift opacity-80"
         style={{ animationDelay: "-10s" }}
         aria-hidden
       />
