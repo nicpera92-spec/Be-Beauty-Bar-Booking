@@ -107,7 +107,6 @@ export default function AdminPage() {
   const [monthFilter] = useState<string>("all"); // bookings list shows all time
   const [staffRole, setStaffRole] = useState<"master" | "technician">("master");
   const [staffName, setStaffName] = useState<string | null>(null);
-  const [businessName, setBusinessName] = useState("Be Beauty Bar");
 
   useEffect(() => {
     const t = typeof window !== "undefined" ? sessionStorage.getItem(ADMIN_TOKEN_KEY) : null;
@@ -138,15 +137,6 @@ export default function AdminPage() {
       setEmail("");
       setPassword("");
     }
-  }, []);
-
-  useEffect(() => {
-    fetch("/api/settings")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data?.businessName) setBusinessName(data.businessName);
-      })
-      .catch(() => {});
   }, []);
 
   const login = (e: React.FormEvent) => {
@@ -367,16 +357,12 @@ export default function AdminPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-      <header className="mb-8 rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-6 sm:py-5 border-b border-slate-100">
-          <div className="min-w-0">
-            <span className="block font-serif text-sm font-light uppercase tracking-[0.22em] text-navy truncate">
-              {businessName}
-            </span>
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="font-serif text-xl sm:text-2xl font-semibold text-charcoal leading-tight truncate">
-                Hello{staffName ? `, ${staffName}` : ""}
-              </h1>
+      <header className="mb-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5 sm:py-4 border-b border-slate-100">
+          <div className="min-w-0 flex flex-wrap items-center gap-2">
+            <h1 className="font-serif text-lg sm:text-xl font-semibold text-charcoal leading-tight truncate">
+              Hello{staffName ? `, ${staffName}` : ""}
+            </h1>
               <span
                 className={`inline-block text-[11px] font-medium px-2 py-0.5 rounded-full ${
                   staffRole === "master"
@@ -386,7 +372,6 @@ export default function AdminPage() {
               >
                 {staffRole === "master" ? "Owner" : "Technician"}
               </span>
-            </div>
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2">
             <Link
