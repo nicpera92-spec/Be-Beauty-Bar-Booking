@@ -3,11 +3,11 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-/** Legacy route — themes now live under Settings → Branding. */
+/** Legacy route — themes now live under Settings → Theme. */
 export default function AdminThemeRedirectPage() {
   const router = useRouter();
   useEffect(() => {
-    router.replace("/admin/settings?tab=branding");
+    router.replace("/admin/settings?tab=theme");
   }, [router]);
   return null;
 }

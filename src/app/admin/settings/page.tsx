@@ -18,17 +18,17 @@ for (let h = 0; h < 24; h++) {
   TIME_OPTIONS.push(`${String(h).padStart(2, "0")}:00`);
 }
 
-type SettingsTab = "business" | "branding" | "bookings" | "payments";
+type SettingsTab = "business" | "theme" | "bookings" | "payments";
 
 const TABS: { id: SettingsTab; label: string }[] = [
   { id: "business", label: "Business" },
-  { id: "branding", label: "Branding" },
+  { id: "theme", label: "Theme" },
   { id: "bookings", label: "Bookings" },
   { id: "payments", label: "Payments" },
 ];
 
 function isSettingsTab(value: string | null): value is SettingsTab {
-  return value === "business" || value === "branding" || value === "bookings" || value === "payments";
+  return value === "business" || value === "theme" || value === "bookings" || value === "payments";
 }
 
 function getAuthHeaders(): Record<string, string> {
@@ -83,8 +83,13 @@ function AdminSettingsPageInner() {
 
   useEffect(() => {
     const tabParam = searchParams.get("tab");
+    if (tabParam === "branding") {
+      setTab("theme");
+      router.replace("/admin/settings?tab=theme", { scroll: false });
+      return;
+    }
     if (isSettingsTab(tabParam)) setTab(tabParam);
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   const switchTab = (next: SettingsTab) => {
     setTab(next);
@@ -495,10 +500,10 @@ function AdminSettingsPageInner() {
           </>
         )}
 
-        {tab === "branding" && (
+        {tab === "theme" && (
           <>
             <div>
-              <h2 className="text-lg font-semibold text-navy mb-1">Branding</h2>
+              <h2 className="text-lg font-semibold text-navy mb-1">Theme</h2>
               <p className="text-sm text-charcoal/55">
                 Colours and gradients for your booking site and admin area.
               </p>
