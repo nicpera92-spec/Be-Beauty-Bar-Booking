@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     let settings = await prisma.businessSettings.findUnique({
@@ -17,7 +19,9 @@ export async function GET() {
         },
       });
     }
-    return NextResponse.json(settings);
+    return NextResponse.json(settings, {
+      headers: { "Cache-Control": "no-store, max-age=0" },
+    });
   } catch (e) {
     console.error(e);
     return NextResponse.json({ error: "Failed to fetch settings" }, { status: 500 });
