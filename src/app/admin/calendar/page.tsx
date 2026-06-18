@@ -458,16 +458,6 @@ export default function AdminCalendarPage() {
                 </button>
               </div>
 
-              {canManageOwnTimeOff && !isPast(parse(selectedDate, "yyyy-MM-dd", new Date())) && (
-                <CalendarTimeOffAdd
-                  date={selectedDate}
-                  openTime={salonOpen}
-                  closeTime={salonClose}
-                  onSuccess={refreshCalendar}
-                  getAuthHeaders={getAuthHeaders}
-                />
-              )}
-
               {selectedBlocks.length > 0 && (
                 <div>
                   <p className="text-sm font-medium text-violet-700 mb-2">Time off</p>
@@ -578,6 +568,16 @@ export default function AdminCalendarPage() {
                 )
               )}
 
+              {canManageOwnTimeOff && !isPast(parse(selectedDate, "yyyy-MM-dd", new Date())) && (
+                <CalendarTimeOffAdd
+                  date={selectedDate}
+                  openTime={salonOpen}
+                  closeTime={salonClose}
+                  onSuccess={refreshCalendar}
+                  getAuthHeaders={getAuthHeaders}
+                />
+              )}
+
               {isMaster &&
                 technicianFilter !== "all" &&
                 technicianFilter !== myTechnicianId &&
@@ -592,7 +592,7 @@ export default function AdminCalendarPage() {
           {!selectedDate && (
             <div className="bg-white rounded-xl border border-slate-200 p-6 text-center">
               <p className="text-sm text-charcoal/60">
-                Tap a date to see bookings and add time off
+                Tap a date to view bookings
               </p>
             </div>
           )}

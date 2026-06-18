@@ -717,10 +717,6 @@ function AdminBookingRow({
       </div>
       {readOnly ? (
         <div className="flex items-center gap-3 shrink-0">
-          <span className="text-xs font-medium">
-            <span className="text-red-600">Cancelled</span>
-            <span className="text-slate-500"> — for reference only</span>
-          </span>
           <button
             type="button"
             onClick={() => {

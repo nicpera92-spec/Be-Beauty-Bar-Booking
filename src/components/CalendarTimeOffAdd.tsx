@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, "0")}:00`);
 
@@ -19,13 +19,20 @@ export default function CalendarTimeOffAdd({
   onSuccess,
   getAuthHeaders,
 }: CalendarTimeOffAddProps) {
-  const [showPartDay, setShowPartDay] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [startTime, setStartTime] = useState(openTime);
   const [endTime, setEndTime] = useState(closeTime);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const addBlock = async (from: string, to: string) => {
+  useEffect(() => {
+    setExpanded(false);
+    setStartTime(openTime);
+    setEndTime(closeTime);
+    setError(null);
+  }, [date, openTime, closeTime]);
+
+  const addBlock = async () => {
     setError(null);
     setSubmitting(true);
     try {
@@ -34,9 +41,9 @@ export default function CalendarTimeOffAdd({
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify({
           startDate: date,
-          startTime: from,
+          startTime,
           endDate: date,
-          endTime: to,
+          endTime,
         }),
       });
       const data = await r.json();
@@ -48,7 +55,7 @@ export default function CalendarTimeOffAdd({
         setError(data.error ?? "Could not add time off.");
         return;
       }
-      setShowPartDay(false);
+      setExpanded(false);
       onSuccess();
     } catch {
       setError("Could not add time off.");
@@ -60,94 +67,74 @@ export default function CalendarTimeOffAdd({
   const selectClass =
     "w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm focus:border-navy/40 focus:ring-2 focus:ring-navy/10 outline-none";
 
+  if (!expanded) {
+    return (
+      <button
+        type="button"
+        onClick={() => setExpanded(true)}
+        className="text-sm text-charcoal/50 hover:text-charcoal transition"
+      >
+        Add time off
+      </button>
+    );
+  }
+
   return (
-    <div className="rounded-xl border border-violet-200/80 bg-violet-50/40 p-4 space-y-3">
-      <div>
-        <p className="text-sm font-medium text-violet-900">Need time off?</p>
-        <p className="text-xs text-charcoal/55 mt-0.5">
-          Customers won&apos;t be able to book you for blocked times.
-        </p>
+    <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-medium text-charcoal">Add time off</p>
+        <button
+          type="button"
+          disabled={submitting}
+          onClick={() => {
+            setExpanded(false);
+            setError(null);
+          }}
+          className="text-xs text-charcoal/50 hover:text-charcoal"
+        >
+          Cancel
+        </button>
       </div>
 
-      {!showPartDay ? (
-        <div className="flex flex-col sm:flex-row gap-2">
-          <button
-            type="button"
-            disabled={submitting}
-            onClick={() => addBlock(openTime, closeTime)}
-            className="flex-1 px-4 py-2.5 rounded-xl bg-violet-700 text-white text-sm font-medium hover:bg-violet-800 disabled:opacity-50 transition"
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs text-charcoal/65 mb-1">Start</label>
+          <select
+            value={startTime}
+            onChange={(e) => setStartTime(e.target.value)}
+            className={selectClass}
           >
-            {submitting ? "Adding…" : `Block whole day (${openTime}–${closeTime})`}
-          </button>
-          <button
-            type="button"
-            disabled={submitting}
-            onClick={() => {
-              setStartTime(openTime);
-              setEndTime(closeTime);
-              setShowPartDay(true);
-              setError(null);
-            }}
-            className="flex-1 px-4 py-2.5 rounded-xl border border-violet-300 bg-white text-sm font-medium text-violet-900 hover:bg-violet-50 disabled:opacity-50 transition"
+            {HOURS.map((h) => (
+              <option key={h} value={h}>
+                {h}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs text-charcoal/65 mb-1">End</label>
+          <select
+            value={endTime}
+            onChange={(e) => setEndTime(e.target.value)}
+            className={selectClass}
           >
-            Block part of the day
-          </button>
+            {HOURS.map((h) => (
+              <option key={h} value={h}>
+                {h}
+              </option>
+            ))}
+          </select>
         </div>
-      ) : (
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs text-charcoal/65 mb-1">From</label>
-              <select
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className={selectClass}
-              >
-                {HOURS.map((h) => (
-                  <option key={h} value={h}>
-                    {h}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-charcoal/65 mb-1">To</label>
-              <select
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                className={selectClass}
-              >
-                {HOURS.map((h) => (
-                  <option key={h} value={h}>
-                    {h}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={() => addBlock(startTime, endTime)}
-              className="px-4 py-2 rounded-xl bg-violet-700 text-white text-sm font-medium hover:bg-violet-800 disabled:opacity-50"
-            >
-              {submitting ? "Adding…" : "Add time off"}
-            </button>
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={() => {
-                setShowPartDay(false);
-                setError(null);
-              }}
-              className="px-4 py-2 rounded-xl border border-slate-200 text-sm text-charcoal/70 hover:bg-white"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
+      </div>
+
+      <button
+        type="button"
+        disabled={submitting}
+        onClick={addBlock}
+        className="w-full px-4 py-2 rounded-lg bg-navy text-white text-sm font-medium hover:bg-navy-light disabled:opacity-50 transition"
+      >
+        {submitting ? "Saving…" : "Save time off"}
+      </button>
 
       {error && (
         <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">

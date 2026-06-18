@@ -1,14 +1,10 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import ThemeEditor from "@/components/ThemeEditor";
-import {
-  DEFAULT_PRIMARY,
-  DEFAULT_SECONDARY,
-  findThemePalette,
-} from "@/lib/themePalettes";
+import { DEFAULT_PRIMARY, DEFAULT_SECONDARY } from "@/lib/themePalettes";
 import { publishThemeUpdate } from "@/lib/themeClient";
 
 const ADMIN_TOKEN_KEY = "admin-token";
@@ -233,11 +229,6 @@ function AdminSettingsPageInner() {
     }
   };
 
-  const themeLabel = useMemo(
-    () => findThemePalette(primaryColor, secondaryColor)?.name ?? "Custom",
-    [primaryColor, secondaryColor]
-  );
-
   const logout = () => {
     sessionStorage.removeItem(ADMIN_TOKEN_KEY);
     sessionStorage.removeItem("admin-role");
@@ -290,21 +281,7 @@ function AdminSettingsPageInner() {
         </div>
       </div>
 
-      <h1 className="font-serif text-3xl sm:text-4xl font-semibold text-charcoal mb-4">Settings</h1>
-
-      <div className="flex flex-wrap gap-2 mb-6">
-        {form.businessName && (
-          <span className="inline-flex items-center px-3 py-1 rounded-full bg-white border border-slate-200/90 text-sm text-charcoal/75 shadow-sm">
-            {form.businessName}
-          </span>
-        )}
-        <span className="inline-flex items-center px-3 py-1 rounded-full bg-white border border-slate-200/90 text-sm text-charcoal/75 shadow-sm">
-          {themeLabel}
-        </span>
-        <span className="inline-flex items-center px-3 py-1 rounded-full bg-white border border-slate-200/90 text-sm text-charcoal/75 shadow-sm">
-          {form.openTime ?? "09:00"} – {form.closeTime ?? "17:00"}
-        </span>
-      </div>
+      <h1 className="font-serif text-3xl sm:text-4xl font-semibold text-charcoal mb-6">Settings</h1>
 
       <div
         className="flex flex-wrap gap-1 p-1 mb-6 rounded-2xl border border-slate-200/80 bg-white/70 shadow-sm"
