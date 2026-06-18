@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatBookingDateFriendly } from "@/lib/format";
 import { CopyPhoneButton } from "@/components/CopyPhoneButton";
 
 const ADMIN_TOKEN_KEY = "admin-token";
@@ -692,7 +692,7 @@ function AdminBookingRow({
     <div className={`flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl border bg-white ${readOnly ? "border-slate-100 bg-slate-50/50" : "border-slate-200"}`}>
       <div>
         <p className="font-medium text-charcoal">
-          {booking.service.name} · {booking.date} {booking.startTime}–{booking.endTime}
+          {booking.service.name} · {formatBookingDateFriendly(booking.date)} {booking.startTime}–{booking.endTime}
           {booking.technician?.name && (
             <span className="text-charcoal/60 font-normal"> · {booking.technician.name}</span>
           )}

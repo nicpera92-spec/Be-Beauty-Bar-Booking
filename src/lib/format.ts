@@ -22,6 +22,11 @@ export function formatDurationHours(minutes: number): string {
   return `${m}m`;
 }
 
+/** Format booking date as "June 20th" */
+export function formatBookingDateFriendly(dateStr: string): string {
+  return formatBookingDate(dateStr, "MMMM do");
+}
+
 /** Format date string (yyyy-MM-dd) for display; returns dateStr on parse error */
 export function formatBookingDate(dateStr: string, formatStr: string): string {
   try {
