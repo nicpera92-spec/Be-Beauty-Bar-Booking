@@ -228,16 +228,6 @@ export default function AdminSettingsPage() {
         </div>
       </div>
 
-      <Link
-        href="/admin/theme"
-        className={`${cardClass} mb-5 flex items-center justify-between gap-3 hover:bg-slate-50 transition touch-manipulation`}
-      >
-        <span className="font-medium text-charcoal">Themes</span>
-        <span className="text-charcoal/40 text-lg leading-none" aria-hidden>
-          ›
-        </span>
-      </Link>
-
       <form onSubmit={save} className="space-y-5">
         <section className={cardClass}>
           <h2 className="font-medium text-charcoal">Business</h2>
@@ -375,6 +365,16 @@ export default function AdminSettingsPage() {
             )}
           </div>
         </section>
+
+        <Link
+          href="/admin/theme"
+          className={`${cardClass} flex items-center justify-between gap-3 hover:bg-slate-50 transition touch-manipulation`}
+        >
+          <span className="font-medium text-charcoal">Themes</span>
+          <span className="text-charcoal/40 text-lg leading-none" aria-hidden>
+            ›
+          </span>
+        </Link>
 
         <section className={cardClass}>
           <h2 className="font-medium text-charcoal">Pricing &amp; deposits</h2>
