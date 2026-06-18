@@ -113,8 +113,8 @@ export default function AdminThemePage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-      <Link href="/admin" className="text-sm text-sky-600 hover:underline mb-6 inline-block">
-        ← Back to admin
+      <Link href="/admin/settings" className="text-sm text-sky-600 hover:underline mb-6 inline-block">
+        ← Back to settings
       </Link>
       <h1 className="font-serif text-2xl font-semibold text-charcoal mb-8">Themes</h1>
 
