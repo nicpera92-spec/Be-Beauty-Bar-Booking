@@ -229,19 +229,6 @@ export default function AdminSettingsPage() {
       </div>
 
       <form onSubmit={save} className="space-y-5">
-        <section className={`${cardClass} flex flex-wrap items-center justify-between gap-3`}>
-          <div>
-            <h2 className="font-medium text-charcoal">Theme</h2>
-            <p className="text-sm text-slate-500">Colours and gradients for booking and admin.</p>
-          </div>
-          <Link
-            href="/admin/theme"
-            className="inline-flex items-center min-h-[38px] px-4 py-2 rounded-full bg-navy text-white text-sm font-medium hover:bg-navy-light transition"
-          >
-            Open theme editor
-          </Link>
-        </section>
-
         <section className={cardClass}>
           <h2 className="font-medium text-charcoal">Business</h2>
           <div>

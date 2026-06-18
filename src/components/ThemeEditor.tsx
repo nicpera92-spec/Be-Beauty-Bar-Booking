@@ -103,10 +103,6 @@ export default function ThemeEditor({
 
   return (
     <form onSubmit={handleSave} className="space-y-6">
-      <p className="text-sm text-slate-500">
-        Tap a theme to preview it live across booking and admin, then save. Gradient themes include a soft page background.
-      </p>
-
       <div className="space-y-4">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-2">Classic</p>

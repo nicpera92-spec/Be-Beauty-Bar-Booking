@@ -116,10 +116,7 @@ export default function AdminThemePage() {
       <Link href="/admin" className="text-sm text-sky-600 hover:underline mb-6 inline-block">
         ← Back to admin
       </Link>
-      <h1 className="font-serif text-2xl font-semibold text-charcoal mb-2">Theme</h1>
-      <p className="text-sm text-slate-500 mb-8">
-        Pick a ready-made colour theme for your booking site and admin area.
-      </p>
+      <h1 className="font-serif text-2xl font-semibold text-charcoal mb-8">Themes</h1>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
         <ThemeEditor

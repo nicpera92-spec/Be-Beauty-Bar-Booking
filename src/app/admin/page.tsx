@@ -353,7 +353,7 @@ export default function AdminPage() {
           { href: "/admin/technicians", label: "Technicians", icon: NAV_ICONS.technicians },
           { href: "/admin/time-off", label: "Time off", icon: NAV_ICONS.timeoff },
           { href: "/admin/services", label: "Services", icon: NAV_ICONS.services },
-          { href: "/admin/theme", label: "Theme", icon: NAV_ICONS.theme },
+          { href: "/admin/theme", label: "Themes", icon: NAV_ICONS.theme },
         ]
       : [
           { href: "/admin/services", label: "My services", icon: NAV_ICONS.services },
