@@ -106,7 +106,13 @@ export default function CalendarTimeOffAdd({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-20 mt-2 w-[min(100vw-2rem,22rem)] rounded-xl border border-slate-200 bg-white p-4 shadow-lg space-y-3">
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/25 sm:hidden"
+            aria-hidden
+            onClick={() => setOpen(false)}
+          />
+          <div className="fixed z-50 left-4 right-4 top-24 max-h-[min(32rem,calc(100dvh-6rem))] overflow-y-auto sm:absolute sm:left-0 sm:right-auto sm:top-full sm:mt-2 sm:w-[min(calc(100vw-2rem),22rem)] sm:max-h-none rounded-xl border border-slate-200 bg-white p-4 shadow-lg space-y-3">
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm font-medium text-charcoal">Time off</p>
             <button
@@ -122,7 +128,7 @@ export default function CalendarTimeOffAdd({
           <div className="space-y-3">
             <div>
               <p className="text-xs font-medium text-charcoal/65 mb-2">Starts</p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <input
                   type="date"
                   value={startDate}
@@ -150,7 +156,7 @@ export default function CalendarTimeOffAdd({
 
             <div>
               <p className="text-xs font-medium text-charcoal/65 mb-2">Ends</p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <input
                   type="date"
                   value={endDate}
@@ -188,6 +194,7 @@ export default function CalendarTimeOffAdd({
             </p>
           )}
         </div>
+        </>
       )}
     </div>
   );
