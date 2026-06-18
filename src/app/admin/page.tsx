@@ -406,25 +406,27 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <nav className="px-3 pb-3 sm:px-5 sm:pb-0">
-          {/* Mobile: compact icon grid */}
-          <div
-            className={`grid gap-1 p-1 sm:hidden ${
-              navItems.length === 3 ? "grid-cols-3" : "grid-cols-4"
-            }`}
-          >
+        <nav className="px-2 pb-2 sm:px-5 sm:pb-0">
+          {/* Mobile: compact horizontal tabs */}
+          <div className="flex gap-0.5 p-0.5 sm:hidden">
             {navItems.map((item) => {
               const active = isNavActive(pathname, item.href);
               return (
                 <Link
                   key={item.href + item.label}
                   href={item.href}
-                  className={`flex flex-col items-center justify-center gap-0.5 py-2 rounded-lg transition touch-manipulation ${
+                  className={`flex-1 min-w-0 flex items-center justify-center gap-1 py-1.5 px-1 rounded-md transition touch-manipulation ${
                     active ? "bg-navy text-white" : "text-charcoal hover:bg-slate-50"
                   }`}
                 >
-                  <span className={active ? "text-white" : "text-slate-400"}>{item.icon}</span>
-                  <span className="text-[11px] font-medium leading-tight text-center px-1">
+                  <span
+                    className={`shrink-0 [&>svg]:w-3.5 [&>svg]:h-3.5 ${
+                      active ? "text-white" : "text-slate-400"
+                    }`}
+                  >
+                    {item.icon}
+                  </span>
+                  <span className="text-[10px] font-medium leading-none truncate">
                     {navShortLabel(item.label)}
                   </span>
                 </Link>
