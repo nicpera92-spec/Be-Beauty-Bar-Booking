@@ -1,9 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
-  DEFAULT_PRIMARY,
-  DEFAULT_SECONDARY,
   THEME_PALETTES_CLASSIC,
   THEME_PALETTES_COMBO,
   THEME_PALETTES_GRADIENT,
@@ -14,11 +11,9 @@ import {
 import { publishThemeUpdate } from "@/lib/themeClient";
 
 type ThemeEditorProps = {
-  initialPrimary?: string | null;
-  initialSecondary?: string | null;
-  onSave: (primary: string, secondary: string) => Promise<boolean>;
-  saving?: boolean;
-  saveMessage?: { ok: boolean; message: string } | null;
+  primary: string;
+  secondary: string;
+  onChange: (primary: string, secondary: string) => void;
 };
 
 function PaletteGrid({
@@ -33,7 +28,7 @@ function PaletteGrid({
   onSelect: (palette: ThemePalette) => void;
 }) {
   return (
-    <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
+    <div className="grid grid-cols-4 sm:grid-cols-6 gap-2.5 sm:gap-3">
       {palettes.map((palette) => {
         const selected = isPaletteSelected(palette, primary, secondary);
         const isGradient = Boolean(palette.pageGradient);
@@ -45,8 +40,8 @@ function PaletteGrid({
             title={palette.name}
             aria-label={palette.name}
             aria-pressed={selected}
-            className={`group flex flex-col items-center gap-1.5 rounded-xl p-2 border transition ${
-              selected ? "border-slate-400 bg-slate-50" : "border-transparent hover:bg-slate-50"
+            className={`group flex flex-col items-center gap-1.5 rounded-xl p-2 border transition touch-manipulation ${
+              selected ? "border-charcoal/30 bg-white shadow-sm" : "border-transparent hover:bg-white/80"
             }`}
           >
             <span
@@ -75,76 +70,29 @@ function PaletteGrid({
   );
 }
 
-export default function ThemeEditor({
-  initialPrimary,
-  initialSecondary,
-  onSave,
-  saving = false,
-  saveMessage = null,
-}: ThemeEditorProps) {
-  const [primary, setPrimary] = useState(initialPrimary ?? DEFAULT_PRIMARY);
-  const [secondary, setSecondary] = useState(initialSecondary ?? DEFAULT_SECONDARY);
-
-  useEffect(() => {
-    if (initialPrimary) setPrimary(initialPrimary);
-    if (initialSecondary) setSecondary(initialSecondary);
-  }, [initialPrimary, initialSecondary]);
-
+export default function ThemeEditor({ primary, secondary, onChange }: ThemeEditorProps) {
   const selectPalette = (palette: ThemePalette) => {
-    setPrimary(palette.primary);
-    setSecondary(palette.secondary);
+    onChange(palette.primary, palette.secondary);
     publishThemeUpdate(palette.primary, palette.secondary);
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await onSave(primary, secondary);
-  };
-
   return (
-    <form onSubmit={handleSave} className="space-y-6">
-      <div className="space-y-4">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-2">Classic</p>
-          <PaletteGrid
-            palettes={THEME_PALETTES_CLASSIC}
-            primary={primary}
-            secondary={secondary}
-            onSelect={selectPalette}
-          />
-        </div>
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-2">Combinations</p>
-          <PaletteGrid
-            palettes={THEME_PALETTES_COMBO}
-            primary={primary}
-            secondary={secondary}
-            onSelect={selectPalette}
-          />
-        </div>
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-2">Gradients</p>
-          <PaletteGrid
-            palettes={THEME_PALETTES_GRADIENT}
-            primary={primary}
-            secondary={secondary}
-            onSelect={selectPalette}
-          />
-        </div>
+    <div className="space-y-5">
+      <p className="text-sm text-charcoal/60">
+        Tap a theme to preview it live. Press <span className="font-medium text-charcoal">Save</span> at the top when you are happy.
+      </p>
+      <div>
+        <p className="text-xs font-medium uppercase tracking-wide text-charcoal/45 mb-2">Classic</p>
+        <PaletteGrid palettes={THEME_PALETTES_CLASSIC} primary={primary} secondary={secondary} onSelect={selectPalette} />
       </div>
-
-      <button
-        type="submit"
-        disabled={saving}
-        className="w-full bg-navy text-white py-3 rounded-full font-medium hover:bg-navy-light disabled:opacity-50 transition"
-      >
-        {saving ? "Saving…" : "Save theme"}
-      </button>
-      {saveMessage && (
-        <p className={`text-sm text-center ${saveMessage.ok ? "text-green-700" : "text-red-600"}`}>
-          {saveMessage.message}
-        </p>
-      )}
-    </form>
+      <div>
+        <p className="text-xs font-medium uppercase tracking-wide text-charcoal/45 mb-2">Combinations</p>
+        <PaletteGrid palettes={THEME_PALETTES_COMBO} primary={primary} secondary={secondary} onSelect={selectPalette} />
+      </div>
+      <div>
+        <p className="text-xs font-medium uppercase tracking-wide text-charcoal/45 mb-2">Gradients</p>
+        <PaletteGrid palettes={THEME_PALETTES_GRADIENT} primary={primary} secondary={secondary} onSelect={selectPalette} />
+      </div>
+    </div>
   );
 }
