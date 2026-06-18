@@ -345,6 +345,15 @@ export default function AdminCalendarPage() {
               ))}
             </select>
           )}
+          {canManageOwnTimeOff && (
+            <CalendarTimeOffAdd
+              openTime={salonOpen}
+              closeTime={salonClose}
+              defaultDate={selectedDate}
+              onSuccess={refreshCalendar}
+              getAuthHeaders={getAuthHeaders}
+            />
+          )}
         </div>
         <Link
           href="/admin"
@@ -566,16 +575,6 @@ export default function AdminCalendarPage() {
                 !canManageOwnTimeOff && (
                   <p className="text-sm text-charcoal/60 text-center py-2">No bookings on this day.</p>
                 )
-              )}
-
-              {canManageOwnTimeOff && !isPast(parse(selectedDate, "yyyy-MM-dd", new Date())) && (
-                <CalendarTimeOffAdd
-                  date={selectedDate}
-                  openTime={salonOpen}
-                  closeTime={salonClose}
-                  onSuccess={refreshCalendar}
-                  getAuthHeaders={getAuthHeaders}
-                />
               )}
 
               {isMaster &&
