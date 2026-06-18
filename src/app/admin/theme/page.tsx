@@ -118,7 +118,7 @@ export default function AdminThemePage() {
       </Link>
       <h1 className="font-serif text-2xl font-semibold text-charcoal mb-2">Theme</h1>
       <p className="text-sm text-slate-500 mb-8">
-        Brand colours for your booking site and admin area.
+        Pick a ready-made colour theme for your booking site and admin area.
       </p>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">

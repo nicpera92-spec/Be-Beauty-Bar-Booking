@@ -1,20 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   DEFAULT_PRIMARY,
   DEFAULT_SECONDARY,
-  THEME_PALETTES,
-  findThemePalette,
+  THEME_PALETTES_CLASSIC,
+  THEME_PALETTES_COMBO,
+  THEME_PALETTES_GRADIENT,
+  isPaletteSelected,
   paletteSwatchStyle,
   type ThemePalette,
 } from "@/lib/themePalettes";
-import {
-  companionSecondary,
-  getHexLightness,
-  normalizeHex,
-  setHexLightness,
-} from "@/lib/themeColorUtils";
 import { publishThemeUpdate } from "@/lib/themeClient";
 
 type ThemeEditorProps = {
@@ -25,66 +21,56 @@ type ThemeEditorProps = {
   saveMessage?: { ok: boolean; message: string } | null;
 };
 
-function ColorControl({
-  label,
-  color,
-  lightness,
-  onColorChange,
-  onLightnessChange,
+function PaletteGrid({
+  palettes,
+  primary,
+  secondary,
+  onSelect,
 }: {
-  label: string;
-  color: string;
-  lightness: number;
-  onColorChange: (hex: string) => void;
-  onLightnessChange: (lightness: number) => void;
+  palettes: ThemePalette[];
+  primary: string;
+  secondary: string;
+  onSelect: (palette: ThemePalette) => void;
 }) {
   return (
-    <div className="space-y-2">
-      <p className="text-sm font-medium text-charcoal">{label}</p>
-      <div className="flex flex-wrap items-center gap-3">
-        <label className="relative shrink-0 cursor-pointer">
-          <span
-            className="block h-11 w-11 rounded-xl ring-1 ring-black/10 shadow-sm"
-            style={{ backgroundColor: color }}
-          />
-          <input
-            type="color"
-            value={color}
-            onChange={(e) => onColorChange(e.target.value)}
-            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-            aria-label={`${label} colour picker`}
-          />
-        </label>
-        <div className="flex-1 min-w-[160px] space-y-1">
-          <div className="flex items-center justify-between text-xs text-slate-500">
-            <span>Lightness</span>
-            <span>{lightness}%</span>
-          </div>
-          <input
-            type="range"
-            min={12}
-            max={88}
-            value={lightness}
-            onChange={(e) => onLightnessChange(Number(e.target.value))}
-            className="w-full accent-navy"
-            aria-label={`${label} lightness`}
-          />
-        </div>
-        <input
-          type="text"
-          value={color}
-          onChange={(e) => {
-            const next = normalizeHex(e.target.value);
-            if (next) onColorChange(next);
-          }}
-          onBlur={(e) => {
-            const next = normalizeHex(e.target.value);
-            if (next) onColorChange(next);
-          }}
-          className="w-28 px-2.5 py-2 rounded-lg border border-slate-200 text-sm font-mono bg-white"
-          aria-label={`${label} hex`}
-        />
-      </div>
+    <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
+      {palettes.map((palette) => {
+        const selected = isPaletteSelected(palette, primary, secondary);
+        const isGradient = Boolean(palette.pageGradient);
+        return (
+          <button
+            key={palette.id}
+            type="button"
+            onClick={() => onSelect(palette)}
+            title={palette.name}
+            aria-label={palette.name}
+            aria-pressed={selected}
+            className={`group flex flex-col items-center gap-1.5 rounded-xl p-2 border transition ${
+              selected ? "border-slate-400 bg-slate-50" : "border-transparent hover:bg-slate-50"
+            }`}
+          >
+            <span
+              className={`flex h-10 w-10 items-center justify-center rounded-full ring-1 ring-black/10 ${
+                isGradient ? "shadow-sm" : ""
+              }`}
+              style={paletteSwatchStyle(palette)}
+            >
+              {selected && (
+                <svg
+                  className={`w-5 h-5 drop-shadow ${isGradient ? "text-charcoal" : "text-white"}`}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                </svg>
+              )}
+            </span>
+            <span className="text-[11px] text-charcoal/70 text-center leading-tight">{palette.name}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -96,181 +82,58 @@ export default function ThemeEditor({
   saving = false,
   saveMessage = null,
 }: ThemeEditorProps) {
-  const [twoColours, setTwoColours] = useState(true);
   const [primary, setPrimary] = useState(initialPrimary ?? DEFAULT_PRIMARY);
   const [secondary, setSecondary] = useState(initialSecondary ?? DEFAULT_SECONDARY);
-  const [primaryLightness, setPrimaryLightness] = useState(() =>
-    getHexLightness(initialPrimary ?? DEFAULT_PRIMARY)
-  );
-  const [secondaryLightness, setSecondaryLightness] = useState(() =>
-    getHexLightness(initialSecondary ?? DEFAULT_SECONDARY)
-  );
 
   useEffect(() => {
-    if (initialPrimary) {
-      setPrimary(initialPrimary);
-      setPrimaryLightness(getHexLightness(initialPrimary));
-    }
-    if (initialSecondary) {
-      setSecondary(initialSecondary);
-      setSecondaryLightness(getHexLightness(initialSecondary));
-    }
+    if (initialPrimary) setPrimary(initialPrimary);
+    if (initialSecondary) setSecondary(initialSecondary);
   }, [initialPrimary, initialSecondary]);
 
-  const effectiveSecondary = twoColours ? secondary : companionSecondary(primary);
-
-  useEffect(() => {
-    publishThemeUpdate(primary, effectiveSecondary);
-  }, [primary, effectiveSecondary]);
-
-  const activePalette = findThemePalette(primary, effectiveSecondary);
-
-  const previewStyle = useMemo(() => {
-    if (activePalette?.pageGradient) {
-      return { background: activePalette.pageGradient };
-    }
-    return {
-      background: `linear-gradient(90deg, ${primary} 0%, ${effectiveSecondary} 100%)`,
-    };
-  }, [activePalette, primary, effectiveSecondary]);
-
-  const loadPreset = (palette: ThemePalette) => {
+  const selectPalette = (palette: ThemePalette) => {
     setPrimary(palette.primary);
     setSecondary(palette.secondary);
-    setPrimaryLightness(getHexLightness(palette.primary));
-    setSecondaryLightness(getHexLightness(palette.secondary));
-    setTwoColours(palette.primary.toLowerCase() !== palette.secondary.toLowerCase());
-  };
-
-  const updatePrimary = (hex: string) => {
-    setPrimary(hex);
-    setPrimaryLightness(getHexLightness(hex));
-    if (!twoColours) {
-      const nextSecondary = companionSecondary(hex);
-      setSecondary(nextSecondary);
-      setSecondaryLightness(getHexLightness(nextSecondary));
-    }
-  };
-
-  const updateSecondary = (hex: string) => {
-    setSecondary(hex);
-    setSecondaryLightness(getHexLightness(hex));
+    publishThemeUpdate(palette.primary, palette.secondary);
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    await onSave(primary, effectiveSecondary);
+    await onSave(primary, secondary);
   };
 
   return (
     <form onSubmit={handleSave} className="space-y-6">
       <p className="text-sm text-slate-500">
-        Make it yours. Choose one or two brand colours — full spectrum and lightness control.
-        Gradient quick starters keep their soft page background until you customise the hex values.
+        Tap a theme to preview it live across booking and admin, then save. Gradient themes include a soft page background.
       </p>
 
-      <div className="flex items-center gap-3">
-        <span className="text-sm text-charcoal">How many brand colours?</span>
-        <div className="inline-flex rounded-full border border-slate-200 p-0.5 bg-slate-50">
-          <button
-            type="button"
-            onClick={() => {
-              setTwoColours(false);
-              const next = companionSecondary(primary);
-              setSecondary(next);
-              setSecondaryLightness(getHexLightness(next));
-            }}
-            className={`px-3 py-1.5 rounded-full text-sm transition ${
-              !twoColours ? "bg-navy text-white shadow-sm" : "text-charcoal/70 hover:text-charcoal"
-            }`}
-          >
-            One colour
-          </button>
-          <button
-            type="button"
-            onClick={() => setTwoColours(true)}
-            className={`px-3 py-1.5 rounded-full text-sm transition ${
-              twoColours ? "bg-navy text-white shadow-sm" : "text-charcoal/70 hover:text-charcoal"
-            }`}
-          >
-            Two colours
-          </button>
-        </div>
-      </div>
-
-      <div
-        className="h-24 sm:h-28 rounded-2xl ring-1 ring-black/10 shadow-inner"
-        style={previewStyle}
-        aria-hidden
-      />
-
-      <div className={`grid gap-6 ${twoColours ? "sm:grid-cols-2" : ""}`}>
-        <ColorControl
-          label="Colour 1 — primary"
-          color={primary}
-          lightness={primaryLightness}
-          onColorChange={updatePrimary}
-          onLightnessChange={(l) => {
-            setPrimaryLightness(l);
-            updatePrimary(setHexLightness(primary, l));
-          }}
-        />
-        {twoColours && (
-          <ColorControl
-            label="Colour 2 — secondary"
-            color={secondary}
-            lightness={secondaryLightness}
-            onColorChange={updateSecondary}
-            onLightnessChange={(l) => {
-              setSecondaryLightness(l);
-              updateSecondary(setHexLightness(secondary, l));
-            }}
+      <div className="space-y-4">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-2">Classic</p>
+          <PaletteGrid
+            palettes={THEME_PALETTES_CLASSIC}
+            primary={primary}
+            secondary={secondary}
+            onSelect={selectPalette}
           />
-        )}
-      </div>
-
-      <div className="pt-2 border-t border-slate-100 space-y-3">
-        <p className="text-sm font-medium text-charcoal">Quick starters</p>
-        <p className="text-xs text-slate-500">Tap to load, then customise above.</p>
-        <div className="flex flex-wrap gap-2">
-          {THEME_PALETTES.map((palette) => {
-            const selected =
-              primary.toLowerCase() === palette.primary.toLowerCase() &&
-              effectiveSecondary.toLowerCase() === palette.secondary.toLowerCase();
-            return (
-              <button
-                key={palette.id}
-                type="button"
-                onClick={() => loadPreset(palette)}
-                className={`inline-flex items-center gap-2 px-3 py-2 rounded-full border text-sm transition ${
-                  selected
-                    ? "border-slate-400 bg-slate-50 text-charcoal"
-                    : "border-slate-200 bg-white text-charcoal/80 hover:border-slate-300 hover:bg-slate-50"
-                }`}
-              >
-                <span className="flex -space-x-1">
-                  {palette.pageGradient ? (
-                    <span
-                      className="h-5 w-8 rounded-full ring-1 ring-black/10"
-                      style={paletteSwatchStyle(palette)}
-                    />
-                  ) : (
-                    <>
-                      <span
-                        className="h-4 w-4 rounded-full ring-1 ring-black/10"
-                        style={{ backgroundColor: palette.primary }}
-                      />
-                      <span
-                        className="h-4 w-4 rounded-full ring-1 ring-black/10"
-                        style={{ backgroundColor: palette.secondary }}
-                      />
-                    </>
-                  )}
-                </span>
-                {palette.name}
-              </button>
-            );
-          })}
+        </div>
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-2">Combinations</p>
+          <PaletteGrid
+            palettes={THEME_PALETTES_COMBO}
+            primary={primary}
+            secondary={secondary}
+            onSelect={selectPalette}
+          />
+        </div>
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-2">Gradients</p>
+          <PaletteGrid
+            palettes={THEME_PALETTES_GRADIENT}
+            primary={primary}
+            secondary={secondary}
+            onSelect={selectPalette}
+          />
         </div>
       </div>
 

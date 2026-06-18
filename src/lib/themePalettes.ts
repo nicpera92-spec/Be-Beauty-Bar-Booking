@@ -18,8 +18,25 @@ export const THEME_PALETTES_CLASSIC: ThemePalette[] = [
   { id: "plum", name: "Plum", primary: "#5b2a4e", secondary: "#7d3a6b" },
   { id: "rose", name: "Rose", primary: "#8a2d52", secondary: "#a8385f" },
   { id: "emerald", name: "Emerald", primary: "#1f5141", secondary: "#2f7359" },
+  { id: "teal", name: "Teal", primary: "#134e5e", secondary: "#1f6f86" },
   { id: "ocean", name: "Ocean", primary: "#0c4a6e", secondary: "#0e7490" },
+  { id: "burgundy", name: "Burgundy", primary: "#5e1f2d", secondary: "#842d40" },
+  { id: "rust", name: "Rust", primary: "#8a3b1e", secondary: "#a85433" },
+  { id: "copper", name: "Copper", primary: "#7a4520", secondary: "#9a5a2e" },
+  { id: "slate", name: "Slate", primary: "#334155", secondary: "#475569" },
   { id: "charcoal", name: "Charcoal", primary: "#2b2b2b", secondary: "#444444" },
+];
+
+/** Bold colour combinations */
+export const THEME_PALETTES_COMBO: ThemePalette[] = [
+  { id: "red-cyan", name: "Red & cyan", primary: "#b91c1c", secondary: "#0891b2" },
+  { id: "electric-blue", name: "Electric blue", primary: "#1d4ed8", secondary: "#38bdf8" },
+  { id: "hot-pink", name: "Hot pink", primary: "#be185d", secondary: "#f472b6" },
+  { id: "citrus", name: "Citrus", primary: "#ca8a04", secondary: "#84cc16" },
+  { id: "mocha", name: "Mocha", primary: "#78350f", secondary: "#a8a29e" },
+  { id: "sage-stone", name: "Sage & stone", primary: "#4d7c0f", secondary: "#78716c" },
+  { id: "royal-gold", name: "Royal & gold", primary: "#312e81", secondary: "#d97706" },
+  { id: "wine-blush", name: "Wine & blush", primary: "#881337", secondary: "#fda4af" },
 ];
 
 /** Gradient page backgrounds with matching button accents */
@@ -39,6 +56,13 @@ export const THEME_PALETTES_GRADIENT: ThemePalette[] = [
     pageGradient: "linear-gradient(145deg, #ecfeff 0%, #e0e7ff 48%, #f3e8ff 100%)",
   },
   {
+    id: "neon-pulse",
+    name: "Neon pulse",
+    primary: "#e11d48",
+    secondary: "#06b6d4",
+    pageGradient: "linear-gradient(145deg, #fff1f2 0%, #ffe4e6 30%, #ecfeff 70%, #e0f2fe 100%)",
+  },
+  {
     id: "peach-glow",
     name: "Peach glow",
     primary: "#c2410c",
@@ -51,6 +75,13 @@ export const THEME_PALETTES_GRADIENT: ThemePalette[] = [
     primary: "#6b21a8",
     secondary: "#9333ea",
     pageGradient: "linear-gradient(145deg, #faf5ff 0%, #f3e8ff 42%, #e9d5ff 100%)",
+  },
+  {
+    id: "cotton-candy",
+    name: "Cotton candy",
+    primary: "#db2777",
+    secondary: "#6366f1",
+    pageGradient: "linear-gradient(145deg, #fdf2f8 0%, #fce7f3 40%, #e0e7ff 100%)",
   },
   {
     id: "ocean-breeze",
@@ -80,10 +111,25 @@ export const THEME_PALETTES_GRADIENT: ThemePalette[] = [
     secondary: "#059669",
     pageGradient: "linear-gradient(145deg, #f0fdf4 0%, #dcfce7 50%, #ecfdf5 100%)",
   },
+  {
+    id: "champagne-blush",
+    name: "Champagne",
+    primary: "#9a3412",
+    secondary: "#f9a8d4",
+    pageGradient: "linear-gradient(145deg, #fffbeb 0%, #fef3c7 35%, #fce7f3 100%)",
+  },
+  {
+    id: "lilac-mist",
+    name: "Lilac mist",
+    primary: "#6d28d9",
+    secondary: "#c084fc",
+    pageGradient: "linear-gradient(145deg, #f5f3ff 0%, #ede9fe 50%, #fae8ff 100%)",
+  },
 ];
 
 export const THEME_PALETTES: ThemePalette[] = [
   ...THEME_PALETTES_CLASSIC,
+  ...THEME_PALETTES_COMBO,
   ...THEME_PALETTES_GRADIENT,
 ];
 
@@ -248,5 +294,18 @@ export function paletteSwatchStyle(
   if (palette.pageGradient) {
     return { background: palette.pageGradient };
   }
-  return { backgroundColor: palette.primary };
+  return {
+    background: `linear-gradient(135deg, ${palette.primary} 50%, ${palette.secondary} 50%)`,
+  };
+}
+
+export function isPaletteSelected(
+  palette: ThemePalette,
+  primary: string,
+  secondary: string
+): boolean {
+  return (
+    palette.primary.toLowerCase() === primary.toLowerCase() &&
+    palette.secondary.toLowerCase() === secondary.toLowerCase()
+  );
 }
