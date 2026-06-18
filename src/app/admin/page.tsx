@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -360,18 +359,7 @@ export default function AdminPage() {
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
       <header className="mb-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5 sm:py-4 border-b border-slate-100">
-          <div className="flex items-center gap-3 min-w-0">
-            <Link href="/admin" className="shrink-0" aria-label="Admin home">
-              <Image
-                src="/logo.png"
-                alt="Be Beauty Bar"
-                width={120}
-                height={48}
-                className="h-9 sm:h-10 w-auto object-contain"
-                priority
-              />
-            </Link>
-            <div className="min-w-0 flex flex-wrap items-center gap-2">
+          <div className="min-w-0 flex flex-wrap items-center gap-2">
             <h1 className="font-serif text-lg sm:text-xl font-semibold text-charcoal leading-tight truncate">
               Hello{staffName ? `, ${staffName}` : ""}
             </h1>
@@ -384,7 +372,6 @@ export default function AdminPage() {
               >
                 {staffRole === "master" ? "Owner" : "Technician"}
               </span>
-            </div>
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2">
             <Link
