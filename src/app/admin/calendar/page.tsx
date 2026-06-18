@@ -5,6 +5,7 @@ import Link from "next/link";
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, parse, endOfMonth, startOfDay, addDays } from "date-fns";
 import { formatCurrency } from "@/lib/format";
 import { CopyPhoneButton } from "@/components/CopyPhoneButton";
+import CalendarTimeOffAdd from "@/components/CalendarTimeOffAdd";
 import { getCustomerBookableRange } from "@/lib/booking-calendar-range";
 
 const ADMIN_TOKEN_KEY = "admin-token";
@@ -51,6 +52,9 @@ type Technician = {
 export default function AdminCalendarPage() {
   const [token, setToken] = useState<string | null>(null);
   const [isMaster, setIsMaster] = useState(false);
+  const [myTechnicianId, setMyTechnicianId] = useState<string | null>(null);
+  const [salonOpen, setSalonOpen] = useState("09:00");
+  const [salonClose, setSalonClose] = useState("17:00");
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [technicianFilter, setTechnicianFilter] = useState<string>("all");
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -94,12 +98,25 @@ export default function AdminCalendarPage() {
               .then((list) => setTechnicians(Array.isArray(list) ? list : []))
               .catch(() => setTechnicians([]));
           }
+          if (data?.technicianId) setMyTechnicianId(data.technicianId);
         })
         .catch(() => {});
     } else {
       window.location.href = "/admin";
     }
   }, []);
+
+  useEffect(() => {
+    if (!token) return;
+    fetch("/api/admin/settings", { headers: getAuthHeaders() })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data) return;
+        if (data.openTime) setSalonOpen(data.openTime);
+        if (data.closeTime) setSalonClose(data.closeTime);
+      })
+      .catch(() => {});
+  }, [token]);
 
   const fetchData = useCallback((from: string, to: string, techFilter: string) => {
     if (!token) return;
@@ -194,6 +211,35 @@ export default function AdminCalendarPage() {
     [fetchData, viewWeekStart, viewWeekEnd, isMaster, technicianFilter]
   );
 
+  const refreshCalendar = useCallback(() => {
+    if (!viewWeekStart || !viewWeekEnd) return;
+    fetchData(
+      format(viewWeekStart, "yyyy-MM-dd"),
+      format(viewWeekEnd, "yyyy-MM-dd"),
+      isMaster ? technicianFilter : "all"
+    );
+  }, [fetchData, viewWeekStart, viewWeekEnd, isMaster, technicianFilter]);
+
+  const removeTimeOff = useCallback(
+    (blockId: string) => {
+      if (!confirm("Remove this time off?")) return;
+      fetch(`/api/admin/blocks/${blockId}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      })
+        .then((r) => {
+          if (r.status === 401) {
+            sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+            window.location.href = "/admin";
+            return;
+          }
+          if (r.ok) refreshCalendar();
+        })
+        .catch(() => {});
+    },
+    [refreshCalendar]
+  );
+
   useEffect(() => {
     if (!selectedDate) return;
     const timer = window.setTimeout(() => {
@@ -272,6 +318,9 @@ export default function AdminCalendarPage() {
 
   const selectedBookings = selectedDate ? bookingsByDate[selectedDate] || [] : [];
   const selectedBlocks = selectedDate ? getBlocksForDate(selectedDate) : [];
+  const canManageOwnTimeOff =
+    Boolean(myTechnicianId) &&
+    (!isMaster || technicianFilter === "all" || technicianFilter === myTechnicianId);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12 min-w-0">
@@ -394,129 +443,156 @@ export default function AdminCalendarPage() {
 
         {/* Overview - right */}
         <div ref={detailPanelRef} className="w-full lg:w-80 lg:shrink-0 lg:top-4 scroll-mt-6">
-          {selectedDate && (selectedBookings.length > 0 || selectedBlocks.length > 0) && (
-            <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <div className="flex items-center justify-between mb-4">
+          {selectedDate && (
+            <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+              <div className="flex items-center justify-between gap-2">
                 <h3 className="text-lg font-semibold text-charcoal">
                   {format(parse(selectedDate, "yyyy-MM-dd", new Date()), "EEEE, d MMMM yyyy")}
                 </h3>
                 <button
                   type="button"
                   onClick={() => setSelectedDate(null)}
-                  className="text-sm text-charcoal/60 hover:text-charcoal"
+                  className="text-sm text-charcoal/60 hover:text-charcoal shrink-0"
                 >
                   Close
                 </button>
               </div>
+
+              {canManageOwnTimeOff && !isPast(parse(selectedDate, "yyyy-MM-dd", new Date())) && (
+                <CalendarTimeOffAdd
+                  date={selectedDate}
+                  openTime={salonOpen}
+                  closeTime={salonClose}
+                  onSuccess={refreshCalendar}
+                  getAuthHeaders={getAuthHeaders}
+                />
+              )}
+
               {selectedBlocks.length > 0 && (
-                <div className="mb-4">
+                <div>
                   <p className="text-sm font-medium text-violet-700 mb-2">Time off</p>
                   <div className="space-y-2">
-                    {selectedBlocks.map((block) => (
-                      <div
-                        key={block.id}
-                        className="p-3 rounded-lg border border-violet-200 bg-violet-50/80 text-sm text-charcoal"
-                      >
-                        {block.startDate === block.endDate ? (
-                          <p>{block.startTime} – {block.endTime}</p>
-                        ) : (
-                          <p>{block.startDate} {block.startTime} – {block.endDate} {block.endTime}</p>
-                        )}
-                      </div>
-                    ))}
+                    {selectedBlocks.map((block) => {
+                      const canRemove = block.technicianId === myTechnicianId;
+                      return (
+                        <div
+                          key={block.id}
+                          className="flex items-center justify-between gap-3 p-3 rounded-lg border border-violet-200 bg-violet-50/80 text-sm text-charcoal"
+                        >
+                          <p>
+                            {block.startDate === block.endDate ? (
+                              <>{block.startTime} – {block.endTime}</>
+                            ) : (
+                              <>
+                                {block.startDate} {block.startTime} – {block.endDate} {block.endTime}
+                              </>
+                            )}
+                          </p>
+                          {canRemove && (
+                            <button
+                              type="button"
+                              onClick={() => removeTimeOff(block.id)}
+                              className="shrink-0 text-xs text-red-600 hover:underline"
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
-              {selectedBookings.length > 0 && (
-              <div className="space-y-3">
-                {selectedBlocks.length > 0 && <p className="text-sm font-medium text-charcoal mt-2">Bookings</p>}
-                {selectedBookings
-                  .sort((a, b) => a.startTime.localeCompare(b.startTime))
-                  .map((booking) => (
-                    <div
-                      key={booking.id}
-                      className="relative flex flex-wrap items-center justify-between gap-4 p-4 pr-10 rounded-lg border border-slate-200 bg-slate-50"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => cancelBooking(booking.id)}
-                        disabled={cancellingId === booking.id}
-                        aria-label="Cancel booking"
-                        title="Cancel booking"
-                        className="absolute top-2 right-2 inline-flex items-center justify-center w-6 h-6 rounded-full text-red-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-50 transition"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                          <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
-                        </svg>
-                      </button>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-medium text-charcoal">{booking.customerName}</span>
-                          <span
-                            className={`text-xs px-2 py-0.5 rounded shrink-0 ${
-                              booking.status === "confirmed"
-                                ? "bg-green-100 text-green-800"
-                                : "bg-amber-100 text-amber-800"
-                            }`}
-                          >
-                            {booking.status === "confirmed" ? "Confirmed" : "Pending deposit"}
-                          </span>
-                        </div>
-                        <p className="text-sm text-charcoal/80">
-                          {booking.service.name} · {booking.startTime}–{booking.endTime}
-                          {booking.technician?.name && <> · {booking.technician.name}</>}
-                        </p>
-                        <p className="text-xs text-charcoal/60 mt-1">
-                          {booking.customerPhone ? (
-                            <CopyPhoneButton phone={booking.customerPhone} />
-                          ) : (
-                            booking.customerEmail || "No contact"
-                          )}
-                          {" · "}
-                          {formatCurrency(booking.depositAmount)} deposit
-                        </p>
-                        {booking.notes && booking.notes.trim() && (
-                          <p className="text-sm text-navy mt-2 italic border-l-2 border-navy/30 pl-2">
-                            📝 Special request: {booking.notes}
-                          </p>
-                        )}
-                        {booking.status === "pending_deposit" && (
-                          <button
-                            type="button"
-                            onClick={() => confirmDeposit(booking.id)}
-                            disabled={confirmingId === booking.id}
-                            className="mt-3 px-3 py-1.5 rounded-lg bg-navy text-white text-sm font-medium hover:bg-navy-light disabled:opacity-50 transition"
-                          >
-                            {confirmingId === booking.id ? "Confirming…" : "Mark deposit paid"}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-              </div>
-              )}
-            </div>
-          )}
 
-          {selectedDate && selectedBookings.length === 0 && selectedBlocks.length === 0 && (
-            <div className="bg-white rounded-xl border border-slate-200 p-6 text-center">
-              <p className="text-charcoal/60">
-                No bookings on {format(parse(selectedDate, "yyyy-MM-dd", new Date()), "d MMMM yyyy")}
-              </p>
-              <button
-                type="button"
-                onClick={() => setSelectedDate(null)}
-                className="mt-3 text-sm text-charcoal/60 hover:text-charcoal"
-              >
-                Close
-              </button>
+              {selectedBookings.length > 0 ? (
+                <div className="space-y-3">
+                  <p className="text-sm font-medium text-charcoal">Bookings</p>
+                  {selectedBookings
+                    .sort((a, b) => a.startTime.localeCompare(b.startTime))
+                    .map((booking) => (
+                      <div
+                        key={booking.id}
+                        className="relative flex flex-wrap items-center justify-between gap-4 p-4 pr-10 rounded-lg border border-slate-200 bg-slate-50"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => cancelBooking(booking.id)}
+                          disabled={cancellingId === booking.id}
+                          aria-label="Cancel booking"
+                          title="Cancel booking"
+                          className="absolute top-2 right-2 inline-flex items-center justify-center w-6 h-6 rounded-full text-red-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-50 transition"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                            <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+                          </svg>
+                        </button>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium text-charcoal">{booking.customerName}</span>
+                            <span
+                              className={`text-xs px-2 py-0.5 rounded shrink-0 ${
+                                booking.status === "confirmed"
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-amber-100 text-amber-800"
+                              }`}
+                            >
+                              {booking.status === "confirmed" ? "Confirmed" : "Pending deposit"}
+                            </span>
+                          </div>
+                          <p className="text-sm text-charcoal/80">
+                            {booking.service.name} · {booking.startTime}–{booking.endTime}
+                            {booking.technician?.name && <> · {booking.technician.name}</>}
+                          </p>
+                          <p className="text-xs text-charcoal/60 mt-1">
+                            {booking.customerPhone ? (
+                              <CopyPhoneButton phone={booking.customerPhone} />
+                            ) : (
+                              booking.customerEmail || "No contact"
+                            )}
+                            {" · "}
+                            {formatCurrency(booking.depositAmount)} deposit
+                          </p>
+                          {booking.notes && booking.notes.trim() && (
+                            <p className="text-sm text-navy mt-2 italic border-l-2 border-navy/30 pl-2">
+                              📝 Special request: {booking.notes}
+                            </p>
+                          )}
+                          {booking.status === "pending_deposit" && (
+                            <button
+                              type="button"
+                              onClick={() => confirmDeposit(booking.id)}
+                              disabled={confirmingId === booking.id}
+                              className="mt-3 px-3 py-1.5 rounded-lg bg-navy text-white text-sm font-medium hover:bg-navy-light disabled:opacity-50 transition"
+                            >
+                              {confirmingId === booking.id ? "Confirming…" : "Mark deposit paid"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                selectedBlocks.length === 0 &&
+                !canManageOwnTimeOff && (
+                  <p className="text-sm text-charcoal/60 text-center py-2">No bookings on this day.</p>
+                )
+              )}
+
+              {isMaster &&
+                technicianFilter !== "all" &&
+                technicianFilter !== myTechnicianId &&
+                !canManageOwnTimeOff && (
+                  <p className="text-xs text-charcoal/50">
+                    To add your own time off, choose your name in the schedule dropdown.
+                  </p>
+                )}
             </div>
           )}
 
           {!selectedDate && (
             <div className="bg-white rounded-xl border border-slate-200 p-6 text-center">
               <p className="text-sm text-charcoal/60">
-                Click a date to see bookings
+                Tap a date to see bookings and add time off
               </p>
             </div>
           )}

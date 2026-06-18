@@ -80,7 +80,6 @@ function navShortLabel(label: string): string {
   if (label === "Technicians") return "Staff";
   if (label === "My services") return "Services";
   if (label === "My calendar") return "Calendar";
-  if (label === "My time off") return "Time off";
   return label;
 }
 
@@ -346,13 +345,11 @@ export default function AdminPage() {
       ? [
           { href: "/admin/calendar", label: "Calendar", icon: NAV_ICONS.calendar },
           { href: "/admin/technicians", label: "Technicians", icon: NAV_ICONS.technicians },
-          { href: "/admin/time-off", label: "Time off", icon: NAV_ICONS.timeoff },
           { href: "/admin/services", label: "Services", icon: NAV_ICONS.services },
         ]
       : [
           { href: "/admin/services", label: "My services", icon: NAV_ICONS.services },
           { href: "/admin/calendar", label: "My calendar", icon: NAV_ICONS.calendar },
-          { href: "/admin/time-off", label: "My time off", icon: NAV_ICONS.timeoff },
         ];
 
   return (
