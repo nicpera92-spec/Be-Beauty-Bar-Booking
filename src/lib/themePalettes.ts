@@ -6,25 +6,85 @@ export type ThemePalette = {
   name: string;
   primary: string; // buttons, accents, links (dark)
   secondary: string; // hover / lighter shade
+  /** Optional full-page gradient background */
+  pageGradient?: string;
 };
 
-export const THEME_PALETTES: ThemePalette[] = [
+/** Classic solid accent themes */
+export const THEME_PALETTES_CLASSIC: ThemePalette[] = [
   { id: "navy", name: "Navy", primary: "#1e3a5f", secondary: "#2c5282" },
-  { id: "teal", name: "Teal", primary: "#134e5e", secondary: "#1f6f86" },
-  { id: "emerald", name: "Emerald", primary: "#1f5141", secondary: "#2f7359" },
-  { id: "forest", name: "Forest", primary: "#2d4a2b", secondary: "#3f6b3c" },
-  { id: "plum", name: "Plum", primary: "#5b2a4e", secondary: "#7d3a6b" },
-  { id: "burgundy", name: "Burgundy", primary: "#5e1f2d", secondary: "#842d40" },
-  { id: "espresso", name: "Espresso", primary: "#4a3528", secondary: "#6b4d3a" },
-  { id: "charcoal", name: "Charcoal", primary: "#2b2b2b", secondary: "#444444" },
   { id: "indigo", name: "Indigo", primary: "#2e2a6b", secondary: "#423c94" },
   { id: "violet", name: "Violet", primary: "#4a2670", secondary: "#66348f" },
-  { id: "slate", name: "Slate", primary: "#334155", secondary: "#475569" },
-  { id: "rust", name: "Rust", primary: "#8a3b1e", secondary: "#a85433" },
-  { id: "ochre", name: "Ochre", primary: "#6f5511", secondary: "#8a6c1f" },
+  { id: "plum", name: "Plum", primary: "#5b2a4e", secondary: "#7d3a6b" },
   { id: "rose", name: "Rose", primary: "#8a2d52", secondary: "#a8385f" },
+  { id: "emerald", name: "Emerald", primary: "#1f5141", secondary: "#2f7359" },
   { id: "ocean", name: "Ocean", primary: "#0c4a6e", secondary: "#0e7490" },
-  { id: "copper", name: "Copper", primary: "#7a4520", secondary: "#9a5a2e" },
+  { id: "charcoal", name: "Charcoal", primary: "#2b2b2b", secondary: "#444444" },
+];
+
+/** Gradient page backgrounds with matching button accents */
+export const THEME_PALETTES_GRADIENT: ThemePalette[] = [
+  {
+    id: "sunset",
+    name: "Sunset",
+    primary: "#9d174d",
+    secondary: "#db2777",
+    pageGradient: "linear-gradient(145deg, #fff1f2 0%, #ffe4e6 38%, #fce7f3 72%, #ede9fe 100%)",
+  },
+  {
+    id: "aurora",
+    name: "Aurora",
+    primary: "#5b21b6",
+    secondary: "#0891b2",
+    pageGradient: "linear-gradient(145deg, #ecfeff 0%, #e0e7ff 48%, #f3e8ff 100%)",
+  },
+  {
+    id: "peach-glow",
+    name: "Peach glow",
+    primary: "#c2410c",
+    secondary: "#e11d48",
+    pageGradient: "linear-gradient(145deg, #fff7ed 0%, #ffedd5 45%, #fecdd3 100%)",
+  },
+  {
+    id: "lavender-haze",
+    name: "Lavender",
+    primary: "#6b21a8",
+    secondary: "#9333ea",
+    pageGradient: "linear-gradient(145deg, #faf5ff 0%, #f3e8ff 42%, #e9d5ff 100%)",
+  },
+  {
+    id: "ocean-breeze",
+    name: "Sea breeze",
+    primary: "#0f766e",
+    secondary: "#0284c7",
+    pageGradient: "linear-gradient(145deg, #f0fdfa 0%, #ccfbf1 45%, #e0f2fe 100%)",
+  },
+  {
+    id: "golden-hour",
+    name: "Golden hour",
+    primary: "#b45309",
+    secondary: "#d97706",
+    pageGradient: "linear-gradient(145deg, #fffbeb 0%, #fef3c7 50%, #fde68a 100%)",
+  },
+  {
+    id: "berry-fusion",
+    name: "Berry",
+    primary: "#86198f",
+    secondary: "#7c3aed",
+    pageGradient: "linear-gradient(145deg, #fdf2f8 0%, #fae8ff 50%, #ede9fe 100%)",
+  },
+  {
+    id: "mint-fresh",
+    name: "Mint fresh",
+    primary: "#166534",
+    secondary: "#059669",
+    pageGradient: "linear-gradient(145deg, #f0fdf4 0%, #dcfce7 50%, #ecfdf5 100%)",
+  },
+];
+
+export const THEME_PALETTES: ThemePalette[] = [
+  ...THEME_PALETTES_CLASSIC,
+  ...THEME_PALETTES_GRADIENT,
 ];
 
 export const DEFAULT_PRIMARY = THEME_PALETTES[0].primary;
@@ -37,6 +97,7 @@ export type ThemeTokens = {
   text: string;
   textMuted: string;
   onPrimary: string;
+  pageGradient?: string;
 };
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
@@ -96,13 +157,25 @@ function ensureContrast(textHex: string, bgHex: string, minRatio = 4.5): string 
   return text;
 }
 
+export function findThemePalette(primary: string, secondary: string): ThemePalette | undefined {
+  const p = primary.toLowerCase();
+  const s = secondary.toLowerCase();
+  return THEME_PALETTES.find(
+    (palette) => palette.primary.toLowerCase() === p && palette.secondary.toLowerCase() === s
+  );
+}
+
 /** Build readable page background + text colours from the chosen accent palette. */
-export function buildThemeTokens(primary: string, secondary: string): ThemeTokens {
-  const pageBg = mixHex(primary, "#ffffff", 0.1);
+export function buildThemeTokens(
+  primary: string,
+  secondary: string,
+  pageGradient?: string
+): ThemeTokens {
+  const pageBg = mixHex(primary, "#ffffff", pageGradient ? 0.14 : 0.1);
   const text = ensureContrast(primary, pageBg);
   const textMuted = ensureContrast(mixHex(text, "#64748b", 0.45), pageBg, 4.5);
 
-  return { primary, secondary, pageBg, text, textMuted, onPrimary: "#ffffff" };
+  return { primary, secondary, pageBg, text, textMuted, onPrimary: "#ffffff", pageGradient };
 }
 
 function rgbTriplet(hex: string): string {
@@ -112,8 +185,9 @@ function rgbTriplet(hex: string): string {
 
 /** CSS custom properties for a theme — used server-side (layout) and client-side. */
 export function themeColorsToCssVars(primary: string, secondary: string): Record<string, string> {
-  const tokens = buildThemeTokens(primary, secondary);
-  return {
+  const palette = findThemePalette(primary, secondary);
+  const tokens = buildThemeTokens(primary, secondary, palette?.pageGradient);
+  const vars: Record<string, string> = {
     "--navy": tokens.primary,
     "--navy-light": tokens.secondary,
     "--theme-bg": tokens.pageBg,
@@ -124,7 +198,9 @@ export function themeColorsToCssVars(primary: string, secondary: string): Record
     "--theme-text-rgb": rgbTriplet(tokens.text),
     "--theme-text-muted-rgb": rgbTriplet(tokens.textMuted),
     "--theme-bg-rgb": rgbTriplet(tokens.pageBg),
+    "--theme-page-gradient": palette?.pageGradient ?? "none",
   };
+  return vars;
 }
 
 export const THEME_UPDATE_EVENT = "bb-theme-update";
@@ -163,4 +239,14 @@ export function applyThemeColors(primary: string, secondary: string) {
   for (const [name, value] of Object.entries(vars)) {
     root.style.setProperty(name, value);
   }
+}
+
+/** Swatch background for the admin theme picker */
+export function paletteSwatchStyle(
+  palette: ThemePalette
+): { background?: string; backgroundColor?: string } {
+  if (palette.pageGradient) {
+    return { background: palette.pageGradient };
+  }
+  return { backgroundColor: palette.primary };
 }

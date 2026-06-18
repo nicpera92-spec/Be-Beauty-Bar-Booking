@@ -4,12 +4,15 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  THEME_PALETTES,
+  THEME_PALETTES_CLASSIC,
+  THEME_PALETTES_GRADIENT,
   DEFAULT_PRIMARY,
   DEFAULT_SECONDARY,
   applyThemeColors,
   THEME_UPDATE_EVENT,
   persistThemeColors,
+  paletteSwatchStyle,
+  type ThemePalette,
 } from "@/lib/themePalettes";
 
 function publishThemeUpdate(primary: string, secondary: string) {
@@ -269,37 +272,27 @@ export default function AdminSettingsPage() {
         <section className={cardClass}>
           <h2 className="font-medium text-charcoal">Theme colour</h2>
           <p className="text-sm text-slate-500">
-            Sets the page background, text, buttons, and links across booking and admin. Text contrast is checked on every palette.
+            Sets the page background, text, buttons, and links across booking and admin. Choose a classic solid accent or a gradient style.
           </p>
-          <div className="grid grid-cols-4 sm:grid-cols-8 gap-3">
-            {THEME_PALETTES.map((p) => {
-              const selected = (form.primaryColor ?? DEFAULT_PRIMARY).toLowerCase() === p.primary.toLowerCase();
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => selectPalette(p.primary, p.secondary)}
-                  title={p.name}
-                  aria-label={p.name}
-                  aria-pressed={selected}
-                  className={`group flex flex-col items-center gap-1.5 rounded-xl p-2 border transition ${
-                    selected ? "border-slate-400 bg-slate-50" : "border-transparent hover:bg-slate-50"
-                  }`}
-                >
-                  <span
-                    className="flex h-10 w-10 items-center justify-center rounded-full ring-1 ring-black/10"
-                    style={{ backgroundColor: p.primary }}
-                  >
-                    {selected && (
-                      <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                      </svg>
-                    )}
-                  </span>
-                  <span className="text-[11px] text-charcoal/70">{p.name}</span>
-                </button>
-              );
-            })}
+          <div className="space-y-4">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-2">Classic</p>
+              <ThemePaletteGrid
+                palettes={THEME_PALETTES_CLASSIC}
+                selectedPrimary={form.primaryColor}
+                selectedSecondary={form.secondaryColor}
+                onSelect={selectPalette}
+              />
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-2">Gradient</p>
+              <ThemePaletteGrid
+                palettes={THEME_PALETTES_GRADIENT}
+                selectedPrimary={form.primaryColor}
+                selectedSecondary={form.secondaryColor}
+                onSelect={selectPalette}
+              />
+            </div>
           </div>
         </section>
 
@@ -624,6 +617,65 @@ type CategoryRule = {
   label: string;
   maxConcurrent: number;
 };
+
+function ThemePaletteGrid({
+  palettes,
+  selectedPrimary,
+  selectedSecondary,
+  onSelect,
+}: {
+  palettes: ThemePalette[];
+  selectedPrimary?: string | null;
+  selectedSecondary?: string | null;
+  onSelect: (primary: string, secondary: string) => void;
+}) {
+  const primary = selectedPrimary ?? DEFAULT_PRIMARY;
+  const secondary = selectedSecondary ?? DEFAULT_SECONDARY;
+
+  return (
+    <div className="grid grid-cols-4 sm:grid-cols-8 gap-3">
+      {palettes.map((p) => {
+        const selected =
+          primary.toLowerCase() === p.primary.toLowerCase() &&
+          secondary.toLowerCase() === p.secondary.toLowerCase();
+        const isGradient = Boolean(p.pageGradient);
+        return (
+          <button
+            key={p.id}
+            type="button"
+            onClick={() => onSelect(p.primary, p.secondary)}
+            title={p.name}
+            aria-label={p.name}
+            aria-pressed={selected}
+            className={`group flex flex-col items-center gap-1.5 rounded-xl p-2 border transition ${
+              selected ? "border-slate-400 bg-slate-50" : "border-transparent hover:bg-slate-50"
+            }`}
+          >
+            <span
+              className={`flex h-10 w-10 items-center justify-center rounded-full ring-1 ring-black/10 ${
+                isGradient ? "shadow-sm" : ""
+              }`}
+              style={paletteSwatchStyle(p)}
+            >
+              {selected && (
+                <svg
+                  className={`w-5 h-5 drop-shadow ${isGradient ? "text-charcoal" : "text-white"}`}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                </svg>
+              )}
+            </span>
+            <span className="text-[11px] text-charcoal/70 text-center leading-tight">{p.name}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 function CategoryRulesEditor({
   getAuthHeaders,

@@ -13,6 +13,7 @@
   --theme-text-rgb: 30 58 95;
   --theme-text-muted-rgb: 71 85 105;
   --theme-bg-rgb: 244 247 251;
+  --theme-page-gradient: none;
 }
 
 html {
@@ -27,6 +28,7 @@ html {
 
 body {
   background-color: var(--theme-bg);
+  background-image: var(--theme-page-gradient, none);
   color: var(--theme-text);
   @apply antialiased;
   overflow-x: hidden;
@@ -48,6 +50,11 @@ body {
       rgb(var(--theme-text-rgb) / 0.08) 100%
     );
     background-size: 200% 200%;
+  }
+
+  .home-theme-gradient.has-page-gradient {
+    background-image: var(--theme-page-gradient);
+    background-size: cover;
   }
 
   .home-theme-orb {
