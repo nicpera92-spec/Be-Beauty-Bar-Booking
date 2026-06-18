@@ -324,9 +324,21 @@ export default function AdminCalendarPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12 min-w-0">
-      <div className="flex items-center justify-between mb-4 sm:mb-6 flex-wrap gap-3">
-        <div className="flex items-center gap-2 sm:gap-3 flex-wrap min-w-0">
+      <div className="mb-4 sm:mb-6">
+        <div className="flex items-center justify-between gap-3 mb-3">
           <h1 className="font-serif text-2xl font-semibold text-charcoal shrink-0">Calendar</h1>
+          <Link
+            href="/admin"
+            title="Admin home"
+            aria-label="Admin home"
+            className="inline-flex items-center justify-center h-[38px] w-[38px] rounded-lg border border-slate-200 text-charcoal/70 hover:text-navy hover:bg-slate-50 hover:border-slate-300 transition shrink-0"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="w-[18px] h-[18px]">
+              <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+            </svg>
+          </Link>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
           {isMaster && technicians.length > 0 && (
             <select
               id="calendar-technician-filter"
@@ -334,7 +346,7 @@ export default function AdminCalendarPage() {
               onChange={(e) => setTechnicianFilter(e.target.value)}
               aria-label="Technician schedule"
               title="Technician schedule"
-              className="min-w-[140px] max-w-[200px] rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-charcoal"
+              className="h-[38px] min-w-[140px] max-w-[200px] rounded-lg border border-slate-200 bg-white px-2.5 text-sm text-charcoal"
             >
               <option value="all">Everyone</option>
               {technicians.map((tech) => (
@@ -355,16 +367,6 @@ export default function AdminCalendarPage() {
             />
           )}
         </div>
-        <Link
-          href="/admin"
-          title="Admin home"
-          aria-label="Admin home"
-          className="inline-flex items-center justify-center min-h-[38px] min-w-[38px] rounded-lg border border-slate-200 text-charcoal/70 hover:text-navy hover:bg-slate-50 hover:border-slate-300 transition shrink-0"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="w-[18px] h-[18px]">
-            <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-          </svg>
-        </Link>
       </div>
 
       {/* Calendar + Overview side by side */}

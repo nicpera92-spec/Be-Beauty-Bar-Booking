@@ -100,15 +100,15 @@ export default function CalendarTimeOffAdd({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center min-h-[38px] px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-sm text-charcoal hover:bg-slate-50 hover:border-slate-300 transition"
+        className="inline-flex items-center justify-center h-[38px] px-3 rounded-lg border border-slate-200 bg-white text-sm text-charcoal hover:bg-slate-50 hover:border-slate-300 transition"
       >
-        Add time off
+        Time off
       </button>
 
       {open && (
         <div className="absolute left-0 top-full z-20 mt-2 w-[min(100vw-2rem,22rem)] rounded-xl border border-slate-200 bg-white p-4 shadow-lg space-y-3">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-medium text-charcoal">Add time off</p>
+            <p className="text-sm font-medium text-charcoal">Time off</p>
             <button
               type="button"
               disabled={submitting}
