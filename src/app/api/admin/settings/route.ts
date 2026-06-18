@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { verifyAdminRequest, requireMaster } from "@/lib/auth";
 
@@ -89,25 +90,31 @@ export async function PATCH(req: NextRequest) {
   }
   if (smsNotificationFee != null) data.smsNotificationFee = Number(smsNotificationFee);
 
-  const settings = await prisma.businessSettings.upsert({
-    where: { id: "default" },
-    create: {
-      id: "default",
-      businessName: (data.businessName as string) ?? "Be Beauty Bar",
-      businessEmail: (data.businessEmail as string | null) ?? null,
-      instagramHandle: (data.instagramHandle as string | null) ?? null,
-      defaultDepositAmount: (data.defaultDepositAmount as number | null) ?? null,
-      defaultPrice: (data.defaultPrice as number | null) ?? null,
-      openTime: (data.openTime as string) ?? "09:00",
-      closeTime: (data.closeTime as string) ?? "17:00",
-      slotInterval: (data.slotInterval as number) ?? 30,
-      primaryColor: (data.primaryColor as string) ?? "#1e3a5f",
-      secondaryColor: (data.secondaryColor as string) ?? "#2c5282",
-      stripeSecretKey: (data.stripeSecretKey as string | null) ?? null,
-      stripeWebhookSecret: (data.stripeWebhookSecret as string | null) ?? null,
-      smsNotificationFee: (data.smsNotificationFee as number | null) ?? 0.05,
-    },
-    update: data,
-  });
-  return NextResponse.json(settings);
+  try {
+    const settings = await prisma.businessSettings.upsert({
+      where: { id: "default" },
+      create: {
+        id: "default",
+        businessName: (data.businessName as string) ?? "Be Beauty Bar",
+        businessEmail: (data.businessEmail as string | null) ?? null,
+        instagramHandle: (data.instagramHandle as string | null) ?? null,
+        defaultDepositAmount: (data.defaultDepositAmount as number | null) ?? null,
+        defaultPrice: (data.defaultPrice as number | null) ?? null,
+        openTime: (data.openTime as string) ?? "09:00",
+        closeTime: (data.closeTime as string) ?? "17:00",
+        slotInterval: (data.slotInterval as number) ?? 30,
+        primaryColor: (data.primaryColor as string) ?? "#1e3a5f",
+        secondaryColor: (data.secondaryColor as string) ?? "#2c5282",
+        stripeSecretKey: (data.stripeSecretKey as string | null) ?? null,
+        stripeWebhookSecret: (data.stripeWebhookSecret as string | null) ?? null,
+        smsNotificationFee: (data.smsNotificationFee as number | null) ?? 0.05,
+      },
+      update: data,
+    });
+    revalidatePath("/", "layout");
+    return NextResponse.json(settings);
+  } catch (e) {
+    console.error("Failed to save business settings:", e);
+    return NextResponse.json({ error: "Failed to save settings" }, { status: 500 });
+  }
 }

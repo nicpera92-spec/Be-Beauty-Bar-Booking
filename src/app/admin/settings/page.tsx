@@ -3,7 +3,22 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { THEME_PALETTES, DEFAULT_PRIMARY, DEFAULT_SECONDARY, applyThemeColors } from "@/lib/themePalettes";
+import {
+  THEME_PALETTES,
+  DEFAULT_PRIMARY,
+  DEFAULT_SECONDARY,
+  applyThemeColors,
+  THEME_UPDATE_EVENT,
+  persistThemeColors,
+} from "@/lib/themePalettes";
+
+function publishThemeUpdate(primary: string, secondary: string) {
+  applyThemeColors(primary, secondary);
+  persistThemeColors(primary, secondary);
+  window.dispatchEvent(
+    new CustomEvent(THEME_UPDATE_EVENT, { detail: { primary, secondary } })
+  );
+}
 
 const ADMIN_TOKEN_KEY = "admin-token";
 
@@ -49,6 +64,7 @@ export default function AdminSettingsPage() {
   const [testSmsResult, setTestSmsResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [testSmsTo, setTestSmsTo] = useState("");
   const [sessionCheck, setSessionCheck] = useState<{ ok: boolean; message: string } | null>(null);
+  const [saveMessage, setSaveMessage] = useState<{ ok: boolean; message: string } | null>(null);
 
   useEffect(() => {
     const token = sessionStorage.getItem(ADMIN_TOKEN_KEY);
@@ -114,7 +130,7 @@ export default function AdminSettingsPage() {
             primaryColor: data.primaryColor ?? DEFAULT_PRIMARY,
             secondaryColor: data.secondaryColor ?? DEFAULT_SECONDARY,
           });
-          applyThemeColors(
+          publishThemeUpdate(
             data.primaryColor ?? DEFAULT_PRIMARY,
             data.secondaryColor ?? DEFAULT_SECONDARY
           );
@@ -127,6 +143,7 @@ export default function AdminSettingsPage() {
   const save = (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    setSaveMessage(null);
     // Build payload - only include Stripe keys if they've been changed
     const payload: Partial<Settings> = {
       businessName: form.businessName,
@@ -138,8 +155,8 @@ export default function AdminSettingsPage() {
       closeTime: form.closeTime,
       slotInterval: form.slotInterval,
       smsNotificationFee: form.smsNotificationFee,
-      primaryColor: form.primaryColor,
-      secondaryColor: form.secondaryColor,
+      primaryColor: form.primaryColor ?? DEFAULT_PRIMARY,
+      secondaryColor: form.secondaryColor ?? DEFAULT_SECONDARY,
     };
     
     // Only include Stripe keys if user has changed them
@@ -155,13 +172,18 @@ export default function AdminSettingsPage() {
       headers: { "Content-Type": "application/json", ...getAuthHeaders() },
       body: JSON.stringify(payload),
     })
-      .then((r) => {
+      .then(async (r) => {
         if (r.status === 401) {
           sessionStorage.removeItem(ADMIN_TOKEN_KEY);
           router.replace("/admin");
           return null;
         }
-        return r.json();
+        const data = await r.json();
+        if (!r.ok) {
+          setSaveMessage({ ok: false, message: data.error ?? "Could not save settings" });
+          return null;
+        }
+        return data;
       })
       .then((data) => {
         if (data) {
@@ -181,19 +203,22 @@ export default function AdminSettingsPage() {
             primaryColor: data.primaryColor ?? DEFAULT_PRIMARY,
             secondaryColor: data.secondaryColor ?? DEFAULT_SECONDARY,
           });
-          applyThemeColors(
+          publishThemeUpdate(
             data.primaryColor ?? DEFAULT_PRIMARY,
             data.secondaryColor ?? DEFAULT_SECONDARY
           );
           setStripeKeysChanged({ secret: false, webhook: false });
+          setSaveMessage({ ok: true, message: "Settings saved — theme applied across the site." });
+          router.refresh();
         }
       })
+      .catch(() => setSaveMessage({ ok: false, message: "Save request failed" }))
       .finally(() => setSaving(false));
   };
 
   const selectPalette = (primary: string, secondary: string) => {
     setForm((f) => ({ ...f, primaryColor: primary, secondaryColor: secondary }));
-    applyThemeColors(primary, secondary);
+    publishThemeUpdate(primary, secondary);
   };
 
   if (hasToken === null) return null;
@@ -584,6 +609,11 @@ export default function AdminSettingsPage() {
         >
           {saving ? "Saving…" : "Save settings"}
         </button>
+        {saveMessage && (
+          <p className={`text-sm text-center ${saveMessage.ok ? "text-green-700" : "text-red-600"}`}>
+            {saveMessage.message}
+          </p>
+        )}
       </form>
     </div>
   );

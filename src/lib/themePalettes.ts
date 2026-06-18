@@ -105,26 +105,62 @@ export function buildThemeTokens(primary: string, secondary: string): ThemeToken
   return { primary, secondary, pageBg, text, textMuted, onPrimary: "#ffffff" };
 }
 
-function setRgbVar(root: HTMLElement, name: string, hex: string) {
+function rgbTriplet(hex: string): string {
   const { r, g, b } = hexToRgb(hex);
-  root.style.setProperty(name, `${r} ${g} ${b}`);
+  return `${r} ${g} ${b}`;
+}
+
+/** CSS custom properties for a theme — used server-side (layout) and client-side. */
+export function themeColorsToCssVars(primary: string, secondary: string): Record<string, string> {
+  const tokens = buildThemeTokens(primary, secondary);
+  return {
+    "--navy": tokens.primary,
+    "--navy-light": tokens.secondary,
+    "--theme-bg": tokens.pageBg,
+    "--theme-text": tokens.text,
+    "--theme-text-muted": tokens.textMuted,
+    "--theme-on-primary": tokens.onPrimary,
+    "--navy-rgb": rgbTriplet(tokens.primary),
+    "--theme-text-rgb": rgbTriplet(tokens.text),
+    "--theme-text-muted-rgb": rgbTriplet(tokens.textMuted),
+    "--theme-bg-rgb": rgbTriplet(tokens.pageBg),
+  };
+}
+
+export const THEME_UPDATE_EVENT = "bb-theme-update";
+const THEME_STORAGE_KEY = "bb-theme-colors";
+
+/** Persist theme in sessionStorage so client navigations keep the saved palette. */
+export function persistThemeColors(primary: string, secondary: string) {
+  if (typeof sessionStorage === "undefined") return;
+  try {
+    sessionStorage.setItem(THEME_STORAGE_KEY, JSON.stringify({ primary, secondary }));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function readPersistedTheme(): { primary: string; secondary: string } | null {
+  if (typeof sessionStorage === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(THEME_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { primary?: string; secondary?: string };
+    if (parsed.primary && parsed.secondary) {
+      return { primary: parsed.primary, secondary: parsed.secondary };
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
 }
 
 /** Apply theme tokens to the document root (booking + admin). */
 export function applyThemeColors(primary: string, secondary: string) {
   if (typeof document === "undefined") return;
-  const tokens = buildThemeTokens(primary, secondary);
+  const vars = themeColorsToCssVars(primary, secondary);
   const root = document.documentElement;
-
-  root.style.setProperty("--navy", tokens.primary);
-  root.style.setProperty("--navy-light", tokens.secondary);
-  root.style.setProperty("--theme-bg", tokens.pageBg);
-  root.style.setProperty("--theme-text", tokens.text);
-  root.style.setProperty("--theme-text-muted", tokens.textMuted);
-  root.style.setProperty("--theme-on-primary", tokens.onPrimary);
-
-  setRgbVar(root, "--navy-rgb", tokens.primary);
-  setRgbVar(root, "--theme-text-rgb", tokens.text);
-  setRgbVar(root, "--theme-text-muted-rgb", tokens.textMuted);
-  setRgbVar(root, "--theme-bg-rgb", tokens.pageBg);
+  for (const [name, value] of Object.entries(vars)) {
+    root.style.setProperty(name, value);
+  }
 }
