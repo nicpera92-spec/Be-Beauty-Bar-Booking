@@ -1,11 +1,15 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { NOTIFICATION_MESSAGE_GROUPS, type NotificationMessages } from "@/lib/notificationDefaults";
+import { useRef, useState, type ReactNode } from "react";
+import {
+  NOTIFICATION_MESSAGE_GROUPS,
+  type NotificationMessageField,
+  type NotificationMessages,
+} from "@/lib/notificationDefaults";
 import {
   MESSAGE_INSERT_TAGS,
+  PLACEHOLDER_LABELS,
   previewEmailHtml,
-  previewMessage,
 } from "@/lib/notificationTemplates";
 
 type NotificationMessagesEditorProps = {
@@ -15,6 +19,37 @@ type NotificationMessagesEditorProps = {
   previewSending?: boolean;
   previewResult?: { ok: boolean; message: string } | null;
 };
+
+const PLACEHOLDER_RE = /\*\*([^*]+)\*\*|\{\{(\w+)\}\}/g;
+
+function renderPlaceholderHighlight(text: string): ReactNode {
+  if (!text) return null;
+
+  const parts: ReactNode[] = [];
+  let last = 0;
+  let key = 0;
+  let match: RegExpExecArray | null;
+
+  PLACEHOLDER_RE.lastIndex = 0;
+  while ((match = PLACEHOLDER_RE.exec(text)) !== null) {
+    if (match.index > last) {
+      parts.push(text.slice(last, match.index));
+    }
+    const label = match[1] ?? PLACEHOLDER_LABELS[match[2]] ?? match[2];
+    parts.push(
+      <strong key={key++} className="font-semibold text-navy">
+        {label}
+      </strong>
+    );
+    last = match.index + match[0].length;
+  }
+
+  if (last < text.length) {
+    parts.push(text.slice(last));
+  }
+
+  return parts;
+}
 
 function insertAtCursor(
   el: HTMLTextAreaElement | HTMLInputElement | null,
@@ -37,6 +72,86 @@ function insertAtCursor(
   });
 }
 
+function HighlightedInput({
+  value,
+  onChange,
+  placeholder,
+  rows = 1,
+  inputRef,
+  onFocus,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  rows?: number;
+  inputRef?: React.RefObject<HTMLInputElement | HTMLTextAreaElement | null>;
+  onFocus?: () => void;
+}) {
+  const localRef = useRef<HTMLTextAreaElement | HTMLInputElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const isMultiline = rows > 1;
+
+  const setRef = (el: HTMLTextAreaElement | HTMLInputElement | null) => {
+    (localRef as React.MutableRefObject<HTMLTextAreaElement | HTMLInputElement | null>).current =
+      el;
+    if (inputRef) {
+      (inputRef as React.MutableRefObject<HTMLInputElement | HTMLTextAreaElement | null>).current =
+        el;
+    }
+  };
+
+  const syncScroll = () => {
+    if (backdropRef.current && localRef.current && "scrollTop" in localRef.current) {
+      backdropRef.current.scrollTop = localRef.current.scrollTop;
+      backdropRef.current.scrollLeft = localRef.current.scrollLeft;
+    }
+  };
+
+  const fieldClass =
+    "w-full px-3 py-2.5 text-sm leading-relaxed text-charcoal focus:outline-none";
+
+  return (
+    <div className="relative rounded-xl border border-slate-200 bg-white focus-within:border-navy/40 focus-within:ring-2 focus-within:ring-navy/10 overflow-hidden">
+      <div
+        ref={backdropRef}
+        aria-hidden
+        className={`${fieldClass} absolute inset-0 pointer-events-none whitespace-pre-wrap break-words overflow-hidden`}
+      >
+        {renderPlaceholderHighlight(value)}
+      </div>
+
+      {!value && (
+        <div
+          className={`${fieldClass} absolute inset-0 pointer-events-none text-charcoal/35 whitespace-pre-wrap`}
+        >
+          {placeholder}
+        </div>
+      )}
+
+      {isMultiline ? (
+        <textarea
+          ref={setRef as React.RefCallback<HTMLTextAreaElement>}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onFocus={onFocus}
+          onScroll={syncScroll}
+          rows={rows}
+          className={`${fieldClass} relative z-10 resize-y bg-transparent text-transparent caret-charcoal`}
+        />
+      ) : (
+        <input
+          ref={setRef as React.RefCallback<HTMLInputElement>}
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onFocus={onFocus}
+          className={`${fieldClass} relative z-10 bg-transparent text-transparent caret-charcoal`}
+        />
+      )}
+    </div>
+  );
+}
+
 function InsertTags({
   onInsert,
   compact,
@@ -48,7 +163,7 @@ function InsertTags({
     <div className="flex flex-wrap gap-1.5">
       {MESSAGE_INSERT_TAGS.map((tag) => (
         <button
-          key={tag.token}
+          key={tag.label}
           type="button"
           title={tag.hint ?? `Insert ${tag.label.toLowerCase()}`}
           onClick={() => onInsert(tag.token)}
@@ -63,38 +178,29 @@ function InsertTags({
   );
 }
 
-function MessageField({
-  label,
+function SimpleField({
+  field,
   value,
-  kind,
   onChange,
+  onActivate,
 }: {
-  label: string;
+  field: NotificationMessageField;
   value: string;
-  kind: "subject" | "email" | "sms";
   onChange: (value: string) => void;
+  onActivate: (el: HTMLInputElement | HTMLTextAreaElement | null) => void;
 }) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
   const [showPreview, setShowPreview] = useState(false);
 
-  const inputClass =
-    "w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-charcoal focus:border-navy/40 focus:ring-2 focus:ring-navy/10 outline-none";
-  const isMultiline = kind !== "subject";
-
-  const handleInsert = (token: string) => {
-    if (kind === "subject") {
-      insertAtCursor(inputRef.current, value, token, onChange);
-    } else {
-      insertAtCursor(textareaRef.current, value, token, onChange);
-    }
-  };
+  const subjectPlaceholder = "e.g. Your booking is confirmed";
+  const emailPlaceholder = "Write your message here…";
+  const smsPlaceholder = "Write your text message here…";
 
   return (
-    <div className="rounded-xl border border-slate-100 bg-slate-50/40 p-3 space-y-2">
+    <div className="space-y-1.5">
       <div className="flex items-center justify-between gap-2">
-        <label className="text-sm font-medium text-charcoal">{label}</label>
-        {isMultiline && (
+        <label className="text-xs font-medium text-charcoal/70">{field.label}:</label>
+        {field.kind === "email" && (
           <button
             type="button"
             onClick={() => setShowPreview((v) => !v)}
@@ -105,59 +211,91 @@ function MessageField({
         )}
       </div>
 
-      <div>
-        <p className="text-xs text-charcoal/50 mb-1.5">Tap to insert details:</p>
-        <InsertTags onInsert={handleInsert} compact={kind === "sms"} />
-      </div>
+      <HighlightedInput
+        inputRef={inputRef}
+        value={value}
+        onChange={onChange}
+        onFocus={() => onActivate(inputRef.current)}
+        rows={field.kind === "subject" ? 1 : field.kind === "sms" ? 4 : 8}
+        placeholder={
+          field.kind === "subject"
+            ? subjectPlaceholder
+            : field.kind === "sms"
+              ? smsPlaceholder
+              : emailPlaceholder
+        }
+      />
 
-      {kind === "subject" ? (
-        <input
-          ref={inputRef}
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className={inputClass}
-          placeholder="e.g. Hi {{customerName}}, your booking is confirmed"
-        />
-      ) : (
-        <textarea
-          ref={textareaRef}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          rows={kind === "sms" ? 4 : 8}
-          className={`${inputClass} resize-y leading-relaxed`}
-          placeholder={
-            kind === "sms"
-              ? "Write your text message here. Keep it short."
-              : "Write your email like a normal message. Press Enter twice between paragraphs. Add links by typing e.g. Book here: {{bookLink}}"
-          }
-        />
-      )}
-
-      {kind === "sms" && (
-        <p className="text-xs text-charcoal/45">Text messages work best when kept short.</p>
-      )}
-
-      {kind === "email" && (
-        <p className="text-xs text-charcoal/45">
-          Write normally — no coding needed. Links like <span className="font-medium">Book here: {"{{bookLink}}"}</span> become clickable in the email.
-        </p>
-      )}
-
-      {showPreview && isMultiline && (
+      {showPreview && field.kind === "email" && (
         <div className="rounded-lg border border-slate-200 bg-white p-3 space-y-2">
           <p className="text-[11px] font-medium uppercase tracking-wide text-charcoal/45">
             Example preview
           </p>
-          {kind === "email" ? (
-            <div
-              className="text-sm text-charcoal prose-p:my-2 prose-a:text-navy prose-a:underline max-w-none"
-              dangerouslySetInnerHTML={{ __html: previewEmailHtml(value) }}
-            />
-          ) : (
-            <p className="text-sm text-charcoal whitespace-pre-wrap">{previewMessage(value)}</p>
-          )}
+          <div
+            className="text-sm text-charcoal prose-p:my-2 prose-a:text-navy prose-a:underline max-w-none"
+            dangerouslySetInnerHTML={{ __html: previewEmailHtml(value) }}
+          />
         </div>
+      )}
+    </div>
+  );
+}
+
+function MessageSection({
+  title,
+  fields,
+  messages,
+  onUpdate,
+}: {
+  title: string;
+  fields: NotificationMessageField[];
+  messages: NotificationMessages;
+  onUpdate: (key: keyof NotificationMessages, value: string) => void;
+}) {
+  const activeRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
+  const activeKeyRef = useRef<keyof NotificationMessages>(fields[0]?.key);
+  const isSmsOnly = fields.length === 1 && fields[0].kind === "sms";
+
+  const handleActivate =
+    (key: keyof NotificationMessages) => (el: HTMLInputElement | HTMLTextAreaElement | null) => {
+      activeKeyRef.current = key;
+      activeRef.current = el;
+    };
+
+  const handleInsert = (token: string) => {
+    const key = activeKeyRef.current ?? fields[0].key;
+    insertAtCursor(activeRef.current, messages[key], token, (v) => onUpdate(key, v));
+  };
+
+  return (
+    <div className="rounded-xl border border-slate-100 bg-slate-50/40 p-3 space-y-3">
+      <p className="text-sm font-semibold text-charcoal">{title}</p>
+
+      <div>
+        <p className="text-xs text-charcoal/50 mb-1.5">Add details:</p>
+        <InsertTags onInsert={handleInsert} compact={isSmsOnly} />
+      </div>
+
+      {fields.map((field) => (
+        <SimpleField
+          key={field.key}
+          field={field}
+          value={messages[field.key]}
+          onChange={(v) => onUpdate(field.key, v)}
+          onActivate={handleActivate(field.key)}
+        />
+      ))}
+
+      {!isSmsOnly && fields.some((f) => f.kind === "email") && (
+        <p className="text-xs text-charcoal/45">
+          Tap a field first, then use Add details. Links like{" "}
+          <span className="font-medium">Book here: **Booking link**</span> become clickable in the
+          email.
+        </p>
+      )}
+
+      {isSmsOnly && (
+        <p className="text-xs text-charcoal/45">Keep text messages short.</p>
       )}
     </div>
   );
@@ -181,15 +319,19 @@ export default function NotificationMessagesEditor({
       <div className="rounded-xl border border-navy/15 bg-navy/5 px-4 py-3 text-sm text-charcoal/80">
         <p className="font-medium text-charcoal mb-1">How this works</p>
         <p>
-          Type your messages in plain English. Use the <strong>+ buttons</strong> to drop in customer
-          name, date, service, booking links, and more — they fill in automatically when sent.
+          Type your messages in plain English. Use <strong>Add details</strong> to drop in customer
+          name, date, service, and links — they appear in <strong>bold</strong> and fill in
+          automatically when sent.
         </p>
       </div>
 
       {NOTIFICATION_MESSAGE_GROUPS.map((group) => {
         const expanded = openGroup === group.id;
         return (
-          <div key={group.id} className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+          <div
+            key={group.id}
+            className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm"
+          >
             <button
               type="button"
               onClick={() => setOpenGroup(expanded ? "" : group.id)}
@@ -206,13 +348,13 @@ export default function NotificationMessagesEditor({
 
             {expanded && (
               <div className="px-4 pb-4 pt-1 space-y-3 border-t border-slate-100">
-                {group.fields.map((field) => (
-                  <MessageField
-                    key={field.key}
-                    label={field.label}
-                    kind={field.kind}
-                    value={messages[field.key]}
-                    onChange={(v) => update(field.key, v)}
+                {group.sections.map((section) => (
+                  <MessageSection
+                    key={section.title}
+                    title={section.title}
+                    fields={section.fields}
+                    messages={messages}
+                    onUpdate={update}
                   />
                 ))}
 

@@ -3,21 +3,64 @@ import {
   type NotificationMessages,
 } from "@/lib/notificationDefaults";
 
-export function applyTemplate(template: string, vars: Record<string, string>): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => vars[key] ?? "");
+/** Maps internal variable names to the friendly label shown in the editor. */
+export const PLACEHOLDER_LABELS: Record<string, string> = {
+  customerName: "Customer name",
+  serviceName: "Service",
+  technicianName: "Technician",
+  date: "Date",
+  time: "Time",
+  businessName: "Salon name",
+  bookLink: "Booking link",
+  bookingLink: "Booking link",
+  depositLink: "Pay deposit link",
+};
+
+const LABEL_TO_VAR: Record<string, string> = {
+  "Customer name": "customerName",
+  Service: "serviceName",
+  Technician: "technicianName",
+  Date: "date",
+  Time: "time",
+  "Salon name": "businessName",
+  "Booking link": "bookLink",
+  "Pay deposit link": "depositLink",
+};
+
+export function friendlyToken(label: string): string {
+  return `**${label}**`;
 }
 
 /** Friendly labels — shown as buttons in Settings → Messages. */
 export const MESSAGE_INSERT_TAGS: { label: string; token: string; hint?: string }[] = [
-  { label: "Customer name", token: "{{customerName}}" },
-  { label: "Service", token: "{{serviceName}}" },
-  { label: "Technician", token: "{{technicianName}}" },
-  { label: "Date", token: "{{date}}" },
-  { label: "Time", token: "{{time}}" },
-  { label: "Salon name", token: "{{businessName}}" },
-  { label: "Booking link", token: "{{bookLink}}", hint: "Link to book a slot" },
-  { label: "Pay deposit link", token: "{{depositLink}}", hint: "Link to pay deposit" },
+  { label: "Customer name", token: friendlyToken("Customer name") },
+  { label: "Service", token: friendlyToken("Service") },
+  { label: "Technician", token: friendlyToken("Technician") },
+  { label: "Date", token: friendlyToken("Date") },
+  { label: "Time", token: friendlyToken("Time") },
+  { label: "Salon name", token: friendlyToken("Salon name") },
+  { label: "Booking link", token: friendlyToken("Booking link"), hint: "Link to book a slot" },
+  {
+    label: "Pay deposit link",
+    token: friendlyToken("Pay deposit link"),
+    hint: "Link to pay deposit",
+  },
 ];
+
+export function toFriendlyPlaceholders(template: string): string {
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => {
+    const label = PLACEHOLDER_LABELS[key];
+    return label ? friendlyToken(label) : `{{${key}}}`;
+  });
+}
+
+export function applyTemplate(template: string, vars: Record<string, string>): string {
+  const withFriendly = template.replace(/\*\*([^*]+)\*\*/g, (_, label: string) => {
+    const key = LABEL_TO_VAR[label.trim()];
+    return key ? (vars[key] ?? "") : label;
+  });
+  return withFriendly.replace(/\{\{(\w+)\}\}/g, (_, key: string) => vars[key] ?? "");
+}
 
 export const MESSAGE_PREVIEW_SAMPLE: Record<string, string> = {
   customerName: "Alex",
@@ -97,11 +140,11 @@ export function renderEmailBody(template: string, vars: Record<string, string>):
 }
 
 function normalizeStoredMessage(value: string, fallback: string): string {
-  if (!value) return fallback;
-  if (value.includes("<") && /<[a-z][\s\S]*>/i.test(value)) {
-    return htmlToPlainText(value);
+  let text = value || fallback;
+  if (text.includes("<") && /<[a-z][\s\S]*>/i.test(text)) {
+    text = htmlToPlainText(text);
   }
-  return value;
+  return toFriendlyPlaceholders(text);
 }
 
 export function resolveNotificationMessages(stored: unknown): NotificationMessages {

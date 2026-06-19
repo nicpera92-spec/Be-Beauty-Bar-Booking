@@ -714,21 +714,13 @@ function AdminSettingsPageInner() {
         )}
 
         {tab === "messages" && (
-          <>
-            <div>
-              <h2 className="text-lg font-semibold text-navy mb-1">Messages</h2>
-              <p className="text-sm text-charcoal/55">
-                Customise emails and texts in plain words — tap the + buttons to add customer name, date, service, and links. Save when you&apos;re done.
-              </p>
-            </div>
-            <NotificationMessagesEditor
-              messages={notificationMessages}
-              onChange={setNotificationMessages}
-              onPreviewWaitlist={previewWaitlistEmail}
-              previewSending={waitlistPreviewSending}
-              previewResult={waitlistPreviewResult}
-            />
-          </>
+          <NotificationMessagesEditor
+            messages={notificationMessages}
+            onChange={setNotificationMessages}
+            onPreviewWaitlist={previewWaitlistEmail}
+            previewSending={waitlistPreviewSending}
+            previewResult={waitlistPreviewResult}
+          />
         )}
 
         {tab === "payments" && (
