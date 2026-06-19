@@ -18,8 +18,11 @@ type NotificationMessagesEditorProps = {
   messages: NotificationMessages;
   onChange: (messages: NotificationMessages) => void;
   onPreviewWaitlist?: () => void;
+  onPreviewRebook?: () => void;
   previewSending?: boolean;
   previewResult?: { ok: boolean; message: string } | null;
+  rebookPreviewSending?: boolean;
+  rebookPreviewResult?: { ok: boolean; message: string } | null;
 };
 
 function insertAtCursor(
@@ -386,6 +389,9 @@ export default function NotificationMessagesEditor({
   onPreviewWaitlist,
   previewSending,
   previewResult,
+  onPreviewRebook,
+  rebookPreviewSending,
+  rebookPreviewResult,
 }: NotificationMessagesEditorProps) {
   const [openGroup, setOpenGroup] = useState<string>("");
 
@@ -452,6 +458,26 @@ export default function NotificationMessagesEditor({
                         className={`mt-2 text-sm ${previewResult.ok ? "text-green-700" : "text-red-600"}`}
                       >
                         {previewResult.message}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {group.id === "rebook-reminder" && onPreviewRebook && (
+                  <div className="pt-2 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={onPreviewRebook}
+                      disabled={rebookPreviewSending}
+                      className="px-4 py-2.5 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-light disabled:opacity-50 touch-manipulation"
+                    >
+                      {rebookPreviewSending ? "Sending preview…" : "Send test email to yourself"}
+                    </button>
+                    {rebookPreviewResult && (
+                      <p
+                        className={`mt-2 text-sm ${rebookPreviewResult.ok ? "text-green-700" : "text-red-600"}`}
+                      >
+                        {rebookPreviewResult.message}
                       </p>
                     )}
                   </div>

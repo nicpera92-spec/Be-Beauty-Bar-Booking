@@ -19,6 +19,7 @@ export const PLACEHOLDER_LABELS: Record<string, string> = {
   bookLink: "Booking link",
   bookingLink: "Booking link",
   depositLink: "Pay deposit link",
+  optOutLink: "Opt out link",
 };
 
 const LABEL_TO_VAR: Record<string, string> = {
@@ -30,6 +31,7 @@ const LABEL_TO_VAR: Record<string, string> = {
   "Salon name": "businessName",
   "Booking link": "bookLink",
   "Pay deposit link": "depositLink",
+  "Opt out link": "optOutLink",
 };
 
 export function friendlyToken(label: string): string {
@@ -126,6 +128,7 @@ export const MESSAGE_PREVIEW_SAMPLE: Record<string, string> = {
   bookLink: "https://bbbar.co.uk/book",
   bookingLink: "https://bbbar.co.uk/book",
   depositLink: "https://bbbar.co.uk/booking/example",
+  optOutLink: "https://bbbar.co.uk/rebook-reminder/opt-out?token=example",
 };
 
 function escapeHtml(text: string): string {

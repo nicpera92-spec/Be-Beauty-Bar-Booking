@@ -60,6 +60,8 @@ type Settings = {
   secondaryColor?: string | null;
   notificationMessages?: unknown;
   waitlistEnabled?: boolean;
+  rebookReminderEnabled?: boolean;
+  rebookReminderDaysAfter?: number;
 };
 
 type CategoryRule = {
@@ -93,6 +95,11 @@ function AdminSettingsPageInner() {
   );
   const [waitlistPreviewSending, setWaitlistPreviewSending] = useState(false);
   const [waitlistPreviewResult, setWaitlistPreviewResult] = useState<{
+    ok: boolean;
+    message: string;
+  } | null>(null);
+  const [rebookPreviewSending, setRebookPreviewSending] = useState(false);
+  const [rebookPreviewResult, setRebookPreviewResult] = useState<{
     ok: boolean;
     message: string;
   } | null>(null);
@@ -154,6 +161,8 @@ function AdminSettingsPageInner() {
       stripeWebhookSecret: "",
       smsNotificationFee: data.smsNotificationFee ?? 0.05,
       waitlistEnabled: data.waitlistEnabled ?? true,
+      rebookReminderEnabled: data.rebookReminderEnabled ?? false,
+      rebookReminderDaysAfter: data.rebookReminderDaysAfter ?? 21,
     });
     const primary = data.primaryColor ?? DEFAULT_PRIMARY;
     const secondary = data.secondaryColor ?? DEFAULT_SECONDARY;
@@ -201,6 +210,8 @@ function AdminSettingsPageInner() {
       slotInterval: form.slotInterval,
       smsNotificationFee: form.smsNotificationFee,
       waitlistEnabled: form.waitlistEnabled ?? true,
+      rebookReminderEnabled: form.rebookReminderEnabled ?? false,
+      rebookReminderDaysAfter: form.rebookReminderDaysAfter ?? 21,
       primaryColor,
       secondaryColor,
       notificationMessages,
@@ -285,6 +296,41 @@ function AdminSettingsPageInner() {
       setWaitlistPreviewResult({ ok: false, message: "Preview request failed" });
     } finally {
       setWaitlistPreviewSending(false);
+    }
+  };
+
+  const previewRebookEmail = async () => {
+    setRebookPreviewSending(true);
+    setRebookPreviewResult(null);
+    try {
+      const saveR = await fetch("/api/admin/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({ notificationMessages }),
+      });
+      if (!saveR.ok) {
+        const err = await saveR.json();
+        setRebookPreviewResult({
+          ok: false,
+          message: err.error ?? "Save messages before previewing",
+        });
+        return;
+      }
+
+      const r = await fetch("/api/admin/test-rebook-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({}),
+      });
+      const data = await r.json();
+      setRebookPreviewResult({
+        ok: r.ok,
+        message: r.ok ? data.message : data.error ?? "Could not send preview",
+      });
+    } catch {
+      setRebookPreviewResult({ ok: false, message: "Preview request failed" });
+    } finally {
+      setRebookPreviewSending(false);
     }
   };
 
@@ -578,6 +624,55 @@ function AdminSettingsPageInner() {
               </span>
             </label>
 
+            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-4">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.rebookReminderEnabled ?? false}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, rebookReminderEnabled: e.target.checked }))
+                  }
+                  className="mt-0.5 rounded border-slate-300 text-navy focus:ring-navy/20"
+                />
+                <span>
+                  <span className="block text-sm font-medium text-charcoal">Rebook reminders</span>
+                  <span className="block text-sm text-charcoal/55 mt-0.5">
+                    Send a polite email or text inviting customers back after their last visit.
+                    Uses the same email/text choice they picked when they booked. If they rebook
+                    sooner, the timer resets from their new appointment.
+                  </span>
+                </span>
+              </label>
+
+              <div className={form.rebookReminderEnabled ? "" : "opacity-50 pointer-events-none"}>
+                <label className={labelClass}>Days after last visit</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={7}
+                    max={365}
+                    value={form.rebookReminderDaysAfter ?? 21}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        rebookReminderDaysAfter: Math.min(
+                          365,
+                          Math.max(7, Number(e.target.value) || 21)
+                        ),
+                      }))
+                    }
+                    className={`${inputClass} w-24`}
+                  />
+                  <span className="text-sm text-charcoal/55">days (7–365)</span>
+                </div>
+                <p className="text-xs text-charcoal/45 mt-1.5">
+                  Checked once a day. Reminder goes out this many days after each customer&apos;s
+                  most recent visit. Customers who rebook within that time are not reminded until
+                  the same number of days after their next visit. Opted-out customers are skipped.
+                </p>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className={labelClass}>Default price (£)</label>
@@ -721,6 +816,9 @@ function AdminSettingsPageInner() {
             onPreviewWaitlist={previewWaitlistEmail}
             previewSending={waitlistPreviewSending}
             previewResult={waitlistPreviewResult}
+            onPreviewRebook={previewRebookEmail}
+            rebookPreviewSending={rebookPreviewSending}
+            rebookPreviewResult={rebookPreviewResult}
           />
         )}
 

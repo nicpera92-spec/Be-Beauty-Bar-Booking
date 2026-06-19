@@ -81,6 +81,8 @@ model BusinessSettings {
   stripeWebhookSecret  String?
   smsNotificationFee   Float?   @default(0.05)
   waitlistEnabled      Boolean  @default(true)
+  rebookReminderEnabled   Boolean  @default(false)
+  rebookReminderDaysAfter Int      @default(21)
   notificationMessages Json?
   updatedAt            DateTime @updatedAt
 }
@@ -107,6 +109,15 @@ model WaitingListEntry {
 
   @@index([serviceId, technicianId, preferredDate, status])
   @@index([preferredDate, status])
+}
+
+model CustomerNotificationPreference {
+  id                   String    @id @default(cuid())
+  email                String?   @unique
+  phone                String?   @unique
+  rebookReminderOptOut Boolean   @default(false)
+  rebookOptOutAt       DateTime?
+  updatedAt            DateTime  @updatedAt
 }
 
 model AvailabilityBlock {
@@ -154,6 +165,7 @@ model Booking {
   depositRefundedAt             DateTime?
   balanceRefundedAt             DateTime?
   reminderSentAt                DateTime?
+  rebookReminderSentAt          DateTime?
   createdAt                     DateTime       @default(now())
   updatedAt                     DateTime       @updatedAt
 }

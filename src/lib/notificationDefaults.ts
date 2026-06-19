@@ -24,6 +24,9 @@ export type NotificationMessages = {
   waitlistCustomerSubject: string;
   waitlistCustomerBody: string;
   waitlistCustomerSms: string;
+  rebookReminderCustomerSubject: string;
+  rebookReminderCustomerBody: string;
+  rebookReminderCustomerSms: string;
 };
 
 export const DEFAULT_NOTIFICATION_MESSAGES: NotificationMessages = {
@@ -155,6 +158,23 @@ We hope to see you soon!
 — **Salon name**`,
   waitlistCustomerSms:
     "Hi **Customer name**! A **Service** slot opened at **Salon name** on **Date** at **Time**. Book now: **Booking link**",
+
+  rebookReminderCustomerSubject: "We would love to see you again at **Salon name**",
+  rebookReminderCustomerBody: `Hi **Customer name**,
+
+We hope you enjoyed your **Service** with **Technician** when you visited us on **Date**.
+
+It has been a little while since your last appointment, and we would love to welcome you back. If you would like to rebook with us, you can do so here:
+
+**Booking link**
+
+We look forward to seeing you again!
+
+— **Salon name**
+
+If you would rather not receive rebook reminders from us in future, you can opt out here: **Opt out link**`,
+  rebookReminderCustomerSms:
+    "Hi **Customer name**, we hope you enjoyed your **Service** with **Technician** at **Salon name**. Would you like to rebook? **Booking link** To stop rebook reminders: **Opt out link**",
 };
 
 export type NotificationMessageField = {
@@ -305,6 +325,25 @@ export const NOTIFICATION_MESSAGE_GROUPS: NotificationMessageGroup[] = [
       {
         title: "Customer text",
         fields: [{ key: "waitlistCustomerSms", label: "Message", kind: "sms" }],
+      },
+    ],
+  },
+  {
+    id: "rebook-reminder",
+    title: "Rebook reminder",
+    description:
+      "Sent after a customer's most recent visit if they have not booked again. Uses their last booking's email/text preference. Timing is set in Bookings settings.",
+    sections: [
+      {
+        title: "Customer email",
+        fields: [
+          { key: "rebookReminderCustomerSubject", label: "Subject", kind: "subject" },
+          { key: "rebookReminderCustomerBody", label: "Message", kind: "email" },
+        ],
+      },
+      {
+        title: "Customer text",
+        fields: [{ key: "rebookReminderCustomerSms", label: "Message", kind: "sms" }],
       },
     ],
   },

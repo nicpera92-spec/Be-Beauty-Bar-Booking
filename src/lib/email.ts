@@ -61,6 +61,7 @@ function bookingVars(
     bookingLink: extra?.bookingLink ?? "",
     depositLink: extra?.depositLink ?? "",
     bookLink: extra?.bookLink ?? "",
+    optOutLink: extra?.optOutLink ?? "",
   };
 }
 
@@ -323,6 +324,72 @@ export async function sendBookingReminderEmails(
   }
 }
 
+export async function sendRebookReminderEmails(
+  bookingId: string
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { service: true, technician: true },
+    });
+    if (!booking || booking.status !== "confirmed") {
+      return { ok: false, error: "Booking not found or not confirmed" };
+    }
+
+    const { buildRebookOptOutLink } = await import("@/lib/rebookReminder");
+    const { messages, businessName } = await getMessages();
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001";
+    const bookLink = `${baseUrl}/book`;
+    const optOutLink = await buildRebookOptOutLink(booking.customerEmail, booking.customerPhone);
+
+    const vars = bookingVars(booking, businessName, {
+      technicianName: booking.technician.name,
+      bookLink,
+      bookingLink: bookLink,
+      optOutLink,
+    });
+
+    const smsVars = {
+      ...vars,
+      date: formatBookingDate(booking.date, "dd/MM/yyyy"),
+      time: `${booking.startTime}-${booking.endTime}`,
+    };
+
+    let sent = false;
+
+    if (booking.notifyByEmail && booking.customerEmail && resendClient) {
+      const r = await sendResendEmail({
+        from,
+        to: booking.customerEmail,
+        subject: renderEmailSubject(messages.rebookReminderCustomerSubject, vars),
+        html: renderEmailBody(messages.rebookReminderCustomerBody, vars),
+      });
+      if (!r.ok) return r;
+      sent = true;
+    }
+
+    if (booking.notifyBySMS && booking.customerPhone) {
+      const smsMessage = applyTemplate(messages.rebookReminderCustomerSms, smsVars);
+      const smsResult = await sendSMS(formatUKPhoneToE164(booking.customerPhone), smsMessage);
+      if (!smsResult.ok) {
+        if (!sent) return { ok: false, error: smsResult.error };
+        console.warn("SMS not sent for rebook reminder:", smsResult.error);
+      } else {
+        sent = true;
+      }
+    }
+
+    if (!sent) {
+      return { ok: false, error: "No notification channel available" };
+    }
+
+    return { ok: true };
+  } catch (e) {
+    console.error("sendRebookReminderEmails:", e);
+    return { ok: false, error: String(e) };
+  }
+}
+
 type WaitlistNotifyParams = {
   entry: {
     id: string;
@@ -420,5 +487,34 @@ export async function sendWaitlistPreviewEmail(
     to: to.trim(),
     subject: renderEmailSubject(messages.waitlistCustomerSubject, vars),
     html: renderEmailBody(messages.waitlistCustomerBody, vars),
+  });
+}
+
+export async function sendRebookPreviewEmail(
+  to: string
+): Promise<{ ok: boolean; error?: string }> {
+  if (!resendClient) return { ok: false, error: "RESEND_API_KEY not set" };
+
+  const { messages, businessName } = await getMessages();
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001";
+  const bookLink = `${baseUrl}/book`;
+  const vars = {
+    customerName: "Alex",
+    serviceName: "Gel Manicure",
+    technicianName: "Sarah",
+    date: "Saturday, 20 April 2026",
+    time: "14:00 – 15:00",
+    bookLink,
+    bookingLink: bookLink,
+    depositLink: bookLink,
+    businessName,
+    optOutLink: `${baseUrl}/rebook-reminder/opt-out?token=preview`,
+  };
+
+  return sendResendEmail({
+    from,
+    to: to.trim(),
+    subject: renderEmailSubject(messages.rebookReminderCustomerSubject, vars),
+    html: renderEmailBody(messages.rebookReminderCustomerBody, vars),
   });
 }

@@ -40,6 +40,8 @@ export async function PATCH(req: NextRequest) {
     secondaryColor,
     notificationMessages,
     waitlistEnabled,
+    rebookReminderEnabled,
+    rebookReminderDaysAfter,
   } = body;
 
   const hexColor = /^#[0-9a-fA-F]{6}$/;
@@ -92,6 +94,19 @@ export async function PATCH(req: NextRequest) {
   }
   if (smsNotificationFee != null) data.smsNotificationFee = Number(smsNotificationFee);
   if (waitlistEnabled !== undefined) data.waitlistEnabled = Boolean(waitlistEnabled);
+  if (rebookReminderEnabled !== undefined) {
+    data.rebookReminderEnabled = Boolean(rebookReminderEnabled);
+  }
+  if (rebookReminderDaysAfter != null) {
+    const days = Number(rebookReminderDaysAfter);
+    if (!Number.isFinite(days) || days < 7 || days > 365) {
+      return NextResponse.json(
+        { error: "Rebook reminder days must be between 7 and 365" },
+        { status: 400 }
+      );
+    }
+    data.rebookReminderDaysAfter = Math.round(days);
+  }
   if (notificationMessages !== undefined) {
     if (notificationMessages !== null && typeof notificationMessages !== "object") {
       return NextResponse.json({ error: "Invalid notification messages" }, { status: 400 });
