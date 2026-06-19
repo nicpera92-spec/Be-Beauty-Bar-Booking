@@ -1,9 +1,9 @@
 /** Manual smoke tests for message editor token helpers. Run: node scripts/test-message-tokens.mjs */
 
-const OPEN = "\uE010";
-const CLOSE = "\uE011";
+const OPEN = "\u200B";
+const CLOSE = "\u200C";
 const TOKEN_RE = new RegExp(
-  `${OPEN}([^${CLOSE}]+)${CLOSE}|\\*\\*([^*]+)\\*\\*|\\{\\{(\\w+)\\}\\}`,
+  `${OPEN}([^${CLOSE}]+)${CLOSE}|\\uE010([^\\uE011]+)\\uE011|\\*\\*([^*]+)\\*\\*|\\{\\{(\\w+)\\}\\}`,
   "g"
 );
 

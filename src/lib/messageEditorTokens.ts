@@ -1,10 +1,15 @@
-export const MESSAGE_TOKEN_OPEN = "\uE010";
-export const MESSAGE_TOKEN_CLOSE = "\uE011";
+/** Zero-width delimiters — invisible in the editor, no missing-glyph squares. */
+export const MESSAGE_TOKEN_OPEN = "\u200B";
+export const MESSAGE_TOKEN_CLOSE = "\u200C";
+
+/** Legacy private-use delimiters (rendered as □ in some fonts). */
+const LEGACY_TOKEN_OPEN = "\uE010";
+const LEGACY_TOKEN_CLOSE = "\uE011";
 
 export type TokenRange = { start: number; end: number; raw: string };
 
 const TOKEN_RE = new RegExp(
-  `${MESSAGE_TOKEN_OPEN}([^${MESSAGE_TOKEN_CLOSE}]+)${MESSAGE_TOKEN_CLOSE}|\\*\\*([^*]+)\\*\\*|\\{\\{(\\w+)\\}\\}`,
+  `${MESSAGE_TOKEN_OPEN}([^${MESSAGE_TOKEN_CLOSE}]+)${MESSAGE_TOKEN_CLOSE}|${LEGACY_TOKEN_OPEN}([^${LEGACY_TOKEN_CLOSE}]+)${LEGACY_TOKEN_CLOSE}|\\*\\*([^*]+)\\*\\*|\\{\\{(\\w+)\\}\\}`,
   "g"
 );
 
@@ -120,8 +125,4 @@ export function fixSingleCharTokenDelete(
 
 export function getMessageTokenRegex(): RegExp {
   return new RegExp(TOKEN_RE.source, "g");
-}
-
-export function tokenLabelFromMatch(match: RegExpExecArray): string {
-  return match[1] ?? match[2] ?? match[3];
 }

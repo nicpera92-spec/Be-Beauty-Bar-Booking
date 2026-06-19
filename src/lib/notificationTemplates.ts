@@ -36,7 +36,17 @@ export function friendlyToken(label: string): string {
   return `${MESSAGE_TOKEN_OPEN}${label}${MESSAGE_TOKEN_CLOSE}`;
 }
 
-/** Editor-only HTML: underlined labels with zero-width delimiters (no visible gaps). */
+function labelFromTokenMatch(match: RegExpExecArray): string {
+  if (match[1] ?? match[2] ?? match[3]) {
+    return (match[1] ?? match[2] ?? match[3]) as string;
+  }
+  if (match[4]) {
+    return PLACEHOLDER_LABELS[match[4]] ?? match[4];
+  }
+  return "";
+}
+
+/** Editor-only HTML: underlined labels only (delimiters are zero-width in the textarea). */
 export function renderMessageEditorHighlightHtml(text: string): string {
   if (!text) return "&nbsp;";
 
@@ -50,12 +60,9 @@ export function renderMessageEditorHighlightHtml(text: string): string {
       parts.push(escapeHtml(text.slice(lastIndex, match.index)));
     }
 
-    const label =
-      match[1] ?? match[2] ?? PLACEHOLDER_LABELS[match[3] as string] ?? match[3];
+    const label = labelFromTokenMatch(match);
     parts.push(
-      MESSAGE_TOKEN_OPEN,
-      `<span class="underline decoration-navy/55 decoration-2 underline-offset-[3px]">${escapeHtml(label)}</span>`,
-      MESSAGE_TOKEN_CLOSE
+      `<span class="underline decoration-navy/55 decoration-2 underline-offset-[3px]">${escapeHtml(label)}</span>`
     );
 
     lastIndex = match.index + match[0].length;
@@ -89,6 +96,7 @@ export function toFriendlyPlaceholders(template: string): string {
     const label = PLACEHOLDER_LABELS[key];
     return label ? friendlyToken(label) : `{{${key}}}`;
   });
+  text = text.replace(/\uE010([^\uE011]+)\uE011/g, (_, label: string) => friendlyToken(label.trim()));
   text = text.replace(/\*\*([^*]+)\*\*/g, (_, label: string) => friendlyToken(label.trim()));
   return text;
 }
@@ -100,9 +108,10 @@ function substituteTokenLabel(label: string, vars: Record<string, string>): stri
 
 export function applyTemplate(template: string, vars: Record<string, string>): string {
   const tokenRe = getMessageTokenRegex();
-  const withFriendly = template.replace(tokenRe, (raw, a, b, c) => {
-    const label = a ?? b ?? PLACEHOLDER_LABELS[c as string] ?? c;
-    return substituteTokenLabel(label, vars);
+  const withFriendly = template.replace(tokenRe, (...parts) => {
+    const match = parts as unknown as RegExpExecArray;
+    if (match[4]) return vars[match[4]] ?? "";
+    return substituteTokenLabel(labelFromTokenMatch(match), vars);
   });
   return withFriendly.replace(/\{\{(\w+)\}\}/g, (_, key: string) => vars[key] ?? "");
 }
