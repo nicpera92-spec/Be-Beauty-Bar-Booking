@@ -91,6 +91,11 @@ export const MESSAGE_INSERT_TAGS: { label: string; token: string; hint?: string 
     token: friendlyToken("Pay deposit link"),
     hint: "Link to pay deposit",
   },
+  {
+    label: "Opt out link",
+    token: friendlyToken("Opt out link"),
+    hint: "Link to stop rebook reminders",
+  },
 ];
 
 export function toFriendlyPlaceholders(template: string): string {

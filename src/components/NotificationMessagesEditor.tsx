@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   NOTIFICATION_MESSAGE_GROUPS,
   type NotificationMessageField,
+  type NotificationMessageGroup,
   type NotificationMessages,
 } from "@/lib/notificationDefaults";
 import {
@@ -12,7 +13,12 @@ import {
   getTokenDeleteRange,
   snapCursorPastToken,
 } from "@/lib/messageEditorTokens";
-import { MESSAGE_INSERT_TAGS, previewEmailHtml, previewMessage, renderMessageEditorHighlightHtml } from "@/lib/notificationTemplates";
+import {
+  MESSAGE_INSERT_TAGS,
+  previewEmailHtml,
+  previewMessage,
+  renderMessageEditorHighlightHtml,
+} from "@/lib/notificationTemplates";
 
 type NotificationMessagesEditorProps = {
   messages: NotificationMessages;
@@ -84,6 +90,7 @@ function MessageTokenInput({
   onFocus?: (el: HTMLInputElement | HTMLTextAreaElement) => void;
 }) {
   const localRef = useRef<HTMLTextAreaElement | HTMLInputElement>(null);
+  const highlightRef = useRef<HTMLDivElement>(null);
   const prevValueRef = useRef(value);
   const isMultiline = rows > 1;
 
@@ -100,10 +107,22 @@ function MessageTokenInput({
     }
   };
 
+  const syncHighlightScroll = useCallback(() => {
+    const field = localRef.current;
+    const highlight = highlightRef.current;
+    if (!field || !highlight || !isMultiline) return;
+    highlight.scrollTop = (field as HTMLTextAreaElement).scrollTop;
+    highlight.scrollLeft = (field as HTMLTextAreaElement).scrollLeft;
+  }, [isMultiline]);
+
+  useEffect(() => {
+    syncHighlightScroll();
+  }, [value, syncHighlightScroll]);
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement | HTMLInputElement>) => {
     const el = e.currentTarget;
-    let start = el.selectionStart ?? 0;
-    let end = el.selectionEnd ?? 0;
+    const start = el.selectionStart ?? 0;
+    const end = el.selectionEnd ?? 0;
 
     if (e.key === "Backspace" || e.key === "Delete") {
       const direction = e.key === "Backspace" ? "backspace" : "delete";
@@ -138,10 +157,10 @@ function MessageTokenInput({
   };
 
   const fieldClass =
-    "w-full px-3 py-2.5 text-base sm:text-sm leading-relaxed bg-transparent focus:outline-none text-transparent caret-charcoal";
+    "col-start-1 row-start-1 w-full px-3 py-2.5 text-base sm:text-sm leading-relaxed bg-transparent focus:outline-none text-transparent caret-charcoal relative z-10";
 
   const highlightClass =
-    "pointer-events-none absolute inset-0 px-3 py-2.5 text-base sm:text-sm leading-relaxed text-charcoal whitespace-pre-wrap break-words overflow-hidden";
+    "col-start-1 row-start-1 px-3 py-2.5 text-base sm:text-sm leading-relaxed text-charcoal whitespace-pre-wrap break-words pointer-events-none overflow-hidden";
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => {
     const el = e.currentTarget;
@@ -156,52 +175,55 @@ function MessageTokenInput({
       requestAnimationFrame(() => {
         el.focus();
         el.setSelectionRange(repaired.cursor, repaired.cursor);
+        syncHighlightScroll();
       });
       return;
     }
 
     prevValueRef.current = next;
     onChange(next);
+    requestAnimationFrame(syncHighlightScroll);
   };
 
   const sharedProps = {
     value,
     onChange: handleChange,
     onKeyDown: handleKeyDown,
+    onScroll: syncHighlightScroll,
     onFocus: (e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement>) =>
       onFocus?.(e.currentTarget),
-    placeholder,
     spellCheck: true,
     autoComplete: "off",
     autoCorrect: "off",
   };
 
   const wrapperClass =
-    "relative rounded-xl border border-slate-200 bg-white focus-within:border-navy/40 focus-within:ring-2 focus-within:ring-navy/10";
+    "grid rounded-xl border border-slate-200 bg-white focus-within:border-navy/40 focus-within:ring-2 focus-within:ring-navy/10";
 
-  return isMultiline ? (
+  if (isMultiline) {
+    return (
+      <div className={wrapperClass}>
+        <div
+          ref={highlightRef}
+          className={highlightClass}
+          aria-hidden
+          dangerouslySetInnerHTML={{ __html: renderMessageEditorHighlightHtml(value) }}
+        />
+        <textarea
+          ref={setRef as React.RefCallback<HTMLTextAreaElement>}
+          rows={rows}
+          {...sharedProps}
+          placeholder={placeholder}
+          className={`${fieldClass} resize-y min-h-[6.5rem] border-0 focus:ring-0`}
+        />
+      </div>
+    );
+  }
+
+  return (
     <div className={wrapperClass}>
       <div
-        className={highlightClass}
-        aria-hidden
-        dangerouslySetInnerHTML={{ __html: renderMessageEditorHighlightHtml(value) }}
-      />
-      <textarea
-        ref={setRef as React.RefCallback<HTMLTextAreaElement>}
-        rows={rows}
-        {...sharedProps}
-        className={`${fieldClass} relative z-10 resize-y border-0 focus:ring-0`}
-        placeholder={value ? undefined : placeholder}
-      />
-      {!value && (
-        <div className={`${highlightClass} text-charcoal/35`} aria-hidden>
-          {placeholder}
-        </div>
-      )}
-    </div>
-  ) : (
-    <div className={wrapperClass}>
-      <div
+        ref={highlightRef}
         className={`${highlightClass} truncate`}
         aria-hidden
         dangerouslySetInnerHTML={{ __html: renderMessageEditorHighlightHtml(value) }}
@@ -210,14 +232,9 @@ function MessageTokenInput({
         ref={setRef as React.RefCallback<HTMLInputElement>}
         type="text"
         {...sharedProps}
-        className={`${fieldClass} relative z-10 border-0 focus:ring-0`}
-        placeholder={value ? undefined : placeholder}
+        placeholder={placeholder}
+        className={`${fieldClass} border-0 focus:ring-0`}
       />
-      {!value && (
-        <div className={`${highlightClass} truncate text-charcoal/35`} aria-hidden>
-          {placeholder}
-        </div>
-      )}
     </div>
   );
 }
@@ -286,7 +303,7 @@ function SimpleField({
         value={value}
         onChange={onChange}
         onFocus={onActivate}
-        rows={field.kind === "subject" ? 1 : field.kind === "sms" ? 4 : 8}
+        rows={field.kind === "subject" ? 1 : field.kind === "sms" ? 5 : 10}
         placeholder={
           field.kind === "subject"
             ? subjectPlaceholder
@@ -324,20 +341,20 @@ function SimpleField({
   );
 }
 
-function MessageSection({
-  title,
-  fields,
+function MessageGroupFields({
+  group,
   messages,
   onUpdate,
 }: {
-  title: string;
-  fields: NotificationMessageField[];
+  group: NotificationMessageGroup;
   messages: NotificationMessages;
   onUpdate: (key: keyof NotificationMessages, value: string) => void;
 }) {
   const activeRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
-  const activeKeyRef = useRef<keyof NotificationMessages>(fields[0]?.key);
-  const isSmsOnly = fields.length === 1 && fields[0].kind === "sms";
+  const activeKeyRef = useRef<keyof NotificationMessages>(group.sections[0]?.fields[0]?.key);
+  const hasSmsOnlySection = group.sections.every((section) =>
+    section.fields.every((field) => field.kind === "sms")
+  );
 
   const handleActivate = (key: keyof NotificationMessages) => {
     return (el: HTMLInputElement | HTMLTextAreaElement) => {
@@ -347,39 +364,47 @@ function MessageSection({
   };
 
   const handleInsert = (token: string) => {
-    const key = activeKeyRef.current ?? fields[0].key;
-    insertAtCursor(activeRef.current, messages[key], token, (v) => onUpdate(key, v));
+    const key = activeKeyRef.current ?? group.sections[0]?.fields[0]?.key;
+    if (!key) return;
+    insertAtCursor(activeRef.current, messages[key] ?? "", token, (v) => onUpdate(key, v));
   };
 
   return (
-    <div className="rounded-xl border border-slate-100 bg-slate-50/40 p-3 space-y-3">
-      <p className="text-sm font-semibold text-charcoal">{title}</p>
-
-      <div>
-        <p className="text-xs text-charcoal/50 mb-1.5">Add details:</p>
-        <InsertTags onInsert={handleInsert} compact={isSmsOnly} />
-      </div>
-
-      {fields.map((field) => (
-        <SimpleField
-          key={field.key}
-          field={field}
-          value={messages[field.key]}
-          onChange={(v) => onUpdate(field.key, v)}
-          onActivate={handleActivate(field.key)}
-        />
-      ))}
-
-      {!isSmsOnly && fields.some((f) => f.kind === "email") && (
+    <>
+      <div className="rounded-xl border border-slate-100 bg-slate-50/40 px-3 py-3 space-y-2">
+        <p className="text-xs text-charcoal/50">Add details:</p>
+        <InsertTags onInsert={handleInsert} compact={hasSmsOnlySection} />
         <p className="text-xs text-charcoal/45">
           Tap a field first, then use Add details. Press delete on a detail to remove the whole
           thing. Added details show <span className="underline decoration-navy/55">underlined</span>{" "}
           here only — customers see the real name, date, or link in the sent message.
         </p>
-      )}
+      </div>
 
-      {isSmsOnly && <p className="text-xs text-charcoal/45">Keep text messages short.</p>}
-    </div>
+      {group.sections.map((section) => {
+        const isSmsOnly = section.fields.length === 1 && section.fields[0].kind === "sms";
+        return (
+          <div
+            key={section.title}
+            className="rounded-xl border border-slate-100 bg-slate-50/40 p-3 space-y-3"
+          >
+            <p className="text-sm font-semibold text-charcoal">{section.title}</p>
+
+            {section.fields.map((field) => (
+              <SimpleField
+                key={field.key}
+                field={field}
+                value={messages[field.key] ?? ""}
+                onChange={(v) => onUpdate(field.key, v)}
+                onActivate={handleActivate(field.key)}
+              />
+            ))}
+
+            {isSmsOnly && <p className="text-xs text-charcoal/45">Keep text messages short.</p>}
+          </div>
+        );
+      })}
+    </>
   );
 }
 
@@ -405,8 +430,9 @@ export default function NotificationMessagesEditor({
         <p className="font-medium text-charcoal mb-1">How this works</p>
         <p>
           Type your messages in plain English. Use <strong>Add details</strong> to drop in customer
-          name, date, service, and links — they appear <span className="underline decoration-navy/55">underlined</span>{" "}
-          in the editor and fill in automatically when sent. Delete removes the whole detail at once.
+          name, date, service, and links — they appear{" "}
+          <span className="underline decoration-navy/55">underlined</span> in the editor and fill in
+          automatically when sent. Delete removes the whole detail at once.
         </p>
       </div>
 
@@ -433,15 +459,7 @@ export default function NotificationMessagesEditor({
 
             {expanded && (
               <div className="px-4 pb-4 pt-1 space-y-3 border-t border-slate-100">
-                {group.sections.map((section) => (
-                  <MessageSection
-                    key={section.title}
-                    title={section.title}
-                    fields={section.fields}
-                    messages={messages}
-                    onUpdate={update}
-                  />
-                ))}
+                <MessageGroupFields group={group} messages={messages} onUpdate={update} />
 
                 {group.id === "waitlist" && onPreviewWaitlist && (
                   <div className="pt-2 border-t border-slate-100">

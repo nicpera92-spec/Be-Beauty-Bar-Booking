@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import ThemeEditor from "@/components/ThemeEditor";
@@ -42,6 +42,96 @@ function getAuthHeaders(): Record<string, string> {
   const t = sessionStorage.getItem(ADMIN_TOKEN_KEY);
   if (!t) return {};
   return { Authorization: `Bearer ${t}`, "X-Admin-Token": t };
+}
+
+function SettingsInfoTip({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <span className="relative inline-flex shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-charcoal/20 text-[10px] font-semibold leading-none text-charcoal/45 hover:border-navy/35 hover:text-navy focus:outline-none focus:ring-2 focus:ring-navy/15 touch-manipulation"
+        aria-label="More information"
+        aria-expanded={open}
+      >
+        i
+      </button>
+      {open && (
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-30 cursor-default"
+            aria-label="Close"
+            onClick={() => setOpen(false)}
+          />
+          <span
+            role="tooltip"
+            className="absolute left-1/2 top-full z-40 mt-1.5 w-56 -translate-x-1/2 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-left text-[11px] font-normal normal-case leading-snug text-charcoal/70 shadow-md sm:w-64"
+          >
+            {text}
+          </span>
+        </>
+      )}
+    </span>
+  );
+}
+
+function SettingsToggle({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors touch-manipulation ${
+        checked ? "bg-navy" : "bg-slate-200"
+      }`}
+    >
+      <span
+        className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
+          checked ? "translate-x-5" : "translate-x-0"
+        }`}
+      />
+    </button>
+  );
+}
+
+function SettingsFeatureRow({
+  label,
+  info,
+  checked,
+  onChange,
+  children,
+}: {
+  label: string;
+  info: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200/90 bg-slate-50/40 px-3 py-2.5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="text-sm font-medium text-charcoal">{label}</span>
+          <SettingsInfoTip text={info} />
+        </div>
+        <SettingsToggle checked={checked} onChange={onChange} label={label} />
+      </div>
+      {children && checked && <div className="mt-2.5 pt-2 border-t border-slate-200/70">{children}</div>}
+    </div>
+  );
 }
 
 type Settings = {
@@ -350,7 +440,10 @@ function AdminSettingsPageInner() {
   const inputClass =
     "w-full px-3.5 py-2.5 rounded-xl border border-slate-200/90 focus:border-navy/40 focus:ring-2 focus:ring-navy/10 outline-none bg-white";
   const labelClass = "block text-sm text-charcoal/65 mb-1.5";
+  const compactLabelClass = "block text-xs text-charcoal/55 mb-1";
   const panelClass = "rounded-2xl border border-slate-200/80 bg-white/95 shadow-sm p-5 sm:p-7 space-y-5";
+  const compactInputClass =
+    "w-full rounded-lg border border-slate-200 px-2.5 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy/30";
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
@@ -605,48 +698,28 @@ function AdminSettingsPageInner() {
         {tab === "bookings" && (
           <>
             <div>
-              <h2 className="text-lg font-semibold text-navy mb-1">Bookings</h2>
-              <p className="text-sm text-charcoal/55">Pricing, opening hours, and how many clients can book at once.</p>
+              <h2 className="text-lg font-semibold text-navy mb-0.5">Bookings</h2>
+              <p className="text-sm text-charcoal/55">Pricing, hours, and booking limits.</p>
             </div>
 
-            <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/50 p-4 cursor-pointer">
-              <input
-                type="checkbox"
+            <div className="space-y-2">
+              <SettingsFeatureRow
+                label="Waiting list"
+                info="Let customers join a waiting list on fully booked days and notify them when a slot opens."
                 checked={form.waitlistEnabled ?? true}
-                onChange={(e) => setForm((f) => ({ ...f, waitlistEnabled: e.target.checked }))}
-                className="mt-0.5 rounded border-slate-300 text-navy focus:ring-navy/20"
+                onChange={(waitlistEnabled) => setForm((f) => ({ ...f, waitlistEnabled }))}
               />
-              <span>
-                <span className="block text-sm font-medium text-charcoal">Waiting list</span>
-                <span className="block text-sm text-charcoal/55 mt-0.5">
-                  Let customers join a waiting list on fully booked days and notify them when a slot opens.
-                </span>
-              </span>
-            </label>
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-4">
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.rebookReminderEnabled ?? false}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, rebookReminderEnabled: e.target.checked }))
-                  }
-                  className="mt-0.5 rounded border-slate-300 text-navy focus:ring-navy/20"
-                />
-                <span>
-                  <span className="block text-sm font-medium text-charcoal">Rebook reminders</span>
-                  <span className="block text-sm text-charcoal/55 mt-0.5">
-                    Send a polite email or text inviting customers back after their last visit.
-                    Uses the same email/text choice they picked when they booked. If they rebook
-                    sooner, the timer resets from their new appointment.
-                  </span>
-                </span>
-              </label>
-
-              <div className={form.rebookReminderEnabled ? "" : "opacity-50 pointer-events-none"}>
-                <label className={labelClass}>Days after last visit</label>
-                <div className="flex items-center gap-2">
+              <SettingsFeatureRow
+                label="Rebook reminders"
+                info="Send a polite email or text inviting customers back after their last visit. Uses the same email or text choice they picked when they booked. If they rebook sooner, the timer resets from their new appointment. Checked once a day — customers who rebook within that time are not reminded until the same number of days after their next visit. Customers can opt out after the first reminder."
+                checked={form.rebookReminderEnabled ?? false}
+                onChange={(rebookReminderEnabled) =>
+                  setForm((f) => ({ ...f, rebookReminderEnabled }))
+                }
+              >
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="text-xs text-charcoal/60">Days after last visit</span>
                   <input
                     type="number"
                     min={7}
@@ -661,132 +734,134 @@ function AdminSettingsPageInner() {
                         ),
                       }))
                     }
-                    className={`${inputClass} w-24`}
+                    className="w-16 rounded-lg border border-slate-200 px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-navy/10"
                   />
-                  <span className="text-sm text-charcoal/55">days (7–365)</span>
+                  <span className="text-xs text-charcoal/45">days (7–365)</span>
                 </div>
-                <p className="text-xs text-charcoal/45 mt-1.5">
-                  Checked once a day. Reminder goes out this many days after each customer&apos;s
-                  most recent visit. Customers who rebook within that time are not reminded until
-                  the same number of days after their next visit. Opted-out customers are skipped.
-                </p>
+              </SettingsFeatureRow>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-charcoal">Pricing &amp; hours</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3">
+                <div>
+                  <label className={compactLabelClass}>Default price (£)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={form.defaultPrice ?? ""}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        defaultPrice: e.target.value === "" ? undefined : parseFloat(e.target.value) || 0,
+                      }))
+                    }
+                    className={compactInputClass}
+                    placeholder="50"
+                  />
+                </div>
+                <div>
+                  <label className={compactLabelClass}>Default deposit (£)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={form.defaultDepositAmount ?? ""}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        defaultDepositAmount:
+                          e.target.value === "" ? undefined : parseFloat(e.target.value) || 0,
+                      }))
+                    }
+                    className={compactInputClass}
+                    placeholder="20"
+                  />
+                </div>
+                <div>
+                  <label className={compactLabelClass}>SMS fee (£)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={form.smsNotificationFee ?? 0.05}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        smsNotificationFee:
+                          e.target.value === "" ? 0.05 : parseFloat(e.target.value) || 0.05,
+                      }))
+                    }
+                    className={compactInputClass}
+                    placeholder="0.05"
+                  />
+                </div>
+                <div>
+                  <label className={compactLabelClass}>Open</label>
+                  <select
+                    value={form.openTime ?? "09:00"}
+                    onChange={(e) => setForm((f) => ({ ...f, openTime: e.target.value }))}
+                    className={compactInputClass}
+                  >
+                    {TIME_OPTIONS.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={compactLabelClass}>Close</label>
+                  <select
+                    value={form.closeTime ?? "17:00"}
+                    onChange={(e) => setForm((f) => ({ ...f, closeTime: e.target.value }))}
+                    className={compactInputClass}
+                  >
+                    {TIME_OPTIONS.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={compactLabelClass}>Slot length (min)</label>
+                  <input
+                    type="number"
+                    min={5}
+                    max={120}
+                    step={5}
+                    value={form.slotInterval ?? 30}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        slotInterval: parseInt(e.target.value, 10) || 30,
+                      }))
+                    }
+                    className={compactInputClass}
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className={labelClass}>Default price (£)</label>
-                <input
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={form.defaultPrice ?? ""}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      defaultPrice: e.target.value === "" ? undefined : parseFloat(e.target.value) || 0,
-                    }))
-                  }
-                  className={inputClass}
-                  placeholder="50"
-                />
+            <div className="pt-3 border-t border-slate-100 space-y-2">
+              <div className="flex items-center gap-1.5">
+                <p className="text-sm font-medium text-charcoal">Booking rules</p>
+                <SettingsInfoTip text="Maximum number of appointments per category that can run at the same time." />
               </div>
-              <div>
-                <label className={labelClass}>Default deposit (£)</label>
-                <input
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={form.defaultDepositAmount ?? ""}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      defaultDepositAmount: e.target.value === "" ? undefined : parseFloat(e.target.value) || 0,
-                    }))
-                  }
-                  className={inputClass}
-                  placeholder="20"
-                />
-              </div>
-              <div>
-                <label className={labelClass}>SMS fee (£)</label>
-                <input
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={form.smsNotificationFee ?? 0.05}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      smsNotificationFee: e.target.value === "" ? 0.05 : parseFloat(e.target.value) || 0.05,
-                    }))
-                  }
-                  className={inputClass}
-                  placeholder="0.05"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className={labelClass}>Open</label>
-                <select
-                  value={form.openTime ?? "09:00"}
-                  onChange={(e) => setForm((f) => ({ ...f, openTime: e.target.value }))}
-                  className={inputClass}
-                >
-                  {TIME_OPTIONS.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className={labelClass}>Close</label>
-                <select
-                  value={form.closeTime ?? "17:00"}
-                  onChange={(e) => setForm((f) => ({ ...f, closeTime: e.target.value }))}
-                  className={inputClass}
-                >
-                  {TIME_OPTIONS.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className={labelClass}>Slot length (min)</label>
-                <input
-                  type="number"
-                  min={5}
-                  max={120}
-                  step={5}
-                  value={form.slotInterval ?? 30}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      slotInterval: parseInt(e.target.value, 10) || 30,
-                    }))
-                  }
-                  className={inputClass}
-                />
-              </div>
-            </div>
-            <div className="pt-2 border-t border-slate-100 space-y-3">
-              <p className="text-sm font-medium text-charcoal">Booking rules</p>
-              <p className="text-sm text-charcoal/55">
-                Max appointments per category running at the same time.
-              </p>
               {categoryRules.length === 0 ? (
                 <p className="text-sm text-charcoal/50">Loading rules…</p>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {categoryRules.map((rule, i) => (
-                    <div key={rule.category} className="flex flex-wrap items-center gap-3">
-                      <span className="text-sm font-medium text-charcoal min-w-[140px]">{rule.label}</span>
-                      <label className="text-sm text-charcoal/65">
-                        Max at once{" "}
+                    <div
+                      key={rule.category}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-100 bg-slate-50/30 px-3 py-2"
+                    >
+                      <span className="text-sm font-medium text-charcoal">{rule.label}</span>
+                      <label className="flex items-center gap-1.5 text-xs text-charcoal/65">
+                        Max at once
                         <input
                           type="number"
                           min={1}
@@ -798,7 +873,7 @@ function AdminSettingsPageInner() {
                               prev.map((x, idx) => (idx === i ? { ...x, maxConcurrent: val } : x))
                             );
                           }}
-                          className="ml-1 w-16 rounded-lg border border-slate-200 px-2 py-1 text-sm bg-white"
+                          className="w-14 rounded-lg border border-slate-200 px-2 py-1 text-sm bg-white"
                         />
                       </label>
                     </div>
