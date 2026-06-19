@@ -2,6 +2,11 @@ import {
   DEFAULT_NOTIFICATION_MESSAGES,
   type NotificationMessages,
 } from "@/lib/notificationDefaults";
+import {
+  MESSAGE_TOKEN_CLOSE,
+  MESSAGE_TOKEN_OPEN,
+  getMessageTokenRegex,
+} from "@/lib/messageEditorTokens";
 
 /** Maps internal variable names to the friendly label shown in the editor. */
 export const PLACEHOLDER_LABELS: Record<string, string> = {
@@ -28,16 +33,16 @@ const LABEL_TO_VAR: Record<string, string> = {
 };
 
 export function friendlyToken(label: string): string {
-  return `**${label}**`;
+  return `${MESSAGE_TOKEN_OPEN}${label}${MESSAGE_TOKEN_CLOSE}`;
 }
 
-/** Editor-only HTML: tokens show as underlined labels; delimiters stay invisible for caret alignment. */
+/** Editor-only HTML: underlined labels with zero-width delimiters (no visible gaps). */
 export function renderMessageEditorHighlightHtml(text: string): string {
   if (!text) return "&nbsp;";
 
   const parts: string[] = [];
   let lastIndex = 0;
-  const re = /\*\*([^*]+)\*\*|\{\{(\w+)\}\}/g;
+  const re = getMessageTokenRegex();
   let match: RegExpExecArray | null;
 
   while ((match = re.exec(text)) !== null) {
@@ -45,20 +50,13 @@ export function renderMessageEditorHighlightHtml(text: string): string {
       parts.push(escapeHtml(text.slice(lastIndex, match.index)));
     }
 
-    if (match[1] !== undefined) {
-      parts.push(
-        '<span class="text-transparent select-none" aria-hidden="true">**</span>',
-        `<span class="underline decoration-navy/55 decoration-2 underline-offset-[3px]">${escapeHtml(match[1])}</span>`,
-        '<span class="text-transparent select-none" aria-hidden="true">**</span>'
-      );
-    } else {
-      const key = match[2];
-      parts.push(
-        '<span class="text-transparent select-none" aria-hidden="true">{{</span>',
-        `<span class="underline decoration-navy/55 decoration-2 underline-offset-[3px]">${escapeHtml(key)}</span>`,
-        '<span class="text-transparent select-none" aria-hidden="true">}}</span>'
-      );
-    }
+    const label =
+      match[1] ?? match[2] ?? PLACEHOLDER_LABELS[match[3] as string] ?? match[3];
+    parts.push(
+      MESSAGE_TOKEN_OPEN,
+      `<span class="underline decoration-navy/55 decoration-2 underline-offset-[3px]">${escapeHtml(label)}</span>`,
+      MESSAGE_TOKEN_CLOSE
+    );
 
     lastIndex = match.index + match[0].length;
   }
@@ -87,16 +85,24 @@ export const MESSAGE_INSERT_TAGS: { label: string; token: string; hint?: string 
 ];
 
 export function toFriendlyPlaceholders(template: string): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => {
+  let text = template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => {
     const label = PLACEHOLDER_LABELS[key];
     return label ? friendlyToken(label) : `{{${key}}}`;
   });
+  text = text.replace(/\*\*([^*]+)\*\*/g, (_, label: string) => friendlyToken(label.trim()));
+  return text;
+}
+
+function substituteTokenLabel(label: string, vars: Record<string, string>): string {
+  const key = LABEL_TO_VAR[label.trim()];
+  return key ? (vars[key] ?? "") : label;
 }
 
 export function applyTemplate(template: string, vars: Record<string, string>): string {
-  const withFriendly = template.replace(/\*\*([^*]+)\*\*/g, (_, label: string) => {
-    const key = LABEL_TO_VAR[label.trim()];
-    return key ? (vars[key] ?? "") : label;
+  const tokenRe = getMessageTokenRegex();
+  const withFriendly = template.replace(tokenRe, (raw, a, b, c) => {
+    const label = a ?? b ?? PLACEHOLDER_LABELS[c as string] ?? c;
+    return substituteTokenLabel(label, vars);
   });
   return withFriendly.replace(/\{\{(\w+)\}\}/g, (_, key: string) => vars[key] ?? "");
 }

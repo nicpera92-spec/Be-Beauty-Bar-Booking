@@ -1,6 +1,12 @@
+export const MESSAGE_TOKEN_OPEN = "\uE010";
+export const MESSAGE_TOKEN_CLOSE = "\uE011";
+
 export type TokenRange = { start: number; end: number; raw: string };
 
-const TOKEN_RE = /\*\*([^*]+)\*\*|\{\{(\w+)\}\}/g;
+const TOKEN_RE = new RegExp(
+  `${MESSAGE_TOKEN_OPEN}([^${MESSAGE_TOKEN_CLOSE}]+)${MESSAGE_TOKEN_CLOSE}|\\*\\*([^*]+)\\*\\*|\\{\\{(\\w+)\\}\\}`,
+  "g"
+);
 
 export function getTokenRanges(text: string): TokenRange[] {
   const ranges: TokenRange[] = [];
@@ -97,7 +103,6 @@ export function fixSingleCharTokenDelete(
     }
   }
 
-  // Cursor landed inside a partially deleted token in `next` (e.g. stray `**`).
   const snapped = snapCursorPastToken(next, cursor);
   if (snapped !== cursor) {
     for (const range of getTokenRanges(next)) {
@@ -111,4 +116,12 @@ export function fixSingleCharTokenDelete(
   }
 
   return null;
+}
+
+export function getMessageTokenRegex(): RegExp {
+  return new RegExp(TOKEN_RE.source, "g");
+}
+
+export function tokenLabelFromMatch(match: RegExpExecArray): string {
+  return match[1] ?? match[2] ?? match[3];
 }

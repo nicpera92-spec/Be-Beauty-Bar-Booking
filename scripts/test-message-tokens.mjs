@@ -1,6 +1,15 @@
 /** Manual smoke tests for message editor token helpers. Run: node scripts/test-message-tokens.mjs */
 
-const TOKEN_RE = /\*\*([^*]+)\*\*|\{\{(\w+)\}\}/g;
+const OPEN = "\uE010";
+const CLOSE = "\uE011";
+const TOKEN_RE = new RegExp(
+  `${OPEN}([^${CLOSE}]+)${CLOSE}|\\*\\*([^*]+)\\*\\*|\\{\\{(\\w+)\\}\\}`,
+  "g"
+);
+
+function friendlyToken(label) {
+  return `${OPEN}${label}${CLOSE}`;
+}
 
 function getTokenRanges(text) {
   const ranges = [];
@@ -41,9 +50,9 @@ function fixSingleCharTokenDelete(prev, next, cursor) {
   return null;
 }
 
-const text = "Book here: **Booking link** thanks";
+const text = `Book here: ${friendlyToken("Booking link")} thanks`;
 const token = getTokenRanges(text)[0];
-assert(token.raw === "**Booking link**", "token parsed");
+assert(token.raw === friendlyToken("Booking link"), "token parsed");
 
 assert(
   getTokenDeleteRange(text, token.start, "delete")?.start === token.start,
@@ -58,7 +67,11 @@ assert(
   "Backspace inside token removes whole token"
 );
 
-const broken = fixSingleCharTokenDelete(text, text.slice(0, token.start + 8) + text.slice(token.start + 9), token.start + 8);
+const broken = fixSingleCharTokenDelete(
+  text,
+  text.slice(0, token.start + 8) + text.slice(token.start + 9),
+  token.start + 8
+);
 assert(broken?.value === "Book here:  thanks", "single char delete inside token strips whole token");
 
 console.log("All message token tests passed.");
