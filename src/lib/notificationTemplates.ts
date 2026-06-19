@@ -31,6 +31,45 @@ export function friendlyToken(label: string): string {
   return `**${label}**`;
 }
 
+/** Editor-only HTML: tokens show as underlined labels; delimiters stay invisible for caret alignment. */
+export function renderMessageEditorHighlightHtml(text: string): string {
+  if (!text) return "&nbsp;";
+
+  const parts: string[] = [];
+  let lastIndex = 0;
+  const re = /\*\*([^*]+)\*\*|\{\{(\w+)\}\}/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = re.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(escapeHtml(text.slice(lastIndex, match.index)));
+    }
+
+    if (match[1] !== undefined) {
+      parts.push(
+        '<span class="text-transparent select-none" aria-hidden="true">**</span>',
+        `<span class="underline decoration-navy/55 decoration-2 underline-offset-[3px]">${escapeHtml(match[1])}</span>`,
+        '<span class="text-transparent select-none" aria-hidden="true">**</span>'
+      );
+    } else {
+      const key = match[2];
+      parts.push(
+        '<span class="text-transparent select-none" aria-hidden="true">{{</span>',
+        `<span class="underline decoration-navy/55 decoration-2 underline-offset-[3px]">${escapeHtml(key)}</span>`,
+        '<span class="text-transparent select-none" aria-hidden="true">}}</span>'
+      );
+    }
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(escapeHtml(text.slice(lastIndex)));
+  }
+
+  return parts.join("") || "&nbsp;";
+}
+
 /** Friendly labels — shown as buttons in Settings → Messages. */
 export const MESSAGE_INSERT_TAGS: { label: string; token: string; hint?: string }[] = [
   { label: "Customer name", token: friendlyToken("Customer name") },

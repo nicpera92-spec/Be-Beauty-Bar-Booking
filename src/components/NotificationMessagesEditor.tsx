@@ -12,7 +12,7 @@ import {
   getTokenDeleteRange,
   snapCursorPastToken,
 } from "@/lib/messageEditorTokens";
-import { MESSAGE_INSERT_TAGS, previewEmailHtml, previewMessage } from "@/lib/notificationTemplates";
+import { MESSAGE_INSERT_TAGS, previewEmailHtml, previewMessage, renderMessageEditorHighlightHtml } from "@/lib/notificationTemplates";
 
 type NotificationMessagesEditorProps = {
   messages: NotificationMessages;
@@ -135,7 +135,10 @@ function MessageTokenInput({
   };
 
   const fieldClass =
-    "w-full px-3 py-2.5 text-base sm:text-sm leading-relaxed text-charcoal bg-white focus:outline-none";
+    "w-full px-3 py-2.5 text-base sm:text-sm leading-relaxed bg-transparent focus:outline-none text-transparent caret-charcoal";
+
+  const highlightClass =
+    "pointer-events-none absolute inset-0 px-3 py-2.5 text-base sm:text-sm leading-relaxed text-charcoal whitespace-pre-wrap break-words overflow-hidden";
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => {
     const el = e.currentTarget;
@@ -165,21 +168,54 @@ function MessageTokenInput({
     onFocus: (e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement>) =>
       onFocus?.(e.currentTarget),
     placeholder,
-    className: `${fieldClass} rounded-xl border border-slate-200 focus:border-navy/40 focus:ring-2 focus:ring-navy/10`,
     spellCheck: true,
     autoComplete: "off",
     autoCorrect: "off",
   };
 
+  const wrapperClass =
+    "relative rounded-xl border border-slate-200 bg-white focus-within:border-navy/40 focus-within:ring-2 focus-within:ring-navy/10";
+
   return isMultiline ? (
-    <textarea
-      ref={setRef as React.RefCallback<HTMLTextAreaElement>}
-      rows={rows}
-      {...sharedProps}
-      className={`${sharedProps.className} resize-y`}
-    />
+    <div className={wrapperClass}>
+      <div
+        className={highlightClass}
+        aria-hidden
+        dangerouslySetInnerHTML={{ __html: renderMessageEditorHighlightHtml(value) }}
+      />
+      <textarea
+        ref={setRef as React.RefCallback<HTMLTextAreaElement>}
+        rows={rows}
+        {...sharedProps}
+        className={`${fieldClass} relative z-10 resize-y border-0 focus:ring-0`}
+        placeholder={value ? undefined : placeholder}
+      />
+      {!value && (
+        <div className={`${highlightClass} text-charcoal/35`} aria-hidden>
+          {placeholder}
+        </div>
+      )}
+    </div>
   ) : (
-    <input ref={setRef as React.RefCallback<HTMLInputElement>} type="text" {...sharedProps} />
+    <div className={wrapperClass}>
+      <div
+        className={`${highlightClass} truncate`}
+        aria-hidden
+        dangerouslySetInnerHTML={{ __html: renderMessageEditorHighlightHtml(value) }}
+      />
+      <input
+        ref={setRef as React.RefCallback<HTMLInputElement>}
+        type="text"
+        {...sharedProps}
+        className={`${fieldClass} relative z-10 border-0 focus:ring-0`}
+        placeholder={value ? undefined : placeholder}
+      />
+      {!value && (
+        <div className={`${highlightClass} truncate text-charcoal/35`} aria-hidden>
+          {placeholder}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -334,8 +370,8 @@ function MessageSection({
       {!isSmsOnly && fields.some((f) => f.kind === "email") && (
         <p className="text-xs text-charcoal/45">
           Tap a field first, then use Add details. Press delete on a detail to remove the whole
-          thing. Links like <span className="font-medium">Book here: **Booking link**</span> become
-          clickable in the email.
+          thing. Added details show <span className="underline decoration-navy/55">underlined</span>{" "}
+          here only — customers see the real name, date, or link in the sent message.
         </p>
       )}
 
@@ -363,8 +399,8 @@ export default function NotificationMessagesEditor({
         <p className="font-medium text-charcoal mb-1">How this works</p>
         <p>
           Type your messages in plain English. Use <strong>Add details</strong> to drop in customer
-          name, date, service, and links — they fill in automatically when sent. Delete removes the
-          whole detail at once.
+          name, date, service, and links — they appear <span className="underline decoration-navy/55">underlined</span>{" "}
+          in the editor and fill in automatically when sent. Delete removes the whole detail at once.
         </p>
       </div>
 
