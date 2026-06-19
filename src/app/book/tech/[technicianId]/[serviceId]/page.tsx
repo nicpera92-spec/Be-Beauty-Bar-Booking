@@ -182,6 +182,20 @@ export default function BookDatePage() {
                   const hasSlots = availability[dateStr] ?? true;
                   const isFullyBooked = !isPast && !hasSlots;
                   const isSelected = selectedDate === dateStr;
+                  let dayClass =
+                    "py-1.5 sm:py-2 rounded-md text-xs font-medium transition touch-manipulation min-h-[36px] sm:min-h-[40px] border ";
+                  if (isPast) {
+                    dayClass += "bg-slate-100 text-slate-300 border-transparent cursor-not-allowed";
+                  } else if (isFullyBooked) {
+                    dayClass +=
+                      "bg-slate-200/75 text-slate-500 border-slate-200/80 hover:bg-slate-200 hover:border-slate-300";
+                  } else {
+                    dayClass +=
+                      "border-slate-200 bg-white text-slate-800 hover:border-navy/40 hover:bg-slate-50";
+                  }
+                  if (isSelected) {
+                    dayClass += " ring-2 ring-navy ring-offset-1 bg-navy/5 border-navy/30";
+                  }
                   return (
                     <button
                       key={dateStr}
@@ -190,18 +204,12 @@ export default function BookDatePage() {
                       onClick={() => {
                         if (!isPast) setSelectedDate(dateStr);
                       }}
-                      className={`py-1.5 sm:py-2 rounded-md text-xs font-medium transition touch-manipulation min-h-[36px] sm:min-h-[40px] ${
-                        isPast
-                          ? "bg-slate-100 text-slate-300 cursor-not-allowed"
-                          : "border border-slate-200 bg-white hover:border-navy/40 hover:bg-slate-50 text-slate-800"
-                      } ${isFullyBooked ? "opacity-90" : ""} ${
-                        isSelected ? "ring-2 ring-navy ring-offset-1 bg-navy/5 border-navy/30" : ""
-                      }`}
+                      className={dayClass}
                     >
                       {format(d, "d")}
                       <br />
                       <span className="text-[10px] sm:text-xs font-normal text-slate-500">
-                        {isFullyBooked ? "Full" : format(d, "EEE")}
+                        {format(d, "EEE")}
                       </span>
                     </button>
                   );
