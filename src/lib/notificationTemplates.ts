@@ -21,6 +21,7 @@ export const PLACEHOLDER_LABELS: Record<string, string> = {
   bookingLink: "Booking link",
   depositLink: "Pay deposit link",
   optOutLink: "Opt out link",
+  instagramLink: "Instagram link",
 };
 
 const LABEL_TO_VAR: Record<string, string> = {
@@ -33,6 +34,7 @@ const LABEL_TO_VAR: Record<string, string> = {
   "Booking link": "bookLink",
   "Pay deposit link": "depositLink",
   "Opt out link": "optOutLink",
+  "Instagram link": "instagramLink",
 };
 
 export function friendlyToken(label: string): string {
@@ -70,6 +72,11 @@ export const MESSAGE_INSERT_TAGS: { label: string; token: string; hint?: string 
     token: friendlyToken("Opt out link"),
     hint: "Link to stop rebook reminders",
   },
+  {
+    label: "Instagram link",
+    token: friendlyToken("Instagram link"),
+    hint: "Link to your Instagram profile",
+  },
 ];
 
 export function toFriendlyPlaceholders(template: string): string {
@@ -106,6 +113,7 @@ export const MESSAGE_PREVIEW_SAMPLE: Record<string, string> = {
   bookingLink: "https://bbbar.co.uk/book",
   depositLink: "https://bbbar.co.uk/booking/example",
   optOutLink: "https://bbbar.co.uk/rebook-reminder/opt-out?token=example",
+  instagramLink: "https://instagram.com/bebeauty.bar",
 };
 
 function escapeHtml(text: string): string {
@@ -210,6 +218,12 @@ export function buildBookLink(
 ): string {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001";
   return `${baseUrl}/book/tech/${technicianId}/${serviceId}/${date}/${encodeURIComponent(startTime)}`;
+}
+
+/** Instagram profile URL from the handle saved in business settings. */
+export function buildInstagramLink(handle?: string | null): string {
+  const normalized = (handle || "bebeauty.bar").replace(/^@/, "").trim();
+  return `https://instagram.com/${normalized}`;
 }
 
 export function previewMessage(template: string): string {

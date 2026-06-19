@@ -5,6 +5,7 @@ import { formatBookingDate } from "@/lib/format";
 import {
   applyTemplate,
   buildBookLink,
+  buildInstagramLink,
   renderEmailBody,
   renderEmailSubject,
   resolveNotificationMessages,
@@ -35,6 +36,7 @@ async function getMessages() {
     settings,
     messages: resolveNotificationMessages(settings?.notificationMessages),
     businessName: settings?.businessName ?? "Be Beauty Bar",
+    instagramLink: buildInstagramLink(settings?.instagramHandle),
   };
 }
 
@@ -62,6 +64,7 @@ function bookingVars(
     depositLink: extra?.depositLink ?? "",
     bookLink: extra?.bookLink ?? "",
     optOutLink: extra?.optOutLink ?? "",
+    instagramLink: extra?.instagramLink ?? "",
   };
 }
 
@@ -90,10 +93,10 @@ export async function sendBookingCreatedEmails(bookingId: string): Promise<{ ok:
       return { ok: false, error: "Booking not found or not pending deposit" };
     }
 
-    const { settings, messages, businessName } = await getMessages();
+    const { settings, messages, businessName, instagramLink } = await getMessages();
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001";
     const depositLink = `${baseUrl}/booking/${bookingId}`;
-    const vars = bookingVars(booking, businessName, { depositLink });
+    const vars = bookingVars(booking, businessName, { depositLink, instagramLink });
 
     if (booking.notifyByEmail && booking.customerEmail) {
       const r = await sendResendEmail({
@@ -132,8 +135,8 @@ export async function sendBookingConfirmationEmails(bookingId: string): Promise<
       return { ok: false, error: "Booking not found or not confirmed" };
     }
 
-    const { settings, messages, businessName } = await getMessages();
-    const vars = bookingVars(booking, businessName);
+    const { settings, messages, businessName, instagramLink } = await getMessages();
+    const vars = bookingVars(booking, businessName, { instagramLink });
     const smsVars = {
       ...vars,
       date: formatBookingDate(booking.date, "dd/MM/yyyy"),
@@ -185,8 +188,8 @@ export async function sendDepositExpiredCancellationEmails(
       return { ok: false, error: "Booking not found or not cancelled" };
     }
 
-    const { settings, messages, businessName } = await getMessages();
-    const vars = bookingVars(booking, businessName);
+    const { settings, messages, businessName, instagramLink } = await getMessages();
+    const vars = bookingVars(booking, businessName, { instagramLink });
     const smsVars = {
       ...vars,
       date: formatBookingDate(booking.date, "dd/MM/yyyy"),
@@ -235,8 +238,8 @@ export async function sendManualCancellationEmails(
       return { ok: false, error: "Booking not found or not cancelled" };
     }
 
-    const { settings, messages, businessName } = await getMessages();
-    const vars = bookingVars(booking, businessName);
+    const { settings, messages, businessName, instagramLink } = await getMessages();
+    const vars = bookingVars(booking, businessName, { instagramLink });
     const smsVars = {
       ...vars,
       date: formatBookingDate(booking.date, "dd/MM/yyyy"),
@@ -294,10 +297,10 @@ export async function sendBookingReminderEmails(
       return { ok: false, error: "Booking not found or not confirmed" };
     }
 
-    const { messages, businessName } = await getMessages();
-    const vars = bookingVars(booking, businessName);
+    const { messages, businessName, instagramLink } = await getMessages();
+    const vars = bookingVars(booking, businessName, { instagramLink });
     const smsVars = {
-      ...bookingVars(booking, businessName),
+      ...bookingVars(booking, businessName, { instagramLink }),
       date: formatBookingDate(booking.date, "dd/MM"),
     };
 
@@ -337,7 +340,7 @@ export async function sendRebookReminderEmails(
     }
 
     const { buildRebookOptOutLink } = await import("@/lib/rebookReminder");
-    const { messages, businessName } = await getMessages();
+    const { messages, businessName, instagramLink } = await getMessages();
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001";
     const bookLink = `${baseUrl}/book`;
     const optOutLink = await buildRebookOptOutLink(booking.customerEmail, booking.customerPhone);
@@ -347,6 +350,7 @@ export async function sendRebookReminderEmails(
       bookLink,
       bookingLink: bookLink,
       optOutLink,
+      instagramLink,
     });
 
     const smsVars = {
@@ -410,7 +414,7 @@ export async function sendWaitlistNotification(
   params: WaitlistNotifyParams
 ): Promise<{ ok: boolean; error?: string }> {
   const { entry, slot, serviceName, technicianName } = params;
-  const { messages, businessName } = await getMessages();
+  const { messages, businessName, instagramLink } = await getMessages();
   const dateLabel = formatBookingDate(slot.date, "EEEE, d MMMM yyyy");
   const timeLabel = `${slot.startTime} – ${slot.endTime}`;
   const bookLink = buildBookLink(entry.technicianId, entry.serviceId, slot.date, slot.startTime);
@@ -425,6 +429,7 @@ export async function sendWaitlistNotification(
     bookingLink: bookLink,
     depositLink: bookLink,
     businessName,
+    instagramLink,
   };
 
   const smsVars = {
@@ -469,7 +474,7 @@ export async function sendWaitlistPreviewEmail(
 ): Promise<{ ok: boolean; error?: string }> {
   if (!resendClient) return { ok: false, error: "RESEND_API_KEY not set" };
 
-  const { messages, businessName } = await getMessages();
+  const { messages, businessName, instagramLink } = await getMessages();
   const vars = {
     customerName: "Alex",
     serviceName: "Gel Manicure",
@@ -480,6 +485,7 @@ export async function sendWaitlistPreviewEmail(
     bookingLink: `${process.env.NEXT_PUBLIC_APP_URL || "https://bbbar.co.uk"}/book`,
     depositLink: `${process.env.NEXT_PUBLIC_APP_URL || "https://bbbar.co.uk"}/book`,
     businessName,
+    instagramLink,
   };
 
   return sendResendEmail({
@@ -495,7 +501,7 @@ export async function sendRebookPreviewEmail(
 ): Promise<{ ok: boolean; error?: string }> {
   if (!resendClient) return { ok: false, error: "RESEND_API_KEY not set" };
 
-  const { messages, businessName } = await getMessages();
+  const { messages, businessName, instagramLink } = await getMessages();
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001";
   const bookLink = `${baseUrl}/book`;
   const vars = {
@@ -509,6 +515,7 @@ export async function sendRebookPreviewEmail(
     depositLink: bookLink,
     businessName,
     optOutLink: `${baseUrl}/rebook-reminder/opt-out?token=preview`,
+    instagramLink,
   };
 
   return sendResendEmail({
