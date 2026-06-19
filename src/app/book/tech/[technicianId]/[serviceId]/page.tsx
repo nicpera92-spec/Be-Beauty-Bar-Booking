@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { eachDayOfInterval, format, isBefore, parse, getDay } from "date-fns";
+import { eachDayOfInterval, format, isBefore, isAfter, parse, getDay } from "date-fns";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/format";
 import { getCustomerBookableRange } from "@/lib/booking-calendar-range";
@@ -260,6 +260,10 @@ export default function BookDatePage() {
                   technicianId={technicianId}
                   preferredDate={selectedDate}
                   dateLabel={selectedDateLabel}
+                  canNotifyEarlier={isAfter(
+                    parse(selectedDate, "yyyy-MM-dd", new Date()),
+                    minBookableDate
+                  )}
                 />
               ) : (
                 <p className="text-slate-500 text-sm">

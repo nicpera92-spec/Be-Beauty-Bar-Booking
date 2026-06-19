@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { formatBookingDate } from "@/lib/format";
 
 type WaitlistJoinFormProps = {
@@ -8,6 +8,7 @@ type WaitlistJoinFormProps = {
   technicianId: string;
   preferredDate: string;
   dateLabel: string;
+  canNotifyEarlier: boolean;
 };
 
 export default function WaitlistJoinForm({
@@ -15,6 +16,7 @@ export default function WaitlistJoinForm({
   technicianId,
   preferredDate,
   dateLabel,
+  canNotifyEarlier,
 }: WaitlistJoinFormProps) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -26,6 +28,12 @@ export default function WaitlistJoinForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    if (!canNotifyEarlier) {
+      setNotifyEarliest(false);
+    }
+  }, [canNotifyEarlier, preferredDate]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,7 +70,7 @@ export default function WaitlistJoinForm({
           preferredDate,
           notifyByEmail,
           notifyBySMS,
-          notifyEarliest,
+          notifyEarliest: canNotifyEarlier && notifyEarliest,
         }),
       });
       const data = await r.json();
@@ -163,18 +171,20 @@ export default function WaitlistJoinForm({
             </label>
           </fieldset>
 
-          <label className="flex items-start gap-2 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              checked={notifyEarliest}
-              onChange={(e) => setNotifyEarliest(e.target.checked)}
-              className="mt-0.5 rounded border-slate-300 text-navy focus:ring-navy/20"
-            />
-            <span>
-              Also notify me if an <strong>earlier date</strong> becomes available before{" "}
-              {formatBookingDate(preferredDate, "d MMMM")}
-            </span>
-          </label>
+          {canNotifyEarlier && (
+            <label className="flex items-start gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={notifyEarliest}
+                onChange={(e) => setNotifyEarliest(e.target.checked)}
+                className="mt-0.5 rounded border-slate-300 text-navy focus:ring-navy/20"
+              />
+              <span>
+                Also notify me if an <strong>earlier date</strong> becomes available before{" "}
+                {formatBookingDate(preferredDate, "d MMMM")}
+              </span>
+            </label>
+          )}
 
           <div className="flex flex-wrap gap-2 pt-1">
             <button

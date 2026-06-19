@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { addDays, isBefore, parse, startOfDay } from "date-fns";
+import { addDays, isAfter, isBefore, parse, startOfDay } from "date-fns";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
@@ -66,6 +66,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Please choose a future date" }, { status: 400 });
     }
 
+    const allowNotifyEarliest = isAfter(preferredDay, minBookableDate);
+    const notifyEarliestValue = allowNotifyEarliest && Boolean(notifyEarliest);
+
     const service = await prisma.service.findUnique({
       where: { id: serviceId },
       include: { technician: { select: { active: true } } },
@@ -99,7 +102,7 @@ export async function POST(req: NextRequest) {
       notifyByEmail: Boolean(notifyByEmail),
       notifyBySMS: Boolean(notifyBySMS),
       preferredDate,
-      notifyEarliest: Boolean(notifyEarliest),
+      notifyEarliest: notifyEarliestValue,
       status: "active",
     };
 
