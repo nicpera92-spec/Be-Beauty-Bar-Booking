@@ -14,6 +14,14 @@ function todayStr() {
   return format(startOfDay(new Date()), "yyyy-MM-dd");
 }
 
+export async function isWaitlistEnabled(): Promise<boolean> {
+  const settings = await prisma.businessSettings.findUnique({
+    where: { id: "default" },
+    select: { waitlistEnabled: true },
+  });
+  return settings?.waitlistEnabled ?? true;
+}
+
 export async function expirePastWaitlistEntries(): Promise<number> {
   const today = todayStr();
   const result = await prisma.waitingListEntry.updateMany({
@@ -163,6 +171,8 @@ export async function notifyWaitlistForFreedSlot(params: {
   startTime: string;
   endTime: string;
 }): Promise<void> {
+  if (!(await isWaitlistEnabled())) return;
+
   const { serviceId, technicianId, date, startTime, endTime } = params;
   const today = todayStr();
   if (date < today) return;
@@ -189,6 +199,11 @@ export async function processEarliestWaitlistNotifications(): Promise<{
   notified: number;
   expired: number;
 }> {
+  if (!(await isWaitlistEnabled())) {
+    const expired = await expirePastWaitlistEntries();
+    return { notified: 0, expired };
+  }
+
   const expired = await expirePastWaitlistEntries();
   const today = todayStr();
 

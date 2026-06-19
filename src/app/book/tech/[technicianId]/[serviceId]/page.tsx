@@ -17,7 +17,7 @@ type Service = {
 };
 
 type Slot = { start: string; end: string };
-type Settings = { instagramHandle?: string | null };
+type Settings = { instagramHandle?: string | null; waitlistEnabled?: boolean };
 
 function formatTime24to12(t: string): string {
   const [h, m] = t.split(":").map(Number);
@@ -238,12 +238,18 @@ export default function BookDatePage() {
             <p className="text-slate-500 text-sm">Loading times…</p>
           ) : slots.length === 0 ? (
             selectedDate && selectedDateLabel ? (
-              <WaitlistJoinForm
-                serviceId={serviceId}
-                technicianId={technicianId}
-                preferredDate={selectedDate}
-                dateLabel={selectedDateLabel}
-              />
+              settings?.waitlistEnabled !== false ? (
+                <WaitlistJoinForm
+                  serviceId={serviceId}
+                  technicianId={technicianId}
+                  preferredDate={selectedDate}
+                  dateLabel={selectedDateLabel}
+                />
+              ) : (
+                <p className="text-slate-500 text-sm">
+                  No times available for {selectedDateLabel}.
+                </p>
+              )
             ) : (
               <p className="text-slate-500 text-sm">No times available.</p>
             )

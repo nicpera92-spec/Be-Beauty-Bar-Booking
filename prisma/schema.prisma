@@ -80,6 +80,7 @@ model BusinessSettings {
   stripeSecretKey      String?
   stripeWebhookSecret  String?
   smsNotificationFee   Float?   @default(0.05)
+  waitlistEnabled      Boolean  @default(true)
   notificationMessages Json?
   updatedAt            DateTime @updatedAt
 }

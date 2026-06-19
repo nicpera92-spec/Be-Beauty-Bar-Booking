@@ -1,0 +1,1 @@
+ALTER TABLE "BusinessSettings" ADD COLUMN IF NOT EXISTS "waitlistEnabled" BOOLEAN NOT NULL DEFAULT true;

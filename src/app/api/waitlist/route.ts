@@ -4,6 +4,14 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
   try {
+    const settings = await prisma.businessSettings.findUnique({
+      where: { id: "default" },
+      select: { waitlistEnabled: true },
+    });
+    if (settings?.waitlistEnabled === false) {
+      return NextResponse.json({ error: "Waiting list is not available" }, { status: 403 });
+    }
+
     const body = await req.json();
     const {
       serviceId,

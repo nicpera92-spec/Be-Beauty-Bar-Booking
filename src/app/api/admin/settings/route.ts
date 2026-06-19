@@ -39,6 +39,7 @@ export async function PATCH(req: NextRequest) {
     primaryColor,
     secondaryColor,
     notificationMessages,
+    waitlistEnabled,
   } = body;
 
   const hexColor = /^#[0-9a-fA-F]{6}$/;
@@ -90,6 +91,7 @@ export async function PATCH(req: NextRequest) {
     data.stripeWebhookSecret = stripeWebhookSecret === "" ? null : stripeWebhookSecret;
   }
   if (smsNotificationFee != null) data.smsNotificationFee = Number(smsNotificationFee);
+  if (waitlistEnabled !== undefined) data.waitlistEnabled = Boolean(waitlistEnabled);
   if (notificationMessages !== undefined) {
     if (notificationMessages !== null && typeof notificationMessages !== "object") {
       return NextResponse.json({ error: "Invalid notification messages" }, { status: 400 });

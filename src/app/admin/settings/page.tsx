@@ -59,6 +59,7 @@ type Settings = {
   primaryColor?: string | null;
   secondaryColor?: string | null;
   notificationMessages?: unknown;
+  waitlistEnabled?: boolean;
 };
 
 type CategoryRule = {
@@ -152,6 +153,7 @@ function AdminSettingsPageInner() {
       stripeSecretKey: "",
       stripeWebhookSecret: "",
       smsNotificationFee: data.smsNotificationFee ?? 0.05,
+      waitlistEnabled: data.waitlistEnabled ?? true,
     });
     const primary = data.primaryColor ?? DEFAULT_PRIMARY;
     const secondary = data.secondaryColor ?? DEFAULT_SECONDARY;
@@ -198,6 +200,7 @@ function AdminSettingsPageInner() {
       closeTime: form.closeTime,
       slotInterval: form.slotInterval,
       smsNotificationFee: form.smsNotificationFee,
+      waitlistEnabled: form.waitlistEnabled ?? true,
       primaryColor,
       secondaryColor,
       notificationMessages,
@@ -558,6 +561,22 @@ function AdminSettingsPageInner() {
               <h2 className="text-lg font-semibold text-navy mb-1">Bookings</h2>
               <p className="text-sm text-charcoal/55">Pricing, opening hours, and how many clients can book at once.</p>
             </div>
+
+            <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/50 p-4 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.waitlistEnabled ?? true}
+                onChange={(e) => setForm((f) => ({ ...f, waitlistEnabled: e.target.checked }))}
+                className="mt-0.5 rounded border-slate-300 text-navy focus:ring-navy/20"
+              />
+              <span>
+                <span className="block text-sm font-medium text-charcoal">Waiting list</span>
+                <span className="block text-sm text-charcoal/55 mt-0.5">
+                  Let customers join a waiting list on fully booked days and notify them when a slot opens.
+                </span>
+              </span>
+            </label>
+
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className={labelClass}>Default price (£)</label>
