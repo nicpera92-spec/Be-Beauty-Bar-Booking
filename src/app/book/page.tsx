@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { categoryLabel } from "@/lib/categoryCapacity";
 
 type Technician = {
   id: string;
   name: string;
   bio: string | null;
   skillLevel: string | null;
+  categories?: string[];
 };
 
 export default function BookPage() {
@@ -77,12 +79,27 @@ export default function BookPage() {
             onClick={() => router.push(`/book/tech/${t.id}`)}
             className="block w-full text-left p-5 sm:p-6 rounded-lg border border-slate-200 bg-white hover:border-navy/30 hover:shadow-md transition-all duration-200 touch-manipulation active:bg-slate-50"
           >
-            <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-x-3 gap-y-2 flex-wrap">
               <h3 className="font-medium text-slate-800 text-lg">{t.name}</h3>
               {t.skillLevel && t.skillLevel.trim() && (
                 <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-sky-50 text-sky-700">
                   {t.skillLevel}
                 </span>
+              )}
+              {t.categories && t.categories.length > 0 && (
+                <>
+                  <span className="hidden sm:block h-4 w-px bg-slate-200" aria-hidden />
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {t.categories.map((category) => (
+                      <span
+                        key={category}
+                        className="text-[11px] font-medium tracking-wide uppercase px-2 py-0.5 rounded-full border border-slate-200/80 bg-slate-50 text-slate-600"
+                      >
+                        {categoryLabel(category)}
+                      </span>
+                    ))}
+                  </div>
+                </>
               )}
             </div>
             {t.bio && t.bio.trim() && (
