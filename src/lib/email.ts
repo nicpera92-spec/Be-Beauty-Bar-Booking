@@ -5,6 +5,8 @@ import { formatBookingDate } from "@/lib/format";
 import {
   applyTemplate,
   buildBookLink,
+  renderEmailBody,
+  renderEmailSubject,
   resolveNotificationMessages,
 } from "@/lib/notificationTemplates";
 
@@ -96,8 +98,8 @@ export async function sendBookingCreatedEmails(bookingId: string): Promise<{ ok:
       const r = await sendResendEmail({
         from,
         to: booking.customerEmail,
-        subject: applyTemplate(messages.bookingCreatedCustomerSubject, vars),
-        html: applyTemplate(messages.bookingCreatedCustomerBody, vars),
+        subject: renderEmailSubject(messages.bookingCreatedCustomerSubject, vars),
+        html: renderEmailBody(messages.bookingCreatedCustomerBody, vars),
       });
       if (!r.ok) return r;
     }
@@ -106,8 +108,8 @@ export async function sendBookingCreatedEmails(bookingId: string): Promise<{ ok:
       const r = await sendResendEmail({
         from,
         to: settings.businessEmail,
-        subject: applyTemplate(messages.bookingCreatedOwnerSubject, vars),
-        html: applyTemplate(messages.bookingCreatedOwnerBody, vars),
+        subject: renderEmailSubject(messages.bookingCreatedOwnerSubject, vars),
+        html: renderEmailBody(messages.bookingCreatedOwnerBody, vars),
       });
       if (!r.ok) return r;
     }
@@ -141,8 +143,8 @@ export async function sendBookingConfirmationEmails(bookingId: string): Promise<
       const r = await sendResendEmail({
         from,
         to: booking.customerEmail,
-        subject: applyTemplate(messages.bookingConfirmedCustomerSubject, vars),
-        html: applyTemplate(messages.bookingConfirmedCustomerBody, vars),
+        subject: renderEmailSubject(messages.bookingConfirmedCustomerSubject, vars),
+        html: renderEmailBody(messages.bookingConfirmedCustomerBody, vars),
       });
       if (!r.ok) console.warn("Confirmation email failed:", r.error);
     }
@@ -157,8 +159,8 @@ export async function sendBookingConfirmationEmails(bookingId: string): Promise<
       const r = await sendResendEmail({
         from,
         to: settings.businessEmail.trim(),
-        subject: applyTemplate(messages.bookingConfirmedOwnerSubject, vars),
-        html: applyTemplate(messages.bookingConfirmedOwnerBody, vars),
+        subject: renderEmailSubject(messages.bookingConfirmedOwnerSubject, vars),
+        html: renderEmailBody(messages.bookingConfirmedOwnerBody, vars),
       });
       if (!r.ok) console.warn("Owner confirmation email failed:", r.error);
     }
@@ -194,8 +196,8 @@ export async function sendDepositExpiredCancellationEmails(
       await sendResendEmail({
         from,
         to: booking.customerEmail,
-        subject: applyTemplate(messages.depositExpiredCustomerSubject, vars),
-        html: applyTemplate(messages.depositExpiredCustomerBody, vars),
+        subject: renderEmailSubject(messages.depositExpiredCustomerSubject, vars),
+        html: renderEmailBody(messages.depositExpiredCustomerBody, vars),
       });
     }
 
@@ -208,8 +210,8 @@ export async function sendDepositExpiredCancellationEmails(
       await sendResendEmail({
         from,
         to: settings.businessEmail,
-        subject: applyTemplate(messages.depositExpiredOwnerSubject, vars),
-        html: applyTemplate(messages.depositExpiredOwnerBody, vars),
+        subject: renderEmailSubject(messages.depositExpiredOwnerSubject, vars),
+        html: renderEmailBody(messages.depositExpiredOwnerBody, vars),
       });
     }
 
@@ -244,8 +246,8 @@ export async function sendManualCancellationEmails(
       await sendResendEmail({
         from,
         to: booking.customerEmail,
-        subject: applyTemplate(messages.manualCancelCustomerSubject, vars),
-        html: applyTemplate(messages.manualCancelCustomerBody, vars),
+        subject: renderEmailSubject(messages.manualCancelCustomerSubject, vars),
+        html: renderEmailBody(messages.manualCancelCustomerBody, vars),
       });
     }
 
@@ -258,8 +260,8 @@ export async function sendManualCancellationEmails(
       await sendResendEmail({
         from,
         to: settings.businessEmail.trim(),
-        subject: applyTemplate(messages.manualCancelOwnerSubject, vars),
-        html: applyTemplate(messages.manualCancelOwnerBody, vars),
+        subject: renderEmailSubject(messages.manualCancelOwnerSubject, vars),
+        html: renderEmailBody(messages.manualCancelOwnerBody, vars),
       });
     }
 
@@ -302,8 +304,8 @@ export async function sendBookingReminderEmails(
       const r = await sendResendEmail({
         from,
         to: booking.customerEmail,
-        subject: applyTemplate(messages.reminderCustomerSubject, vars),
-        html: applyTemplate(messages.reminderCustomerBody, vars),
+        subject: renderEmailSubject(messages.reminderCustomerSubject, vars),
+        html: renderEmailBody(messages.reminderCustomerBody, vars),
       });
       if (!r.ok) return r;
     }
@@ -370,8 +372,8 @@ export async function sendWaitlistNotification(
     const r = await sendResendEmail({
       from,
       to: entry.customerEmail,
-      subject: applyTemplate(messages.waitlistCustomerSubject, vars),
-      html: applyTemplate(messages.waitlistCustomerBody, vars),
+      subject: renderEmailSubject(messages.waitlistCustomerSubject, vars),
+      html: renderEmailBody(messages.waitlistCustomerBody, vars),
     });
     if (!r.ok) return r;
     sent = true;
@@ -416,7 +418,7 @@ export async function sendWaitlistPreviewEmail(
   return sendResendEmail({
     from,
     to: to.trim(),
-    subject: applyTemplate(messages.waitlistCustomerSubject, vars),
-    html: applyTemplate(messages.waitlistCustomerBody, vars),
+    subject: renderEmailSubject(messages.waitlistCustomerSubject, vars),
+    html: renderEmailBody(messages.waitlistCustomerBody, vars),
   });
 }

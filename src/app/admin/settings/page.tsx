@@ -718,7 +718,7 @@ function AdminSettingsPageInner() {
             <div>
               <h2 className="text-lg font-semibold text-navy mb-1">Messages</h2>
               <p className="text-sm text-charcoal/55">
-                Edit the emails and texts customers receive. Save settings after making changes.
+                Customise emails and texts in plain words — tap the + buttons to add customer name, date, service, and links. Save when you&apos;re done.
               </p>
             </div>
             <NotificationMessagesEditor
