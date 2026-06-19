@@ -87,10 +87,10 @@ export default function BookPage() {
                 </span>
               )}
               {t.categories && t.categories.length > 0 && (
-                <span className="text-[13px] font-normal text-navy tracking-[0.01em]">
+                <span className="inline-flex flex-wrap items-center text-xs font-medium text-navy bg-navy/[0.07] rounded-full px-2.5 py-1">
                   {t.categories.map((category, index) => (
                     <span key={category}>
-                      {index > 0 && <span className="mx-2 text-navy/35">·</span>}
+                      {index > 0 && <span className="mx-1.5 text-navy/40">·</span>}
                       {categoryLabel(category)}
                     </span>
                   ))}
