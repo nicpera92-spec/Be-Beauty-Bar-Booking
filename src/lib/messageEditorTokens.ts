@@ -1,17 +1,24 @@
-/** Zero-width delimiters — invisible in the editor, no missing-glyph squares. */
-export const MESSAGE_TOKEN_OPEN = "\u200B";
-export const MESSAGE_TOKEN_CLOSE = "\u200C";
+/** Visible **Label** tokens used in the message editor. */
+export const MESSAGE_TOKEN_PATTERN = "\\*\\*([^*]+)\\*\\*";
 
-/** Legacy private-use delimiters (rendered as □ in some fonts). */
+/** Legacy invisible token formats — migrated to **Label** on load. */
+const LEGACY_ZW_OPEN = "\u200B";
+const LEGACY_ZW_CLOSE = "\u200C";
 const LEGACY_TOKEN_OPEN = "\uE010";
 const LEGACY_TOKEN_CLOSE = "\uE011";
 
 export type TokenRange = { start: number; end: number; raw: string };
 
 const TOKEN_RE = new RegExp(
-  `${MESSAGE_TOKEN_OPEN}([^${MESSAGE_TOKEN_CLOSE}]+)${MESSAGE_TOKEN_CLOSE}|${LEGACY_TOKEN_OPEN}([^${LEGACY_TOKEN_CLOSE}]+)${LEGACY_TOKEN_CLOSE}|\\*\\*([^*]+)\\*\\*|\\{\\{(\\w+)\\}\\}`,
+  `${MESSAGE_TOKEN_PATTERN}|${LEGACY_ZW_OPEN}([^${LEGACY_ZW_CLOSE}]+)${LEGACY_ZW_CLOSE}|${LEGACY_TOKEN_OPEN}([^${LEGACY_TOKEN_CLOSE}]+)${LEGACY_TOKEN_CLOSE}|\\{\\{(\\w+)\\}\\}`,
   "g"
 );
+
+export function migrateTokensToVisibleText(text: string): string {
+  return text
+    .replace(/\u200B([^\u200C]+)\u200C/g, (_, label: string) => `**${label.trim()}**`)
+    .replace(/\uE010([^\uE011]+)\uE011/g, (_, label: string) => `**${label.trim()}**`);
+}
 
 export function getTokenRanges(text: string): TokenRange[] {
   const ranges: TokenRange[] = [];
