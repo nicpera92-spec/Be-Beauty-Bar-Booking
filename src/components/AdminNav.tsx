@@ -136,14 +136,14 @@ export default function AdminNav({ staffRole, staffName, onLogout }: AdminNavPro
       </div>
 
       <nav className="px-2 pb-2 sm:px-5 sm:pb-0">
-        <div className="flex gap-0.5 p-0.5 sm:hidden overflow-x-auto">
+        <div className="flex gap-0.5 p-0.5 sm:hidden flex-nowrap w-full min-w-0 overflow-hidden">
           {navItems.map((item) => {
             const active = isNavActive(pathname, item.href);
             return (
               <Link
                 key={item.href + item.label}
                 href={item.href}
-                className={`flex-1 min-w-[4.5rem] flex items-center justify-center gap-1 py-1.5 px-1 rounded-md transition touch-manipulation ${
+                className={`flex-1 min-w-0 flex items-center justify-center gap-0.5 py-1.5 px-0.5 rounded-md transition touch-manipulation ${
                   active ? "bg-navy text-white" : "text-charcoal hover:bg-slate-50"
                 }`}
               >

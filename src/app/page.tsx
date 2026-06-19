@@ -35,6 +35,8 @@ export default function HomePage() {
   const businessName = settings?.businessName ?? "Be Beauty Bar";
   const displayCategories =
     categories.length > 0 ? categories : DEFAULT_HOME_CATEGORIES;
+  const mobileCategoryGrid =
+    displayCategories.length >= 4 && displayCategories.length % 2 === 0;
 
   return (
     <div className="relative min-h-[70vh] overflow-hidden">
@@ -52,14 +54,37 @@ export default function HomePage() {
         aria-hidden
       />
 
-      <div className="relative max-w-3xl mx-auto px-4 sm:px-8 py-20 sm:py-28 md:py-40 text-center">
-        <h1 className="font-serif text-4xl md:text-5xl font-light tracking-tight text-slate-800 mb-8">
+      <div className="relative max-w-3xl mx-auto px-4 sm:px-8 py-16 sm:py-28 md:py-40 text-center">
+        <h1 className="font-serif text-4xl md:text-5xl font-light tracking-tight text-slate-800 mb-6 sm:mb-8">
           {businessName}
         </h1>
-        <p className="text-navy text-xs md:text-sm uppercase tracking-[0.25em] mb-6 font-medium">
-          {displayCategories.map((category) => homeCategoryLabel(category)).join(" · ")}
-        </p>
-        <p className="text-slate-600 mb-16 max-w-md mx-auto text-base md:text-lg leading-relaxed">
+
+        <ul
+          className={`mb-5 sm:mb-6 list-none p-0 m-0 sm:flex sm:flex-wrap sm:justify-center sm:items-center sm:gap-y-2 ${
+            mobileCategoryGrid
+              ? "max-sm:grid max-sm:grid-cols-2 max-sm:justify-items-center max-sm:gap-x-4 max-sm:gap-y-2 max-sm:max-w-xs max-sm:mx-auto"
+              : "flex flex-col items-center gap-1.5"
+          }`}
+          aria-label="Services"
+        >
+          {displayCategories.map((category, index) => (
+            <li key={category} className="flex items-center justify-center">
+              {index > 0 && (
+                <span
+                  className="hidden sm:inline text-navy/35 px-2.5 md:px-3 select-none"
+                  aria-hidden
+                >
+                  ·
+                </span>
+              )}
+              <span className="text-navy text-[10px] sm:text-xs uppercase tracking-[0.14em] sm:tracking-[0.22em] md:tracking-[0.25em] font-medium text-center max-sm:leading-snug sm:whitespace-nowrap">
+                {homeCategoryLabel(category)}
+              </span>
+            </li>
+          ))}
+        </ul>
+
+        <p className="text-slate-600 mb-10 sm:mb-16 max-w-md mx-auto text-base md:text-lg leading-relaxed px-1">
           Book your appointment online. Choose your technician, choose your service, pick a date
           and time, and secure your slot with a deposit.
         </p>

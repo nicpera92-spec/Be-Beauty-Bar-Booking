@@ -19,12 +19,12 @@ for (let h = 0; h < 24; h++) {
 
 type SettingsTab = "business" | "theme" | "bookings" | "messages" | "payments";
 
-const TABS: { id: SettingsTab; label: string }[] = [
-  { id: "business", label: "Business" },
-  { id: "theme", label: "Theme" },
-  { id: "bookings", label: "Bookings" },
-  { id: "messages", label: "Messages" },
-  { id: "payments", label: "Payments" },
+const TABS: { id: SettingsTab; label: string; shortLabel: string }[] = [
+  { id: "business", label: "Business", shortLabel: "Business" },
+  { id: "theme", label: "Theme", shortLabel: "Theme" },
+  { id: "bookings", label: "Bookings", shortLabel: "Bookings" },
+  { id: "messages", label: "Messages", shortLabel: "Msgs" },
+  { id: "payments", label: "Payments", shortLabel: "Pay" },
 ];
 
 function isSettingsTab(value: string | null): value is SettingsTab {
@@ -343,7 +343,7 @@ function AdminSettingsPageInner() {
       <h1 className="font-serif text-3xl sm:text-4xl font-semibold text-charcoal mb-6">Settings</h1>
 
       <div
-        className="flex flex-wrap gap-1 p-1 mb-6 rounded-2xl border border-slate-200/80 bg-white/70 shadow-sm"
+        className="flex flex-nowrap gap-0.5 sm:gap-1 p-1 mb-6 w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/70 shadow-sm"
         role="tablist"
         aria-label="Settings sections"
       >
@@ -356,13 +356,14 @@ function AdminSettingsPageInner() {
               role="tab"
               aria-selected={active}
               onClick={() => switchTab(item.id)}
-              className={`flex-1 min-w-[5.5rem] px-3 py-2.5 rounded-xl text-sm font-medium transition touch-manipulation ${
+              className={`flex-1 min-w-0 px-1 sm:px-3 py-2 sm:py-2.5 rounded-xl text-[10px] sm:text-sm font-medium transition touch-manipulation truncate ${
                 active
                   ? "bg-navy text-white shadow-sm"
                   : "text-charcoal/65 hover:text-charcoal hover:bg-white/80"
               }`}
             >
-              {item.label}
+              <span className="sm:hidden">{item.shortLabel}</span>
+              <span className="hidden sm:inline">{item.label}</span>
             </button>
           );
         })}

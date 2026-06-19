@@ -10,6 +10,7 @@ const HOME_CATEGORY_LABELS: Record<string, string> = {
   nails: "Nails",
   lash: "Lash Extensions",
   "permanent-makeup": "Permanent Makeup",
+  brows: "Brows",
 };
 
 /** Short label for booking UI (technician cards, etc.). */
@@ -26,4 +27,4 @@ export function homeCategoryLabel(category: string): string {
     .join(" ");
 }
 
-export const DEFAULT_HOME_CATEGORIES = ["nails", "lash", "permanent-makeup"];
+export const DEFAULT_HOME_CATEGORIES = ["nails", "lash", "permanent-makeup", "brows"];

@@ -1,17 +1,18 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   NOTIFICATION_MESSAGE_GROUPS,
   type NotificationMessageField,
   type NotificationMessages,
 } from "@/lib/notificationDefaults";
 import {
-  MESSAGE_INSERT_TAGS,
-  PLACEHOLDER_LABELS,
-  previewEmailHtml,
-  previewMessage,
-} from "@/lib/notificationTemplates";
+  expandRangeToTokenBounds,
+  fixSingleCharTokenDelete,
+  getTokenDeleteRange,
+  snapCursorPastToken,
+} from "@/lib/messageEditorTokens";
+import { MESSAGE_INSERT_TAGS, previewEmailHtml, previewMessage } from "@/lib/notificationTemplates";
 
 type NotificationMessagesEditorProps = {
   messages: NotificationMessages;
@@ -20,37 +21,6 @@ type NotificationMessagesEditorProps = {
   previewSending?: boolean;
   previewResult?: { ok: boolean; message: string } | null;
 };
-
-const PLACEHOLDER_RE = /\*\*([^*]+)\*\*|\{\{(\w+)\}\}/g;
-
-function renderPlaceholderHighlight(text: string): ReactNode {
-  if (!text) return null;
-
-  const parts: ReactNode[] = [];
-  let last = 0;
-  let key = 0;
-  let match: RegExpExecArray | null;
-
-  PLACEHOLDER_RE.lastIndex = 0;
-  while ((match = PLACEHOLDER_RE.exec(text)) !== null) {
-    if (match.index > last) {
-      parts.push(text.slice(last, match.index));
-    }
-    const label = match[1] ?? PLACEHOLDER_LABELS[match[2]] ?? match[2];
-    parts.push(
-      <strong key={key++} className="font-semibold text-navy">
-        {label}
-      </strong>
-    );
-    last = match.index + match[0].length;
-  }
-
-  if (last < text.length) {
-    parts.push(text.slice(last));
-  }
-
-  return parts;
-}
 
 function insertAtCursor(
   el: HTMLTextAreaElement | HTMLInputElement | null,
@@ -62,8 +32,12 @@ function insertAtCursor(
     onUpdate(current + token);
     return;
   }
-  const start = el.selectionStart ?? current.length;
-  const end = el.selectionEnd ?? current.length;
+
+  let start = el.selectionStart ?? current.length;
+  let end = el.selectionEnd ?? current.length;
+  start = snapCursorPastToken(current, start);
+  end = snapCursorPastToken(current, end);
+
   const next = current.slice(0, start) + token + current.slice(end);
   onUpdate(next);
   const pos = start + token.length;
@@ -73,7 +47,25 @@ function insertAtCursor(
   });
 }
 
-function HighlightedInput({
+function applyTokenAwareEdit(
+  el: HTMLTextAreaElement | HTMLInputElement,
+  next: string,
+  selectionStart: number,
+  selectionEnd: number,
+  onChange: (value: string) => void,
+  prevValueRef: React.MutableRefObject<string>
+) {
+  prevValueRef.current = next;
+  onChange(next);
+  const pos = Math.min(selectionStart, next.length);
+  const end = Math.min(selectionEnd, next.length);
+  requestAnimationFrame(() => {
+    el.focus();
+    el.setSelectionRange(pos, end);
+  });
+}
+
+function MessageTokenInput({
   value,
   onChange,
   placeholder,
@@ -86,11 +78,15 @@ function HighlightedInput({
   placeholder: string;
   rows?: number;
   inputRef?: React.RefObject<HTMLInputElement | HTMLTextAreaElement | null>;
-  onFocus?: () => void;
+  onFocus?: (el: HTMLInputElement | HTMLTextAreaElement) => void;
 }) {
   const localRef = useRef<HTMLTextAreaElement | HTMLInputElement>(null);
-  const backdropRef = useRef<HTMLDivElement>(null);
+  const prevValueRef = useRef(value);
   const isMultiline = rows > 1;
+
+  useEffect(() => {
+    prevValueRef.current = value;
+  }, [value]);
 
   const setRef = (el: HTMLTextAreaElement | HTMLInputElement | null) => {
     (localRef as React.MutableRefObject<HTMLTextAreaElement | HTMLInputElement | null>).current =
@@ -101,55 +97,89 @@ function HighlightedInput({
     }
   };
 
-  const syncScroll = () => {
-    if (backdropRef.current && localRef.current && "scrollTop" in localRef.current) {
-      backdropRef.current.scrollTop = localRef.current.scrollTop;
-      backdropRef.current.scrollLeft = localRef.current.scrollLeft;
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement | HTMLInputElement>) => {
+    const el = e.currentTarget;
+    let start = el.selectionStart ?? 0;
+    let end = el.selectionEnd ?? 0;
+
+    if (e.key === "Backspace" || e.key === "Delete") {
+      const direction = e.key === "Backspace" ? "backspace" : "delete";
+
+      if (start !== end) {
+        const expanded = expandRangeToTokenBounds(value, start, end);
+        if (expanded.start !== start || expanded.end !== end) {
+          e.preventDefault();
+          const next = value.slice(0, expanded.start) + value.slice(expanded.end);
+          applyTokenAwareEdit(el, next, expanded.start, expanded.start, onChange, prevValueRef);
+        }
+        return;
+      }
+
+      const deleteRange = getTokenDeleteRange(value, start, direction);
+      if (deleteRange) {
+        e.preventDefault();
+        const next = value.slice(0, deleteRange.start) + value.slice(deleteRange.end);
+        applyTokenAwareEdit(el, next, deleteRange.start, deleteRange.start, onChange, prevValueRef);
+      }
+      return;
+    }
+
+    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && start === end) {
+      const snapped = snapCursorPastToken(value, start);
+      if (snapped !== start) {
+        e.preventDefault();
+        const next = value.slice(0, snapped) + e.key + value.slice(snapped);
+        applyTokenAwareEdit(el, next, snapped + 1, snapped + 1, onChange, prevValueRef);
+      }
     }
   };
 
   const fieldClass =
-    "w-full px-3 py-2.5 text-sm leading-relaxed text-charcoal focus:outline-none";
+    "w-full px-3 py-2.5 text-base sm:text-sm leading-relaxed text-charcoal bg-white focus:outline-none";
 
-  return (
-    <div className="relative rounded-xl border border-slate-200 bg-white focus-within:border-navy/40 focus-within:ring-2 focus-within:ring-navy/10 overflow-hidden">
-      <div
-        ref={backdropRef}
-        aria-hidden
-        className={`${fieldClass} absolute inset-0 pointer-events-none whitespace-pre-wrap break-words overflow-hidden`}
-      >
-        {renderPlaceholderHighlight(value)}
-      </div>
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => {
+    const el = e.currentTarget;
+    const next = el.value;
+    const prev = prevValueRef.current;
+    const cursor = el.selectionStart ?? next.length;
 
-      {!value && (
-        <div
-          className={`${fieldClass} absolute inset-0 pointer-events-none text-charcoal/35 whitespace-pre-wrap`}
-        >
-          {placeholder}
-        </div>
-      )}
+    const repaired = fixSingleCharTokenDelete(prev, next, cursor);
+    if (repaired) {
+      prevValueRef.current = repaired.value;
+      onChange(repaired.value);
+      requestAnimationFrame(() => {
+        el.focus();
+        el.setSelectionRange(repaired.cursor, repaired.cursor);
+      });
+      return;
+    }
 
-      {isMultiline ? (
-        <textarea
-          ref={setRef as React.RefCallback<HTMLTextAreaElement>}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onFocus={onFocus}
-          onScroll={syncScroll}
-          rows={rows}
-          className={`${fieldClass} relative z-10 resize-y bg-transparent text-transparent caret-charcoal`}
-        />
-      ) : (
-        <input
-          ref={setRef as React.RefCallback<HTMLInputElement>}
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onFocus={onFocus}
-          className={`${fieldClass} relative z-10 bg-transparent text-transparent caret-charcoal`}
-        />
-      )}
-    </div>
+    prevValueRef.current = next;
+    onChange(next);
+  };
+
+  const sharedProps = {
+    value,
+    onChange: handleChange,
+    onKeyDown: handleKeyDown,
+    onFocus: (e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement>) =>
+      onFocus?.(e.currentTarget),
+    placeholder,
+    className: `${fieldClass} rounded-xl border border-slate-200 focus:border-navy/40 focus:ring-2 focus:ring-navy/10`,
+    spellCheck: true,
+    autoComplete: "off",
+    autoCorrect: "off",
+  };
+
+  return isMultiline ? (
+    <textarea
+      ref={setRef as React.RefCallback<HTMLTextAreaElement>}
+      rows={rows}
+      {...sharedProps}
+      className={`${sharedProps.className} resize-y`}
+    />
+  ) : (
+    <input ref={setRef as React.RefCallback<HTMLInputElement>} type="text" {...sharedProps} />
   );
 }
 
@@ -168,7 +198,7 @@ function InsertTags({
           type="button"
           title={tag.hint ?? `Insert ${tag.label.toLowerCase()}`}
           onClick={() => onInsert(tag.token)}
-          className={`inline-flex items-center rounded-full border border-slate-200 bg-slate-50 text-charcoal hover:bg-navy/5 hover:border-navy/30 hover:text-navy transition ${
+          className={`inline-flex items-center rounded-full border border-slate-200 bg-slate-50 text-charcoal hover:bg-navy/5 hover:border-navy/30 hover:text-navy transition touch-manipulation ${
             compact ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-1 text-xs font-medium"
           }`}
         >
@@ -188,7 +218,7 @@ function SimpleField({
   field: NotificationMessageField;
   value: string;
   onChange: (value: string) => void;
-  onActivate: (el: HTMLInputElement | HTMLTextAreaElement | null) => void;
+  onActivate: (el: HTMLInputElement | HTMLTextAreaElement) => void;
 }) {
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
   const [showPreview, setShowPreview] = useState(false);
@@ -205,18 +235,18 @@ function SimpleField({
           <button
             type="button"
             onClick={() => setShowPreview((v) => !v)}
-            className="text-xs text-navy hover:underline"
+            className="text-xs text-navy hover:underline touch-manipulation"
           >
             {showPreview ? "Hide preview" : "Preview"}
           </button>
         )}
       </div>
 
-      <HighlightedInput
+      <MessageTokenInput
         inputRef={inputRef}
         value={value}
         onChange={onChange}
-        onFocus={() => onActivate(inputRef.current)}
+        onFocus={onActivate}
         rows={field.kind === "subject" ? 1 : field.kind === "sms" ? 4 : 8}
         placeholder={
           field.kind === "subject"
@@ -233,7 +263,7 @@ function SimpleField({
             Example preview
           </p>
           <div
-            className="text-sm text-charcoal prose-p:my-2 prose-a:text-navy prose-a:underline max-w-none"
+            className="text-sm text-charcoal prose-p:my-2 prose-a:text-navy prose-a:underline max-w-none break-words"
             dangerouslySetInnerHTML={{ __html: previewEmailHtml(value) }}
           />
         </div>
@@ -245,7 +275,9 @@ function SimpleField({
             Example preview
           </p>
           <div className="rounded-2xl bg-slate-100 px-3 py-2.5 max-w-sm">
-            <p className="text-sm text-charcoal whitespace-pre-wrap">{previewMessage(value)}</p>
+            <p className="text-sm text-charcoal whitespace-pre-wrap break-words">
+              {previewMessage(value)}
+            </p>
           </div>
         </div>
       )}
@@ -268,11 +300,12 @@ function MessageSection({
   const activeKeyRef = useRef<keyof NotificationMessages>(fields[0]?.key);
   const isSmsOnly = fields.length === 1 && fields[0].kind === "sms";
 
-  const handleActivate =
-    (key: keyof NotificationMessages) => (el: HTMLInputElement | HTMLTextAreaElement | null) => {
+  const handleActivate = (key: keyof NotificationMessages) => {
+    return (el: HTMLInputElement | HTMLTextAreaElement) => {
       activeKeyRef.current = key;
       activeRef.current = el;
     };
+  };
 
   const handleInsert = (token: string) => {
     const key = activeKeyRef.current ?? fields[0].key;
@@ -300,15 +333,13 @@ function MessageSection({
 
       {!isSmsOnly && fields.some((f) => f.kind === "email") && (
         <p className="text-xs text-charcoal/45">
-          Tap a field first, then use Add details. Links like{" "}
-          <span className="font-medium">Book here: **Booking link**</span> become clickable in the
-          email.
+          Tap a field first, then use Add details. Press delete on a detail to remove the whole
+          thing. Links like <span className="font-medium">Book here: **Booking link**</span> become
+          clickable in the email.
         </p>
       )}
 
-      {isSmsOnly && (
-        <p className="text-xs text-charcoal/45">Keep text messages short.</p>
-      )}
+      {isSmsOnly && <p className="text-xs text-charcoal/45">Keep text messages short.</p>}
     </div>
   );
 }
@@ -332,8 +363,8 @@ export default function NotificationMessagesEditor({
         <p className="font-medium text-charcoal mb-1">How this works</p>
         <p>
           Type your messages in plain English. Use <strong>Add details</strong> to drop in customer
-          name, date, service, and links — they appear in <strong>bold</strong> and fill in
-          automatically when sent.
+          name, date, service, and links — they fill in automatically when sent. Delete removes the
+          whole detail at once.
         </p>
       </div>
 
@@ -347,9 +378,9 @@ export default function NotificationMessagesEditor({
             <button
               type="button"
               onClick={() => setOpenGroup(expanded ? "" : group.id)}
-              className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-left hover:bg-slate-50/80 transition"
+              className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-left hover:bg-slate-50/80 transition touch-manipulation"
             >
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm font-semibold text-charcoal">{group.title}</p>
                 <p className="text-xs text-charcoal/55 mt-0.5">{group.description}</p>
               </div>
@@ -376,7 +407,7 @@ export default function NotificationMessagesEditor({
                       type="button"
                       onClick={onPreviewWaitlist}
                       disabled={previewSending}
-                      className="px-4 py-2.5 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-light disabled:opacity-50"
+                      className="px-4 py-2.5 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-light disabled:opacity-50 touch-manipulation"
                     >
                       {previewSending ? "Sending preview…" : "Send test email to yourself"}
                     </button>
