@@ -6,6 +6,7 @@ import { eachDayOfInterval, format, isBefore, parse, getDay } from "date-fns";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/format";
 import { getCustomerBookableRange } from "@/lib/booking-calendar-range";
+import WaitlistJoinForm from "@/components/WaitlistJoinForm";
 
 type Service = {
   id: string;
@@ -179,29 +180,28 @@ export default function BookDatePage() {
                   const dateStr = format(d, "yyyy-MM-dd");
                   const isPast = isBefore(d, minBookableDate);
                   const hasSlots = availability[dateStr] ?? true;
-                  const disabled = isPast || !hasSlots;
-                  const isUnavailable = !isPast && !hasSlots;
+                  const isFullyBooked = !isPast && !hasSlots;
                   const isSelected = selectedDate === dateStr;
                   return (
                     <button
                       key={dateStr}
                       type="button"
-                      disabled={disabled}
+                      disabled={isPast}
                       onClick={() => {
-                        if (!disabled) setSelectedDate(dateStr);
+                        if (!isPast) setSelectedDate(dateStr);
                       }}
                       className={`py-1.5 sm:py-2 rounded-md text-xs font-medium transition touch-manipulation min-h-[36px] sm:min-h-[40px] ${
-                        disabled
+                        isPast
                           ? "bg-slate-100 text-slate-300 cursor-not-allowed"
                           : "border border-slate-200 bg-white hover:border-navy/40 hover:bg-slate-50 text-slate-800"
-                      } ${isUnavailable ? "opacity-60" : ""} ${
+                      } ${isFullyBooked ? "opacity-90" : ""} ${
                         isSelected ? "ring-2 ring-navy ring-offset-1 bg-navy/5 border-navy/30" : ""
                       }`}
                     >
                       {format(d, "d")}
                       <br />
                       <span className="text-[10px] sm:text-xs font-normal text-slate-500">
-                        {format(d, "EEE")}
+                        {isFullyBooked ? "Full" : format(d, "EEE")}
                       </span>
                     </button>
                   );
@@ -237,7 +237,16 @@ export default function BookDatePage() {
           ) : slotsLoading ? (
             <p className="text-slate-500 text-sm">Loading times…</p>
           ) : slots.length === 0 ? (
-            <p className="text-slate-500 text-sm">No times available for {selectedDateLabel}.</p>
+            selectedDate && selectedDateLabel ? (
+              <WaitlistJoinForm
+                serviceId={serviceId}
+                technicianId={technicianId}
+                preferredDate={selectedDate}
+                dateLabel={selectedDateLabel}
+              />
+            ) : (
+              <p className="text-slate-500 text-sm">No times available.</p>
+            )
           ) : (
             <>
               <p className="text-slate-600 text-sm mb-4">{selectedDateLabel}</p>

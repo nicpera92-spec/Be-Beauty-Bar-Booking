@@ -4,6 +4,9 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import ThemeEditor from "@/components/ThemeEditor";
+import NotificationMessagesEditor from "@/components/NotificationMessagesEditor";
+import { DEFAULT_NOTIFICATION_MESSAGES, type NotificationMessages } from "@/lib/notificationDefaults";
+import { resolveNotificationMessages } from "@/lib/notificationTemplates";
 import { DEFAULT_PRIMARY, DEFAULT_SECONDARY } from "@/lib/themePalettes";
 import { publishThemeUpdate } from "@/lib/themeClient";
 
@@ -14,17 +17,24 @@ for (let h = 0; h < 24; h++) {
   TIME_OPTIONS.push(`${String(h).padStart(2, "0")}:00`);
 }
 
-type SettingsTab = "business" | "theme" | "bookings" | "payments";
+type SettingsTab = "business" | "theme" | "bookings" | "messages" | "payments";
 
 const TABS: { id: SettingsTab; label: string }[] = [
   { id: "business", label: "Business" },
   { id: "theme", label: "Theme" },
   { id: "bookings", label: "Bookings" },
+  { id: "messages", label: "Messages" },
   { id: "payments", label: "Payments" },
 ];
 
 function isSettingsTab(value: string | null): value is SettingsTab {
-  return value === "business" || value === "theme" || value === "bookings" || value === "payments";
+  return (
+    value === "business" ||
+    value === "theme" ||
+    value === "bookings" ||
+    value === "messages" ||
+    value === "payments"
+  );
 }
 
 function getAuthHeaders(): Record<string, string> {
@@ -48,6 +58,7 @@ type Settings = {
   smsNotificationFee?: number | null;
   primaryColor?: string | null;
   secondaryColor?: string | null;
+  notificationMessages?: unknown;
 };
 
 type CategoryRule = {
@@ -76,6 +87,14 @@ function AdminSettingsPageInner() {
   const [sessionCheck, setSessionCheck] = useState<{ ok: boolean; message: string } | null>(null);
   const [saveMessage, setSaveMessage] = useState<{ ok: boolean; message: string } | null>(null);
   const [categoryRules, setCategoryRules] = useState<CategoryRule[]>([]);
+  const [notificationMessages, setNotificationMessages] = useState<NotificationMessages>(
+    DEFAULT_NOTIFICATION_MESSAGES
+  );
+  const [waitlistPreviewSending, setWaitlistPreviewSending] = useState(false);
+  const [waitlistPreviewResult, setWaitlistPreviewResult] = useState<{
+    ok: boolean;
+    message: string;
+  } | null>(null);
 
   useEffect(() => {
     const tabParam = searchParams.get("tab");
@@ -138,6 +157,7 @@ function AdminSettingsPageInner() {
     const secondary = data.secondaryColor ?? DEFAULT_SECONDARY;
     setPrimaryColor(primary);
     setSecondaryColor(secondary);
+    setNotificationMessages(resolveNotificationMessages(data.notificationMessages));
     publishThemeUpdate(primary, secondary);
     setStripeKeysChanged({ secret: false, webhook: false });
   }, []);
@@ -180,6 +200,7 @@ function AdminSettingsPageInner() {
       smsNotificationFee: form.smsNotificationFee,
       primaryColor,
       secondaryColor,
+      notificationMessages,
     };
 
     if (stripeKeysChanged.secret) {
@@ -226,6 +247,41 @@ function AdminSettingsPageInner() {
       setSaveMessage({ ok: false, message: "Save request failed" });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const previewWaitlistEmail = async () => {
+    setWaitlistPreviewSending(true);
+    setWaitlistPreviewResult(null);
+    try {
+      const saveR = await fetch("/api/admin/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({ notificationMessages }),
+      });
+      if (!saveR.ok) {
+        const err = await saveR.json();
+        setWaitlistPreviewResult({
+          ok: false,
+          message: err.error ?? "Save messages before previewing",
+        });
+        return;
+      }
+
+      const r = await fetch("/api/admin/test-waitlist-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({}),
+      });
+      const data = await r.json();
+      setWaitlistPreviewResult({
+        ok: r.ok,
+        message: r.ok ? data.message : data.error ?? "Could not send preview",
+      });
+    } catch {
+      setWaitlistPreviewResult({ ok: false, message: "Preview request failed" });
+    } finally {
+      setWaitlistPreviewSending(false);
     }
   };
 
@@ -635,6 +691,24 @@ function AdminSettingsPageInner() {
                 </div>
               )}
             </div>
+          </>
+        )}
+
+        {tab === "messages" && (
+          <>
+            <div>
+              <h2 className="text-lg font-semibold text-navy mb-1">Messages</h2>
+              <p className="text-sm text-charcoal/55">
+                Edit the emails and texts customers receive. Save settings after making changes.
+              </p>
+            </div>
+            <NotificationMessagesEditor
+              messages={notificationMessages}
+              onChange={setNotificationMessages}
+              onPreviewWaitlist={previewWaitlistEmail}
+              previewSending={waitlistPreviewSending}
+              previewResult={waitlistPreviewResult}
+            />
           </>
         )}
 

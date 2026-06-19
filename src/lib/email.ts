@@ -2,14 +2,23 @@ import { Resend } from "resend";
 import { prisma } from "@/lib/prisma";
 import { sendSMS, formatUKPhoneToE164 } from "@/lib/sms";
 import { formatBookingDate } from "@/lib/format";
+import {
+  applyTemplate,
+  buildBookLink,
+  resolveNotificationMessages,
+} from "@/lib/notificationTemplates";
 
 const resendClient = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const from = process.env.EMAIL_FROM || "Be Beauty Bar <onboarding@resend.dev>";
 
-/** Resend returns { data, error }; it does not throw. Check error and log so failures are visible. */
-async function sendResendEmail(params: { from: string; to: string; subject: string; html: string }): Promise<{ ok: boolean; error?: string }> {
+async function sendResendEmail(params: {
+  from: string;
+  to: string;
+  subject: string;
+  html: string;
+}): Promise<{ ok: boolean; error?: string }> {
   if (!resendClient) return { ok: false, error: "RESEND_API_KEY not set" };
-  const { data, error } = await resendClient.emails.send(params);
+  const { error } = await resendClient.emails.send(params);
   if (error) {
     const msg = (error as { message?: string }).message ?? String(error);
     console.error("Resend send failed:", msg);
@@ -18,7 +27,41 @@ async function sendResendEmail(params: { from: string; to: string; subject: stri
   return { ok: true };
 }
 
-/** Send a single test email (for admin to verify Resend setup). */
+async function getMessages() {
+  const settings = await prisma.businessSettings.findUnique({ where: { id: "default" } });
+  return {
+    settings,
+    messages: resolveNotificationMessages(settings?.notificationMessages),
+    businessName: settings?.businessName ?? "Be Beauty Bar",
+  };
+}
+
+function bookingVars(
+  booking: {
+    customerName: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    service: { name: string };
+  },
+  businessName: string,
+  extra?: Record<string, string>
+) {
+  const dayLabel = formatBookingDate(booking.date, "EEEE, d MMMM yyyy");
+  const time = `${booking.startTime} – ${booking.endTime}`;
+  return {
+    customerName: booking.customerName,
+    serviceName: booking.service.name,
+    technicianName: extra?.technicianName ?? "",
+    date: dayLabel,
+    time,
+    businessName,
+    bookingLink: extra?.bookingLink ?? "",
+    depositLink: extra?.depositLink ?? "",
+    bookLink: extra?.bookLink ?? "",
+  };
+}
+
 export async function sendTestEmail(to: string): Promise<{ ok: boolean; error?: string }> {
   const result = await sendResendEmail({
     from,
@@ -44,59 +87,27 @@ export async function sendBookingCreatedEmails(bookingId: string): Promise<{ ok:
       return { ok: false, error: "Booking not found or not pending deposit" };
     }
 
-    const settings = await prisma.businessSettings.findUnique({
-      where: { id: "default" },
-    });
-    const businessName = settings?.businessName ?? "Be Beauty Bar";
-    const dayLabel = formatBookingDate(booking.date, "EEEE, d MMMM yyyy");
-
+    const { settings, messages, businessName } = await getMessages();
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001";
-    const bookingUrl = `${baseUrl}/booking/${bookingId}`;
+    const depositLink = `${baseUrl}/booking/${bookingId}`;
+    const vars = bookingVars(booking, businessName, { depositLink });
 
     if (booking.notifyByEmail && booking.customerEmail) {
-      const customerSubject = `Booking request received – ${businessName}`;
-      const customerHtml = `
-        <h2>Your booking request has been received</h2>
-        <p>Hi ${booking.customerName},</p>
-        <p>We've received your booking. Please pay your deposit within 24 hours to confirm your appointment.</p>
-        <ul>
-          <li><strong>Service:</strong> ${booking.service.name}</li>
-          <li><strong>Date:</strong> ${dayLabel}</li>
-          <li><strong>Time:</strong> ${booking.startTime} – ${booking.endTime}</li>
-        </ul>
-        <p><a href="${bookingUrl}">Pay your deposit here</a> to confirm your booking.</p>
-        <p>— ${businessName}</p>
-      `;
       const r = await sendResendEmail({
         from,
         to: booking.customerEmail,
-        subject: customerSubject,
-        html: customerHtml,
+        subject: applyTemplate(messages.bookingCreatedCustomerSubject, vars),
+        html: applyTemplate(messages.bookingCreatedCustomerBody, vars),
       });
       if (!r.ok) return r;
     }
 
     if (settings?.businessEmail) {
-      const ownerSubject = `New booking request – ${booking.customerName}`;
-      const ownerHtml = `
-        <h2>New booking request</h2>
-        <p>A customer has requested a booking. They need to pay the deposit within 24 hours to confirm.</p>
-        <ul>
-          <li><strong>Customer:</strong> ${booking.customerName}</li>
-          <li><strong>Email:</strong> ${booking.customerEmail ?? "Not provided"}</li>
-          <li><strong>Phone:</strong> ${booking.customerPhone ?? "Not provided"}</li>
-          <li><strong>Notifications:</strong> ${booking.notifyByEmail ? "Email" : ""}${booking.notifyByEmail && booking.notifyBySMS ? " + " : ""}${booking.notifyBySMS ? "SMS" : ""}</li>
-          <li><strong>Service:</strong> ${booking.service.name}</li>
-          <li><strong>Date:</strong> ${dayLabel}</li>
-          <li><strong>Time:</strong> ${booking.startTime} – ${booking.endTime}</li>
-        </ul>
-        <p>— ${businessName} booking system</p>
-      `;
       const r = await sendResendEmail({
         from,
         to: settings.businessEmail,
-        subject: ownerSubject,
-        html: ownerHtml,
+        subject: applyTemplate(messages.bookingCreatedOwnerSubject, vars),
+        html: applyTemplate(messages.bookingCreatedOwnerBody, vars),
       });
       if (!r.ok) return r;
     }
@@ -118,76 +129,38 @@ export async function sendBookingConfirmationEmails(bookingId: string): Promise<
       return { ok: false, error: "Booking not found or not confirmed" };
     }
 
-    const settings = await prisma.businessSettings.findUnique({
-      where: { id: "default" },
-    });
-    const businessName = settings?.businessName ?? "Be Beauty Bar";
-    const dayLabel = formatBookingDate(booking.date, "EEEE, d MMMM yyyy");
+    const { settings, messages, businessName } = await getMessages();
+    const vars = bookingVars(booking, businessName);
+    const smsVars = {
+      ...vars,
+      date: formatBookingDate(booking.date, "dd/MM/yyyy"),
+      time: `${booking.startTime}-${booking.endTime}`,
+    };
 
-    // Send to customer if they provided an email (when booking is confirmed)
     if (booking.customerEmail && resendClient) {
-      const customerSubject = `Booking confirmed – ${businessName}`;
-      const customerHtml = `
-        <h2>Your booking is confirmed</h2>
-        <p>Hi ${booking.customerName},</p>
-        <p>Your deposit has been received. Here are your booking details:</p>
-        <ul>
-          <li><strong>Service:</strong> ${booking.service.name}</li>
-          <li><strong>Date:</strong> ${dayLabel}</li>
-          <li><strong>Time:</strong> ${booking.startTime} – ${booking.endTime}</li>
-        </ul>
-        <p>We look forward to seeing you!</p>
-        <p>— ${businessName}</p>
-      `;
       const r = await sendResendEmail({
         from,
         to: booking.customerEmail,
-        subject: customerSubject,
-        html: customerHtml,
+        subject: applyTemplate(messages.bookingConfirmedCustomerSubject, vars),
+        html: applyTemplate(messages.bookingConfirmedCustomerBody, vars),
       });
-      if (!r.ok) {
-        console.warn("Confirmation email failed:", r.error);
-      }
-    } else if (booking.customerEmail && !resendClient) {
-      console.warn("RESEND_API_KEY not set; skipping confirmation email.");
+      if (!r.ok) console.warn("Confirmation email failed:", r.error);
     }
 
-    // Send SMS if customer opted in (independent of email - SMS works even when Resend is not configured)
     if (booking.notifyBySMS && booking.customerPhone) {
-      const smsDayLabel = formatBookingDate(booking.date, "dd/MM/yyyy");
-      const smsMessage = `Hi ${booking.customerName}, your booking at ${businessName} is confirmed. ${booking.service.name} on ${smsDayLabel} at ${booking.startTime}-${booking.endTime}. We look forward to seeing you!`;
+      const smsMessage = applyTemplate(messages.bookingConfirmedCustomerSms, smsVars);
       const smsResult = await sendSMS(formatUKPhoneToE164(booking.customerPhone), smsMessage);
-      if (!smsResult.ok) {
-        console.warn("SMS not sent for booking confirmation:", smsResult.error);
-      }
+      if (!smsResult.ok) console.warn("SMS not sent for booking confirmation:", smsResult.error);
     }
 
-    // Send to admin if they set a business email in Settings
     if (settings?.businessEmail?.trim() && resendClient) {
-      const ownerSubject = `Booking confirmed – ${booking.customerName}`;
-      const ownerHtml = `
-        <h2>Booking confirmed</h2>
-        <p>A deposit has been received. Booking details:</p>
-        <ul>
-          <li><strong>Customer:</strong> ${booking.customerName}</li>
-          <li><strong>Email:</strong> ${booking.customerEmail ?? "Not provided"}</li>
-          <li><strong>Phone:</strong> ${booking.customerPhone ?? "Not provided"}</li>
-          <li><strong>Notifications:</strong> ${booking.notifyByEmail ? "Email" : ""}${booking.notifyByEmail && booking.notifyBySMS ? " + " : ""}${booking.notifyBySMS ? "SMS" : ""}</li>
-          <li><strong>Service:</strong> ${booking.service.name}</li>
-          <li><strong>Date:</strong> ${dayLabel}</li>
-          <li><strong>Time:</strong> ${booking.startTime} – ${booking.endTime}</li>
-        </ul>
-        <p>— ${businessName} booking system</p>
-      `;
       const r = await sendResendEmail({
         from,
         to: settings.businessEmail.trim(),
-        subject: ownerSubject,
-        html: ownerHtml,
+        subject: applyTemplate(messages.bookingConfirmedOwnerSubject, vars),
+        html: applyTemplate(messages.bookingConfirmedOwnerBody, vars),
       });
-      if (!r.ok) {
-        console.warn("Owner confirmation email failed:", r.error);
-      }
+      if (!r.ok) console.warn("Owner confirmation email failed:", r.error);
     }
 
     return { ok: true };
@@ -209,68 +182,34 @@ export async function sendDepositExpiredCancellationEmails(
       return { ok: false, error: "Booking not found or not cancelled" };
     }
 
-    const settings = await prisma.businessSettings.findUnique({
-      where: { id: "default" },
-    });
-    const businessName = settings?.businessName ?? "Be Beauty Bar";
-    const dayLabel = formatBookingDate(booking.date, "EEEE, dd/MM/yyyy");
-
-    const customerSubject = `Booking cancelled – ${businessName}`;
-    const customerHtml = `
-      <h2>Your booking has been cancelled</h2>
-      <p>Hi ${booking.customerName},</p>
-      <p>Your booking was automatically cancelled because the deposit was not paid within 24 hours.</p>
-      <p>Details of the cancelled booking:</p>
-      <ul>
-        <li><strong>Service:</strong> ${booking.service.name}</li>
-        <li><strong>Date:</strong> ${dayLabel}</li>
-        <li><strong>Time:</strong> ${booking.startTime} – ${booking.endTime}</li>
-      </ul>
-      <p>If you’d still like to book, please visit our booking page and complete your deposit within 24 hours of requesting a slot.</p>
-      <p>— ${businessName}</p>
-    `;
+    const { settings, messages, businessName } = await getMessages();
+    const vars = bookingVars(booking, businessName);
+    const smsVars = {
+      ...vars,
+      date: formatBookingDate(booking.date, "dd/MM/yyyy"),
+      time: `${booking.startTime}-${booking.endTime}`,
+    };
 
     if (booking.notifyByEmail && booking.customerEmail && resendClient) {
       await sendResendEmail({
         from,
         to: booking.customerEmail,
-        subject: customerSubject,
-        html: customerHtml,
+        subject: applyTemplate(messages.depositExpiredCustomerSubject, vars),
+        html: applyTemplate(messages.depositExpiredCustomerBody, vars),
       });
-    } else if (booking.notifyByEmail && booking.customerEmail && !resendClient) {
-      console.warn("RESEND_API_KEY not set; cannot send cancellation email to customer.");
     }
 
     if (booking.notifyBySMS && booking.customerPhone) {
-      const smsDayLabel = formatBookingDate(booking.date, "dd/MM/yyyy");
-      const smsMessage = `Hi ${booking.customerName}, your booking at ${businessName} was cancelled because the deposit wasn't paid within 24 hours. ${booking.service.name} on ${smsDayLabel} at ${booking.startTime}-${booking.endTime}. To rebook, visit our booking page.`;
-      const smsResult = await sendSMS(formatUKPhoneToE164(booking.customerPhone), smsMessage);
-      if (!smsResult.ok) {
-        console.warn("SMS not sent for cancellation notification:", smsResult.error);
-      }
+      const smsMessage = applyTemplate(messages.depositExpiredCustomerSms, smsVars);
+      await sendSMS(formatUKPhoneToE164(booking.customerPhone), smsMessage);
     }
 
     if (resendClient && settings?.businessEmail) {
-      const ownerSubject = `Booking auto-cancelled (deposit not paid) – ${booking.customerName}`;
-      const ownerHtml = `
-        <h2>Booking auto-cancelled</h2>
-        <p>A booking was automatically cancelled because the deposit was not paid within 24 hours.</p>
-        <ul>
-          <li><strong>Customer:</strong> ${booking.customerName}</li>
-          <li><strong>Email:</strong> ${booking.customerEmail ?? "Not provided"}</li>
-          <li><strong>Phone:</strong> ${booking.customerPhone ?? "Not provided"}</li>
-          <li><strong>Notifications:</strong> ${booking.notifyByEmail ? "Email" : ""}${booking.notifyByEmail && booking.notifyBySMS ? " + " : ""}${booking.notifyBySMS ? "SMS" : ""}</li>
-          <li><strong>Service:</strong> ${booking.service.name}</li>
-          <li><strong>Date:</strong> ${dayLabel}</li>
-          <li><strong>Time:</strong> ${booking.startTime} – ${booking.endTime}</li>
-        </ul>
-        <p>— ${businessName} booking system</p>
-      `;
       await sendResendEmail({
         from,
         to: settings.businessEmail,
-        subject: ownerSubject,
-        html: ownerHtml,
+        subject: applyTemplate(messages.depositExpiredOwnerSubject, vars),
+        html: applyTemplate(messages.depositExpiredOwnerBody, vars),
       });
     }
 
@@ -281,84 +220,57 @@ export async function sendDepositExpiredCancellationEmails(
   }
 }
 
-/**
- * Send cancellation notifications when admin manually cancels a booking.
- * Sends email and/or SMS to customer and owner.
- */
 export async function sendManualCancellationEmails(
   bookingId: string
 ): Promise<{ ok: boolean; error?: string }> {
   try {
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
-      include: { service: true },
+      include: { service: true, technician: true },
     });
     if (!booking || booking.status !== "cancelled") {
       return { ok: false, error: "Booking not found or not cancelled" };
     }
 
-    const settings = await prisma.businessSettings.findUnique({
-      where: { id: "default" },
-    });
-    const businessName = settings?.businessName ?? "Be Beauty Bar";
-    const dayLabel = formatBookingDate(booking.date, "EEEE, dd/MM/yyyy");
-
-    const customerSubject = `Booking cancelled – ${businessName}`;
-    const customerHtml = `
-      <h2>Your booking has been cancelled</h2>
-      <p>Hi ${booking.customerName},</p>
-      <p>Your booking has been cancelled. If you have any questions, please contact us.</p>
-      <p>Details of the cancelled booking:</p>
-      <ul>
-        <li><strong>Service:</strong> ${booking.service.name}</li>
-        <li><strong>Date:</strong> ${dayLabel}</li>
-        <li><strong>Time:</strong> ${booking.startTime} – ${booking.endTime}</li>
-      </ul>
-      <p>— ${businessName}</p>
-    `;
+    const { settings, messages, businessName } = await getMessages();
+    const vars = bookingVars(booking, businessName);
+    const smsVars = {
+      ...vars,
+      date: formatBookingDate(booking.date, "dd/MM/yyyy"),
+      time: `${booking.startTime}-${booking.endTime}`,
+    };
 
     if (booking.notifyByEmail && booking.customerEmail && resendClient) {
       await sendResendEmail({
         from,
         to: booking.customerEmail,
-        subject: customerSubject,
-        html: customerHtml,
+        subject: applyTemplate(messages.manualCancelCustomerSubject, vars),
+        html: applyTemplate(messages.manualCancelCustomerBody, vars),
       });
-    } else if (booking.notifyByEmail && booking.customerEmail && !resendClient) {
-      console.warn("RESEND_API_KEY not set; cannot send cancellation email to customer.");
     }
 
     if (booking.notifyBySMS && booking.customerPhone) {
-      const smsDayLabel = formatBookingDate(booking.date, "dd/MM/yyyy");
-      const smsMessage = `Hi ${booking.customerName}, your booking at ${businessName} has been cancelled. ${booking.service.name} on ${smsDayLabel} at ${booking.startTime}-${booking.endTime}. If you have questions, please contact us.`;
-      const smsResult = await sendSMS(formatUKPhoneToE164(booking.customerPhone), smsMessage);
-      if (!smsResult.ok) {
-        console.warn("SMS not sent for manual cancellation notification:", smsResult.error);
-      }
+      const smsMessage = applyTemplate(messages.manualCancelCustomerSms, smsVars);
+      await sendSMS(formatUKPhoneToE164(booking.customerPhone), smsMessage);
     }
 
     if (resendClient && settings?.businessEmail?.trim()) {
-      const ownerSubject = `Booking cancelled – ${booking.customerName}`;
-      const ownerHtml = `
-        <h2>Booking cancelled</h2>
-        <p>A booking was cancelled by admin.</p>
-        <ul>
-          <li><strong>Customer:</strong> ${booking.customerName}</li>
-          <li><strong>Email:</strong> ${booking.customerEmail ?? "Not provided"}</li>
-          <li><strong>Phone:</strong> ${booking.customerPhone ?? "Not provided"}</li>
-          <li><strong>Service:</strong> ${booking.service.name}</li>
-          <li><strong>Date:</strong> ${dayLabel}</li>
-          <li><strong>Time:</strong> ${booking.startTime} – ${booking.endTime}</li>
-        </ul>
-        <p>— ${businessName} booking system</p>
-      `;
       await sendResendEmail({
         from,
         to: settings.businessEmail.trim(),
-        subject: ownerSubject,
-        html: ownerHtml,
+        subject: applyTemplate(messages.manualCancelOwnerSubject, vars),
+        html: applyTemplate(messages.manualCancelOwnerBody, vars),
       });
     }
+
+    const { notifyWaitlistForFreedSlot } = await import("@/lib/waitlist");
+    await notifyWaitlistForFreedSlot({
+      serviceId: booking.serviceId,
+      technicianId: booking.technicianId,
+      date: booking.date,
+      startTime: booking.startTime,
+      endTime: booking.endTime,
+    });
 
     return { ok: true };
   } catch (e) {
@@ -367,10 +279,6 @@ export async function sendManualCancellationEmails(
   }
 }
 
-/**
- * Send 24-hour reminder (email and/or SMS) to customer before their appointment.
- * Includes appointment details and cancellation policy.
- */
 export async function sendBookingReminderEmails(
   bookingId: string
 ): Promise<{ ok: boolean; error?: string }> {
@@ -383,44 +291,27 @@ export async function sendBookingReminderEmails(
       return { ok: false, error: "Booking not found or not confirmed" };
     }
 
-    const settings = await prisma.businessSettings.findUnique({
-      where: { id: "default" },
-    });
-    const businessName = settings?.businessName ?? "Be Beauty Bar";
-    const dayLabel = formatBookingDate(booking.date, "EEEE, d MMMM yyyy");
+    const { messages, businessName } = await getMessages();
+    const vars = bookingVars(booking, businessName);
+    const smsVars = {
+      ...bookingVars(booking, businessName),
+      date: formatBookingDate(booking.date, "dd/MM"),
+    };
 
-    // Email
     if (booking.notifyByEmail && booking.customerEmail && resendClient) {
-      const customerSubject = `Reminder: your appointment tomorrow – ${businessName}`;
-      const customerHtml = `
-        <h2>Appointment reminder</h2>
-        <p>Hi ${booking.customerName},</p>
-        <p>This is a friendly reminder that you have an appointment with us tomorrow:</p>
-        <ul>
-          <li><strong>Service:</strong> ${booking.service.name}</li>
-          <li><strong>Date:</strong> ${dayLabel}</li>
-          <li><strong>Time:</strong> ${booking.startTime} – ${booking.endTime}</li>
-        </ul>
-        <p>We look forward to seeing you!</p>
-        <p>— ${businessName}</p>
-      `;
       const r = await sendResendEmail({
         from,
         to: booking.customerEmail,
-        subject: customerSubject,
-        html: customerHtml,
+        subject: applyTemplate(messages.reminderCustomerSubject, vars),
+        html: applyTemplate(messages.reminderCustomerBody, vars),
       });
       if (!r.ok) return r;
     }
 
-    // SMS
     if (booking.notifyBySMS && booking.customerPhone) {
-      const smsDayLabel = formatBookingDate(booking.date, "dd/MM");
-      const smsMessage = `Hi ${booking.customerName}! Just a reminder – your ${booking.service.name} appointment at ${businessName} is tomorrow ${smsDayLabel} at ${booking.startTime}. See you soon!`;
+      const smsMessage = applyTemplate(messages.reminderCustomerSms, smsVars);
       const smsResult = await sendSMS(formatUKPhoneToE164(booking.customerPhone), smsMessage);
-      if (!smsResult.ok) {
-        console.warn("SMS not sent for 24h reminder:", smsResult.error);
-      }
+      if (!smsResult.ok) console.warn("SMS not sent for 24h reminder:", smsResult.error);
     }
 
     return { ok: true };
@@ -428,4 +319,104 @@ export async function sendBookingReminderEmails(
     console.error("sendBookingReminderEmails:", e);
     return { ok: false, error: String(e) };
   }
+}
+
+type WaitlistNotifyParams = {
+  entry: {
+    id: string;
+    customerName: string;
+    customerEmail: string | null;
+    customerPhone: string | null;
+    notifyByEmail: boolean;
+    notifyBySMS: boolean;
+    technicianId: string;
+    serviceId: string;
+  };
+  slot: { date: string; startTime: string; endTime: string };
+  serviceName: string;
+  technicianName: string;
+};
+
+export async function sendWaitlistNotification(
+  params: WaitlistNotifyParams
+): Promise<{ ok: boolean; error?: string }> {
+  const { entry, slot, serviceName, technicianName } = params;
+  const { messages, businessName } = await getMessages();
+  const dateLabel = formatBookingDate(slot.date, "EEEE, d MMMM yyyy");
+  const timeLabel = `${slot.startTime} – ${slot.endTime}`;
+  const bookLink = buildBookLink(entry.technicianId, entry.serviceId, slot.date, slot.startTime);
+
+  const vars = {
+    customerName: entry.customerName,
+    serviceName,
+    technicianName,
+    date: dateLabel,
+    time: timeLabel,
+    bookLink,
+    bookingLink: bookLink,
+    depositLink: bookLink,
+    businessName,
+  };
+
+  const smsVars = {
+    ...vars,
+    date: formatBookingDate(slot.date, "dd/MM/yyyy"),
+    time: `${slot.startTime}–${slot.endTime}`,
+  };
+
+  let sent = false;
+
+  if (entry.notifyByEmail && entry.customerEmail && resendClient) {
+    const r = await sendResendEmail({
+      from,
+      to: entry.customerEmail,
+      subject: applyTemplate(messages.waitlistCustomerSubject, vars),
+      html: applyTemplate(messages.waitlistCustomerBody, vars),
+    });
+    if (!r.ok) return r;
+    sent = true;
+  }
+
+  if (entry.notifyBySMS && entry.customerPhone) {
+    const smsMessage = applyTemplate(messages.waitlistCustomerSms, smsVars);
+    const smsResult = await sendSMS(formatUKPhoneToE164(entry.customerPhone), smsMessage);
+    if (!smsResult.ok) {
+      if (!sent) return { ok: false, error: smsResult.error };
+      console.warn("Waitlist SMS failed:", smsResult.error);
+    } else {
+      sent = true;
+    }
+  }
+
+  if (!sent) {
+    return { ok: false, error: "No notification channel available" };
+  }
+
+  return { ok: true };
+}
+
+export async function sendWaitlistPreviewEmail(
+  to: string
+): Promise<{ ok: boolean; error?: string }> {
+  if (!resendClient) return { ok: false, error: "RESEND_API_KEY not set" };
+
+  const { messages, businessName } = await getMessages();
+  const vars = {
+    customerName: "Alex",
+    serviceName: "Gel Manicure",
+    technicianName: "Your technician",
+    date: "Saturday, 20 June 2026",
+    time: "14:00 – 15:00",
+    bookLink: `${process.env.NEXT_PUBLIC_APP_URL || "https://bbbar.co.uk"}/book`,
+    bookingLink: `${process.env.NEXT_PUBLIC_APP_URL || "https://bbbar.co.uk"}/book`,
+    depositLink: `${process.env.NEXT_PUBLIC_APP_URL || "https://bbbar.co.uk"}/book`,
+    businessName,
+  };
+
+  return sendResendEmail({
+    from,
+    to: to.trim(),
+    subject: applyTemplate(messages.waitlistCustomerSubject, vars),
+    html: applyTemplate(messages.waitlistCustomerBody, vars),
+  });
 }

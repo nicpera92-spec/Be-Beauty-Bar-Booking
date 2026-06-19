@@ -44,6 +44,15 @@ async function run(req: NextRequest) {
 
       const result = await sendDepositExpiredCancellationEmails(b.id);
       if (!result.ok) emailsFailed++;
+
+      const { notifyWaitlistForFreedSlot } = await import("@/lib/waitlist");
+      await notifyWaitlistForFreedSlot({
+        serviceId: b.serviceId,
+        technicianId: b.technicianId,
+        date: b.date,
+        startTime: b.startTime,
+        endTime: b.endTime,
+      });
     }
 
     return NextResponse.json({

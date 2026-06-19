@@ -24,6 +24,7 @@ model Service {
   updatedAt     DateTime   @updatedAt
   addOns        AddOn[]
   bookings      Booking[]
+  waitingListEntries WaitingListEntry[]
 }
 
 model AddOn {
@@ -52,6 +53,7 @@ model Technician {
   services     Service[]
   bookings     Booking[]
   availabilityBlocks AvailabilityBlock[]
+  waitingListEntries WaitingListEntry[]
 }
 
 model CategoryCapacityRule {
@@ -78,7 +80,32 @@ model BusinessSettings {
   stripeSecretKey      String?
   stripeWebhookSecret  String?
   smsNotificationFee   Float?   @default(0.05)
+  notificationMessages Json?
   updatedAt            DateTime @updatedAt
+}
+
+model WaitingListEntry {
+  id                String     @id @default(cuid())
+  serviceId         String
+  service           Service    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  technicianId      String
+  technician        Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+  customerName      String
+  customerEmail     String?
+  customerPhone     String?
+  notifyByEmail     Boolean    @default(true)
+  notifyBySMS       Boolean    @default(false)
+  preferredDate     String
+  notifyEarliest    Boolean    @default(false)
+  status            String     @default("active")
+  lastNotifiedAt    DateTime?
+  notifiedSlotDate  String?
+  notifiedSlotTime  String?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  @@index([serviceId, technicianId, preferredDate, status])
+  @@index([preferredDate, status])
 }
 
 model AvailabilityBlock {
