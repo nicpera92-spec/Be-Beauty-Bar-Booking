@@ -8,7 +8,7 @@ import { categoryLabel } from "@/lib/categoryCapacity";
 const COMPACT_CATEGORY_LABELS: Record<string, string> = {
   nails: "Nails",
   lash: "Lashes",
-  "permanent-makeup": "PMU",
+  "permanent-makeup": "Perm makeup",
 };
 
 function compactCategoryLabel(category: string): string {
