@@ -5,6 +5,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { categoryLabel } from "@/lib/categoryCapacity";
 
+const COMPACT_CATEGORY_LABELS: Record<string, string> = {
+  nails: "Nails",
+  lash: "Lashes",
+  "permanent-makeup": "PMU",
+};
+
+function compactCategoryLabel(category: string): string {
+  return COMPACT_CATEGORY_LABELS[category] ?? categoryLabel(category);
+}
+
 type Technician = {
   id: string;
   name: string;
@@ -79,21 +89,19 @@ export default function BookPage() {
             onClick={() => router.push(`/book/tech/${t.id}`)}
             className="block w-full text-left p-5 sm:p-6 rounded-lg border border-slate-200 bg-white hover:border-navy/30 hover:shadow-md transition-all duration-200 touch-manipulation active:bg-slate-50"
           >
-            <div className="flex items-center gap-x-3 gap-y-2 flex-wrap">
-              <h3 className="font-medium text-slate-800 text-lg">{t.name}</h3>
+            <div className="flex items-center gap-x-1.5 sm:gap-x-2 flex-nowrap w-full min-w-0 overflow-hidden">
+              <h3 className="font-medium text-slate-800 text-base sm:text-lg shrink-0">{t.name}</h3>
               {t.skillLevel && t.skillLevel.trim() && (
-                <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-sky-50 text-sky-700">
+                <span className="text-[10px] sm:text-xs font-medium px-1.5 sm:px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 shrink-0">
                   {t.skillLevel}
                 </span>
               )}
               {t.categories && t.categories.length > 0 && (
-                <span className="inline-flex flex-wrap items-center text-xs font-medium text-navy bg-navy/[0.07] rounded-full px-2.5 py-1">
-                  {t.categories.map((category, index) => (
-                    <span key={category}>
-                      {index > 0 && <span className="mx-1.5 text-navy/40">·</span>}
-                      {categoryLabel(category)}
-                    </span>
-                  ))}
+                <span
+                  className="min-w-0 flex-1 truncate text-[10px] sm:text-xs font-medium leading-none text-navy bg-navy/[0.07] rounded-full px-1.5 sm:px-2.5 py-1"
+                  title={t.categories.map((category) => categoryLabel(category)).join(" · ")}
+                >
+                  {t.categories.map((category) => compactCategoryLabel(category)).join(" · ")}
                 </span>
               )}
             </div>
