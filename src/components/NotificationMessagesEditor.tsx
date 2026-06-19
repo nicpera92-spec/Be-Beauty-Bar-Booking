@@ -387,7 +387,7 @@ export default function NotificationMessagesEditor({
   previewSending,
   previewResult,
 }: NotificationMessagesEditorProps) {
-  const [openGroup, setOpenGroup] = useState<string>("waitlist");
+  const [openGroup, setOpenGroup] = useState<string>("");
 
   const update = (key: keyof NotificationMessages, value: string) => {
     onChange({ ...messages, [key]: value });
