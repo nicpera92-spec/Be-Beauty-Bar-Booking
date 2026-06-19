@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import ThemeEditor from "@/components/ThemeEditor";
 import NotificationMessagesEditor from "@/components/NotificationMessagesEditor";
-import { DEFAULT_NOTIFICATION_MESSAGES, type NotificationMessages } from "@/lib/notificationDefaults";
+import { type NotificationMessages } from "@/lib/notificationDefaults";
 import { resolveNotificationMessages } from "@/lib/notificationTemplates";
 import { DEFAULT_PRIMARY, DEFAULT_SECONDARY } from "@/lib/themePalettes";
 import { publishThemeUpdate } from "@/lib/themeClient";
@@ -180,8 +180,8 @@ function AdminSettingsPageInner() {
   const [sessionCheck, setSessionCheck] = useState<{ ok: boolean; message: string } | null>(null);
   const [saveMessage, setSaveMessage] = useState<{ ok: boolean; message: string } | null>(null);
   const [categoryRules, setCategoryRules] = useState<CategoryRule[]>([]);
-  const [notificationMessages, setNotificationMessages] = useState<NotificationMessages>(
-    DEFAULT_NOTIFICATION_MESSAGES
+  const [notificationMessages, setNotificationMessages] = useState<NotificationMessages>(() =>
+    resolveNotificationMessages(null)
   );
   const [waitlistPreviewSending, setWaitlistPreviewSending] = useState(false);
   const [waitlistPreviewResult, setWaitlistPreviewResult] = useState<{

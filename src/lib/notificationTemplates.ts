@@ -210,18 +210,25 @@ function normalizeStoredMessage(value: string, fallback: string): string {
   return toFriendlyPlaceholders(text);
 }
 
+function normalizeAllNotificationMessages(
+  messages: NotificationMessages
+): NotificationMessages {
+  const keys = Object.keys(messages) as (keyof NotificationMessages)[];
+  const normalized = { ...messages };
+  for (const key of keys) {
+    normalized[key] = normalizeStoredMessage(normalized[key], messages[key]);
+  }
+  return normalized;
+}
+
 export function resolveNotificationMessages(stored: unknown): NotificationMessages {
   const defaults = { ...DEFAULT_NOTIFICATION_MESSAGES };
   if (!stored || typeof stored !== "object") {
-    return defaults;
+    return normalizeAllNotificationMessages(defaults);
   }
   const partial = stored as Partial<NotificationMessages>;
   const merged = { ...defaults, ...partial };
-  const keys = Object.keys(defaults) as (keyof NotificationMessages)[];
-  for (const key of keys) {
-    merged[key] = normalizeStoredMessage(merged[key], defaults[key]);
-  }
-  return merged;
+  return normalizeAllNotificationMessages(merged);
 }
 
 export function buildBookLink(

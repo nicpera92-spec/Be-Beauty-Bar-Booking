@@ -11,6 +11,7 @@ import {
   expandRangeToTokenBounds,
   fixSingleCharTokenDelete,
   getTokenDeleteRange,
+  migrateTokensToStorageFormat,
   snapCursorPastToken,
 } from "@/lib/messageEditorTokens";
 import {
@@ -94,6 +95,10 @@ function MessageTokenInput({
   const prevValueRef = useRef(value);
   const isMultiline = rows > 1;
 
+  const emitChange = (next: string) => {
+    onChange(migrateTokensToStorageFormat(next));
+  };
+
   useEffect(() => {
     prevValueRef.current = value;
   }, [value]);
@@ -132,7 +137,7 @@ function MessageTokenInput({
         if (expanded.start !== start || expanded.end !== end) {
           e.preventDefault();
           const next = value.slice(0, expanded.start) + value.slice(expanded.end);
-          applyTokenAwareEdit(el, next, expanded.start, expanded.start, onChange, prevValueRef);
+          applyTokenAwareEdit(el, next, expanded.start, expanded.start, emitChange, prevValueRef);
         }
         return;
       }
@@ -141,26 +146,17 @@ function MessageTokenInput({
       if (deleteRange) {
         e.preventDefault();
         const next = value.slice(0, deleteRange.start) + value.slice(deleteRange.end);
-        applyTokenAwareEdit(el, next, deleteRange.start, deleteRange.start, onChange, prevValueRef);
+        applyTokenAwareEdit(el, next, deleteRange.start, deleteRange.start, emitChange, prevValueRef);
       }
       return;
-    }
-
-    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && start === end) {
-      const snapped = snapCursorPastToken(value, start);
-      if (snapped !== start) {
-        e.preventDefault();
-        const next = value.slice(0, snapped) + e.key + value.slice(snapped);
-        applyTokenAwareEdit(el, next, snapped + 1, snapped + 1, onChange, prevValueRef);
-      }
     }
   };
 
   const fieldClass =
-    "w-full px-3 py-2.5 text-base sm:text-sm leading-relaxed bg-transparent focus:outline-none text-transparent caret-charcoal relative z-10";
+    "col-start-1 row-start-1 w-full px-3 py-2.5 text-base sm:text-sm leading-relaxed bg-transparent focus:outline-none text-transparent caret-charcoal relative z-10";
 
   const highlightClass =
-    "pointer-events-none absolute inset-0 px-3 py-2.5 text-base sm:text-sm leading-relaxed text-charcoal whitespace-pre-wrap break-words overflow-hidden";
+    "col-start-1 row-start-1 px-3 py-2.5 text-base sm:text-sm leading-relaxed text-charcoal whitespace-pre-wrap break-words pointer-events-none overflow-hidden";
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => {
     const el = e.currentTarget;
@@ -171,7 +167,7 @@ function MessageTokenInput({
     const repaired = fixSingleCharTokenDelete(prev, next, cursor);
     if (repaired) {
       prevValueRef.current = repaired.value;
-      onChange(repaired.value);
+      emitChange(repaired.value);
       requestAnimationFrame(() => {
         el.focus();
         el.setSelectionRange(repaired.cursor, repaired.cursor);
@@ -181,7 +177,7 @@ function MessageTokenInput({
     }
 
     prevValueRef.current = next;
-    onChange(next);
+    emitChange(next);
     requestAnimationFrame(syncHighlightScroll);
   };
 
@@ -198,7 +194,7 @@ function MessageTokenInput({
   };
 
   const wrapperClass =
-    "relative rounded-xl border border-slate-200 bg-white focus-within:border-navy/40 focus-within:ring-2 focus-within:ring-navy/10";
+    "grid rounded-xl border border-slate-200 bg-white focus-within:border-navy/40 focus-within:ring-2 focus-within:ring-navy/10";
 
   if (isMultiline) {
     return (
