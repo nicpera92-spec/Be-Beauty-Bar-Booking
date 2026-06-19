@@ -87,19 +87,9 @@ export default function BookPage() {
                 </span>
               )}
               {t.categories && t.categories.length > 0 && (
-                <>
-                  <span className="hidden sm:block h-4 w-px bg-slate-200" aria-hidden />
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {t.categories.map((category) => (
-                      <span
-                        key={category}
-                        className="text-[11px] font-medium tracking-wide uppercase px-2 py-0.5 rounded-full border border-slate-200/80 bg-slate-50 text-slate-600"
-                      >
-                        {categoryLabel(category)}
-                      </span>
-                    ))}
-                  </div>
-                </>
+                <span className="text-xs text-slate-400 font-normal">
+                  {t.categories.map((category) => categoryLabel(category)).join(" · ")}
+                </span>
               )}
             </div>
             {t.bio && t.bio.trim() && (
