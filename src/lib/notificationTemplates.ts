@@ -3,8 +3,10 @@ import {
   type NotificationMessages,
 } from "@/lib/notificationDefaults";
 import {
+  MESSAGE_TOKEN_CLOSE,
+  MESSAGE_TOKEN_OPEN,
   getMessageTokenRegex,
-  migrateTokensToVisibleText,
+  migrateTokensToStorageFormat,
 } from "@/lib/messageEditorTokens";
 
 /** Maps internal variable names to the friendly label shown in the editor. */
@@ -34,7 +36,7 @@ const LABEL_TO_VAR: Record<string, string> = {
 };
 
 export function friendlyToken(label: string): string {
-  return `**${label}**`;
+  return `${MESSAGE_TOKEN_OPEN}${label}${MESSAGE_TOKEN_CLOSE}`;
 }
 
 function labelFromTokenMatch(match: RegExpExecArray): string {
@@ -45,6 +47,37 @@ function labelFromTokenMatch(match: RegExpExecArray): string {
     return PLACEHOLDER_LABELS[match[4]] ?? match[4];
   }
   return "";
+}
+
+/** Editor-only HTML: underlined labels with zero-width delimiters (caret stays aligned). */
+export function renderMessageEditorHighlightHtml(text: string): string {
+  if (!text) return "&nbsp;";
+
+  const parts: string[] = [];
+  let lastIndex = 0;
+  const re = getMessageTokenRegex();
+  let match: RegExpExecArray | null;
+
+  while ((match = re.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(escapeHtml(text.slice(lastIndex, match.index)));
+    }
+
+    const label = labelFromTokenMatch(match);
+    parts.push(
+      MESSAGE_TOKEN_OPEN,
+      `<span class="underline decoration-navy/55 decoration-2 underline-offset-[3px]">${escapeHtml(label)}</span>`,
+      MESSAGE_TOKEN_CLOSE
+    );
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(escapeHtml(text.slice(lastIndex)));
+  }
+
+  return parts.join("") || "&nbsp;";
 }
 
 /** Friendly labels — shown as buttons in Settings → Messages. */
@@ -73,7 +106,7 @@ export function toFriendlyPlaceholders(template: string): string {
     const label = PLACEHOLDER_LABELS[key];
     return label ? friendlyToken(label) : `{{${key}}}`;
   });
-  return migrateTokensToVisibleText(text);
+  return migrateTokensToStorageFormat(text);
 }
 
 function substituteTokenLabel(label: string, vars: Record<string, string>): string {

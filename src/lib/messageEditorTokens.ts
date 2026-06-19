@@ -1,23 +1,37 @@
-/** Visible **Label** tokens used in the message editor. */
-export const MESSAGE_TOKEN_PATTERN = "\\*\\*([^*]+)\\*\\*";
+/** Zero-width delimiters — invisible in the editor, no extra gaps around details. */
+export const MESSAGE_TOKEN_OPEN = "\u200B";
+export const MESSAGE_TOKEN_CLOSE = "\u200C";
 
-/** Legacy invisible token formats — migrated to **Label** on load. */
-const LEGACY_ZW_OPEN = "\u200B";
-const LEGACY_ZW_CLOSE = "\u200C";
-const LEGACY_TOKEN_OPEN = "\uE010";
-const LEGACY_TOKEN_CLOSE = "\uE011";
+/** Legacy formats migrated to zero-width tokens on load. */
+const LEGACY_PUA_OPEN = "\uE010";
+const LEGACY_PUA_CLOSE = "\uE011";
+export const MESSAGE_TOKEN_PATTERN = "\\*\\*([^*]+)\\*\\*";
 
 export type TokenRange = { start: number; end: number; raw: string };
 
 const TOKEN_RE = new RegExp(
-  `${MESSAGE_TOKEN_PATTERN}|${LEGACY_ZW_OPEN}([^${LEGACY_ZW_CLOSE}]+)${LEGACY_ZW_CLOSE}|${LEGACY_TOKEN_OPEN}([^${LEGACY_TOKEN_CLOSE}]+)${LEGACY_TOKEN_CLOSE}|\\{\\{(\\w+)\\}\\}`,
+  `${escapeRegex(MESSAGE_TOKEN_OPEN)}([^${escapeRegex(MESSAGE_TOKEN_CLOSE)}]+)${escapeRegex(MESSAGE_TOKEN_CLOSE)}|${LEGACY_PUA_OPEN}([^${LEGACY_PUA_CLOSE}]+)${LEGACY_PUA_CLOSE}|${MESSAGE_TOKEN_PATTERN}|\\{\\{(\\w+)\\}\\}`,
   "g"
 );
 
-export function migrateTokensToVisibleText(text: string): string {
+function escapeRegex(char: string): string {
+  return char.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Collapse extra spaces while keeping line breaks intact. */
+export function normalizeMessageWhitespace(text: string): string {
   return text
-    .replace(/\u200B([^\u200C]+)\u200C/g, (_, label: string) => `**${label.trim()}**`)
-    .replace(/\uE010([^\uE011]+)\uE011/g, (_, label: string) => `**${label.trim()}**`);
+    .replace(/[^\S\n]+/g, " ")
+    .replace(/ +\n/g, "\n")
+    .replace(/\n +/g, "\n");
+}
+
+export function migrateTokensToStorageFormat(text: string): string {
+  return normalizeMessageWhitespace(
+    text
+      .replace(/\*\*([^*]+)\*\*/g, (_, label: string) => `${MESSAGE_TOKEN_OPEN}${label.trim()}${MESSAGE_TOKEN_CLOSE}`)
+      .replace(/\uE010([^\uE011]+)\uE011/g, (_, label: string) => `${MESSAGE_TOKEN_OPEN}${label.trim()}${MESSAGE_TOKEN_CLOSE}`)
+  );
 }
 
 export function getTokenRanges(text: string): TokenRange[] {
