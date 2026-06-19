@@ -87,8 +87,13 @@ export default function BookPage() {
                 </span>
               )}
               {t.categories && t.categories.length > 0 && (
-                <span className="text-xs text-slate-400 font-normal">
-                  {t.categories.map((category) => categoryLabel(category)).join(" · ")}
+                <span className="text-[13px] font-normal text-navy tracking-[0.01em]">
+                  {t.categories.map((category, index) => (
+                    <span key={category}>
+                      {index > 0 && <span className="mx-2 text-navy/35">·</span>}
+                      {categoryLabel(category)}
+                    </span>
+                  ))}
                 </span>
               )}
             </div>
