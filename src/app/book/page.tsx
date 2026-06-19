@@ -69,7 +69,8 @@ export default function BookPage() {
         Choose your Technician
       </h1>
       <p className="text-slate-600 mb-12 max-w-xl">
-        Choose your technician, pick a service, and book a time.
+        Select who you&apos;d like for your appointment, then choose from their services and pick a
+        time.
       </p>
 
       <div className="space-y-4">
