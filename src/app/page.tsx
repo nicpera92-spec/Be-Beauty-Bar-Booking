@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { homeCategoryLabel } from "@/lib/categoryDisplay";
 
 type Settings = {
   businessName: string;
@@ -9,6 +10,7 @@ type Settings = {
 
 export default function HomePage() {
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [categories, setCategories] = useState<string[]>([]);
 
   useEffect(() => {
     fetch("/api/settings")
@@ -16,6 +18,15 @@ export default function HomePage() {
       .then((data) => {
         if (data?.businessName) {
           setSettings(data);
+        }
+      })
+      .catch(() => {});
+
+    fetch(`/api/categories?_=${Date.now()}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data?.categories)) {
+          setCategories(data.categories);
         }
       })
       .catch(() => {});
@@ -43,18 +54,19 @@ export default function HomePage() {
         <h1 className="font-serif text-4xl md:text-5xl font-light tracking-tight text-slate-800 mb-8">
           {businessName}
         </h1>
-        <p className="text-navy text-xs md:text-sm uppercase tracking-[0.25em] mb-6 font-medium">
-          Nails · Lash Extensions · Permanent Makeup
-        </p>
+        {categories.length > 0 && (
+          <p className="text-navy text-xs md:text-sm uppercase tracking-[0.25em] mb-6 font-medium">
+            {categories.map((category) => homeCategoryLabel(category)).join(" · ")}
+          </p>
+        )}
         <p className="text-slate-600 mb-16 max-w-md mx-auto text-base md:text-lg leading-relaxed">
-          Book your appointment online. Choose a service, pick a date and time, and
-          secure your slot with a deposit.
+          Choose your technician, pick a service and time, and secure your slot with a deposit.
         </p>
         <Link
           href="/book"
           className="inline-flex items-center justify-center bg-navy text-white px-12 py-4 font-medium rounded-sm hover:bg-navy-light transition-all duration-200 touch-manipulation min-h-[48px] min-w-[160px] mx-auto shadow-sm"
         >
-          Book now
+          Choose technician
         </Link>
       </div>
     </div>

@@ -4,16 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { categoryLabel } from "@/lib/categoryCapacity";
-
-const COMPACT_CATEGORY_LABELS: Record<string, string> = {
-  nails: "Nails",
-  lash: "Lashes",
-  "permanent-makeup": "Perm makeup",
-};
-
-function compactCategoryLabel(category: string): string {
-  return COMPACT_CATEGORY_LABELS[category] ?? categoryLabel(category);
-}
+import { compactCategoryLabel } from "@/lib/categoryDisplay";
 
 type Technician = {
   id: string;
@@ -78,7 +69,7 @@ export default function BookPage() {
         Choose your Technician
       </h1>
       <p className="text-slate-600 mb-12 max-w-xl">
-        Select who you’d like for your appointment, then choose from their services and pick a time.
+        Choose your technician, pick a service, and book a time.
       </p>
 
       <div className="space-y-4">
