@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { formatCurrency, formatBookingDateFriendly } from "@/lib/format";
 import AdminNav from "@/components/AdminNav";
 
@@ -40,16 +41,36 @@ type Booking = {
   createdAt: string;
 };
 
+type WaitlistEntry = {
+  id: string;
+  customerName: string;
+  customerEmail: string | null;
+  customerPhone: string | null;
+  notifyByEmail: boolean;
+  notifyBySMS: boolean;
+  preferredDate: string;
+  notifyEarliest: boolean;
+  status: string;
+  lastNotifiedAt: string | null;
+  createdAt: string;
+  service: { name: string };
+  technician: { name: string };
+};
+
+type StatusFilter = "confirmed" | "pending_deposit" | "cancelled" | "waitlist";
+
 export default function AdminPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [token, setToken] = useState<string | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<
-    "confirmed" | "pending_deposit" | "cancelled"
-  >("confirmed");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("confirmed");
+  const [waitlistEntries, setWaitlistEntries] = useState<WaitlistEntry[]>([]);
+  const [waitlistLoading, setWaitlistLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -88,6 +109,31 @@ export default function AdminPage() {
       setPassword("");
     }
   }, []);
+
+  useEffect(() => {
+    if (searchParams.get("tab") === "waitlist") {
+      setStatusFilter("waitlist");
+    }
+  }, [searchParams]);
+
+  const selectStatusFilter = (key: StatusFilter) => {
+    setStatusFilter(key);
+    if (key === "waitlist") {
+      router.replace("/admin?tab=waitlist", { scroll: false });
+    } else {
+      router.replace("/admin", { scroll: false });
+    }
+  };
+
+  const refreshWaitlist = () => {
+    if (!token || staffRole !== "master") return;
+    setWaitlistLoading(true);
+    fetch("/api/admin/waitlist", { headers: getAuthHeaders() })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setWaitlistEntries(Array.isArray(data) ? data : []))
+      .catch(() => setWaitlistEntries([]))
+      .finally(() => setWaitlistLoading(false));
+  };
 
   const login = (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,6 +184,11 @@ export default function AdminPage() {
       .then((data) => setBookings(Array.isArray(data) ? data : []))
       .catch(() => {});
   }, [token]);
+
+  useEffect(() => {
+    if (!token || staffRole !== "master") return;
+    refreshWaitlist();
+  }, [token, staffRole]);
 
   useEffect(() => {
     // Reset pagination when switching tabs / filters
@@ -272,12 +323,26 @@ export default function AdminPage() {
     (b) => b.status === "cancelled" && inVisibleRange(b)
   );
 
+  const activeWaitlist = waitlistEntries.filter((e) => e.status === "active");
+  const inactiveWaitlist = waitlistEntries.filter((e) => e.status !== "active");
+
+  const waitlistFiltered = activeWaitlist
+    .filter((e) => !dateFilter || e.preferredDate === dateFilter)
+    .slice()
+    .sort((a, b) => {
+      const da = a.createdAt ?? "";
+      const db = b.createdAt ?? "";
+      return sortDir === "desc" ? db.localeCompare(da) : da.localeCompare(db);
+    });
+
   const filtered = (
-    statusFilter === "confirmed"
-      ? confirmed
-      : statusFilter === "pending_deposit"
-        ? pending
-        : cancelled
+    statusFilter === "waitlist"
+      ? []
+      : statusFilter === "confirmed"
+        ? confirmed
+        : statusFilter === "pending_deposit"
+          ? pending
+          : cancelled
   )
     .slice()
     .sort((a, b) => {
@@ -287,9 +352,24 @@ export default function AdminPage() {
       return sortDir === "desc" ? db.localeCompare(da) : da.localeCompare(db);
     });
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(
+      (statusFilter === "waitlist" ? waitlistFiltered.length : filtered.length) / pageSize
+    )
+  );
   const safePage = Math.min(Math.max(page, 1), totalPages);
-  const paged = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
+  const bookingPaged = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
+  const waitlistPaged = waitlistFiltered.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+  const statusTabs: { key: StatusFilter; label: string; count: number }[] = [
+    { key: "confirmed", label: "Confirmed", count: confirmed.length },
+    { key: "pending_deposit", label: "Pending", count: pending.length },
+    { key: "cancelled", label: "Cancelled", count: cancelled.length },
+    ...(staffRole === "master"
+      ? [{ key: "waitlist" as const, label: "Waiting list", count: activeWaitlist.length }]
+      : []),
+  ];
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
@@ -298,18 +378,18 @@ export default function AdminPage() {
       <section>
         <div className="mb-4 rounded-xl border border-slate-200 bg-white p-2 space-y-2">
           {/* Status tabs with live counts (replaces the heading) */}
-          <div className="grid grid-cols-3 gap-1">
-            {([
-              { key: "confirmed", label: "Confirmed", count: confirmed.length },
-              { key: "pending_deposit", label: "Pending", count: pending.length },
-              { key: "cancelled", label: "Cancelled", count: cancelled.length },
-            ] as const).map((t) => {
+          <div
+            className={`grid gap-1 ${
+              staffRole === "master" ? "grid-cols-4" : "grid-cols-3"
+            }`}
+          >
+            {statusTabs.map((t) => {
               const active = statusFilter === t.key;
               return (
                 <button
                   key={t.key}
                   type="button"
-                  onClick={() => setStatusFilter(t.key)}
+                  onClick={() => selectStatusFilter(t.key)}
                   className={`flex flex-col items-center justify-center py-1.5 rounded-lg transition ${
                     active ? "bg-navy text-white" : "text-charcoal hover:bg-slate-50"
                   }`}
@@ -401,7 +481,74 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {filtered.length === 0 ? (
+        {statusFilter === "waitlist" ? (
+          waitlistLoading ? (
+            <p className="text-charcoal/60 text-sm">Loading waiting list…</p>
+          ) : waitlistFiltered.length === 0 && inactiveWaitlist.length === 0 ? (
+            <p className="text-charcoal/60 text-sm">No one on the waiting list right now.</p>
+          ) : (
+            <div className="space-y-3">
+              {waitlistFiltered.length === 0 ? (
+                <p className="text-charcoal/60 text-sm">No active waiting list entries match this filter.</p>
+              ) : (
+                waitlistPaged.map((entry) => (
+                  <AdminWaitlistRow
+                    key={entry.id}
+                    entry={entry}
+                    getAuthHeaders={getAuthHeaders}
+                    onUpdate={refreshWaitlist}
+                  />
+                ))
+              )}
+
+              {inactiveWaitlist.length > 0 && (
+                <div className="pt-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-charcoal/45 mb-2">
+                    Expired / inactive
+                  </p>
+                  <div className="space-y-2 opacity-70">
+                    {inactiveWaitlist.map((entry) => (
+                      <div
+                        key={entry.id}
+                        className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-charcoal/70 flex justify-between gap-2"
+                      >
+                        <span>
+                          {entry.customerName} · {entry.service.name} ·{" "}
+                          {formatBookingDateFriendly(entry.preferredDate)}
+                        </span>
+                        <span className="text-xs capitalize">{entry.status}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {waitlistFiltered.length > 0 && totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={safePage <= 1}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 text-charcoal text-sm hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    Prev
+                  </button>
+                  <span className="text-sm text-charcoal/70 tabular-nums">
+                    {safePage}/{totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={safePage >= totalPages}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 text-charcoal text-sm hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </div>
+          )
+        ) : filtered.length === 0 ? (
           <p className="text-charcoal/60 text-sm">
             {statusFilter === "confirmed"
               ? "No confirmed bookings yet."
@@ -411,7 +558,7 @@ export default function AdminPage() {
           </p>
         ) : (
           <div className="space-y-3">
-            {paged.map((b) => (
+            {bookingPaged.map((b) => (
               <AdminBookingRow
                 key={b.id}
                 booking={b}
@@ -447,6 +594,65 @@ export default function AdminPage() {
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+function AdminWaitlistRow({
+  entry,
+  getAuthHeaders,
+  onUpdate,
+}: {
+  entry: WaitlistEntry;
+  getAuthHeaders: () => Record<string, string>;
+  onUpdate: () => void;
+}) {
+  const remove = () => {
+    if (!confirm("Remove this person from the waiting list?")) return;
+    fetch(`/api/admin/waitlist/${entry.id}`, { method: "DELETE", headers: getAuthHeaders() })
+      .then((r) => {
+        if (r.ok) onUpdate();
+      })
+      .catch(() => {});
+  };
+
+  return (
+    <div className="flex flex-wrap items-start justify-between gap-3 p-4 rounded-xl border border-slate-200 bg-white">
+      <div className="min-w-0">
+        <p className="font-medium text-charcoal">{entry.customerName}</p>
+        <p className="text-sm text-charcoal/80 mt-0.5">
+          {entry.service.name} · {entry.technician.name}
+        </p>
+        <p className="text-sm text-charcoal/70 mt-1">
+          Wants: {formatBookingDateFriendly(entry.preferredDate)}
+          {entry.notifyEarliest && (
+            <span className="text-charcoal/50"> · earlier dates too</span>
+          )}
+        </p>
+        <p className="text-xs text-charcoal/55 mt-2">
+          {entry.customerPhone ? (
+            <CopyPhoneButton phone={entry.customerPhone} />
+          ) : (
+            entry.customerEmail || "No contact"
+          )}
+          {" · "}
+          {entry.notifyByEmail && entry.notifyBySMS
+            ? "Email + SMS"
+            : entry.notifyByEmail
+              ? "Email"
+              : "SMS"}
+          {entry.lastNotifiedAt && (
+            <> · Notified {new Date(entry.lastNotifiedAt).toLocaleDateString("en-GB")}</>
+          )}
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={remove}
+        className="text-sm text-red-600 hover:underline shrink-0"
+      >
+        Remove
+      </button>
     </div>
   );
 }

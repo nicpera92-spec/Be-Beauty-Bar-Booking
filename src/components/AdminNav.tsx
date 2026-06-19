@@ -63,7 +63,6 @@ export function getAdminNavItems(role: "master" | "technician") {
     ? [
         { href: "/admin", label: "Bookings", icon: ADMIN_NAV_ICONS.bookings },
         { href: "/admin/calendar", label: "Calendar", icon: ADMIN_NAV_ICONS.calendar },
-        { href: "/admin/waitlist", label: "Waiting list", icon: ADMIN_NAV_ICONS.waitlist },
         { href: "/admin/technicians", label: "Technicians", icon: ADMIN_NAV_ICONS.technicians },
         { href: "/admin/services", label: "Services", icon: ADMIN_NAV_ICONS.services },
       ]
