@@ -2,11 +2,45 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { DEFAULT_HOME_CATEGORIES, homeCategoryLabel } from "@/lib/categoryDisplay";
+import {
+  DEFAULT_HOME_CATEGORIES,
+  homeCategoryLabel,
+  homeCategoryMobileLabel,
+  partitionHomeCategoriesForMobile,
+  sortHomeCategories,
+} from "@/lib/categoryDisplay";
 
 type Settings = {
   businessName: string;
 };
+
+const categoryLineClass =
+  "text-navy text-[10px] uppercase tracking-[0.14em] font-medium text-center";
+
+function CategoryLine({
+  categories,
+  label,
+}: {
+  categories: string[];
+  label: (category: string) => string;
+}) {
+  if (categories.length === 0) return null;
+
+  return (
+    <p className="flex flex-wrap justify-center items-center">
+      {categories.map((category, index) => (
+        <span key={category} className="inline-flex items-center">
+          {index > 0 && (
+            <span className="text-navy/35 px-2 select-none" aria-hidden>
+              ·
+            </span>
+          )}
+          <span className={categoryLineClass}>{label(category)}</span>
+        </span>
+      ))}
+    </p>
+  );
+}
 
 export default function HomePage() {
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -33,10 +67,10 @@ export default function HomePage() {
   }, []);
 
   const businessName = settings?.businessName ?? "Be Beauty Bar";
-  const displayCategories =
-    categories.length > 0 ? categories : DEFAULT_HOME_CATEGORIES;
-  const mobileCategoryGrid =
-    displayCategories.length >= 4 && displayCategories.length % 2 === 0;
+  const displayCategories = sortHomeCategories(
+    categories.length > 0 ? categories : DEFAULT_HOME_CATEGORIES
+  );
+  const { firstRow, secondRow } = partitionHomeCategoriesForMobile(displayCategories);
 
   return (
     <div className="relative min-h-[70vh] overflow-hidden">
@@ -59,25 +93,23 @@ export default function HomePage() {
           {businessName}
         </h1>
 
+        <div className="sm:hidden mb-5 space-y-1.5" aria-label="Services">
+          <CategoryLine categories={firstRow} label={homeCategoryMobileLabel} />
+          <CategoryLine categories={secondRow} label={homeCategoryMobileLabel} />
+        </div>
+
         <ul
-          className={`mb-5 sm:mb-6 list-none p-0 m-0 sm:flex sm:flex-wrap sm:justify-center sm:items-center sm:gap-y-2 ${
-            mobileCategoryGrid
-              ? "max-sm:grid max-sm:grid-cols-2 max-sm:justify-items-center max-sm:gap-x-4 max-sm:gap-y-2 max-sm:max-w-xs max-sm:mx-auto"
-              : "flex flex-col items-center gap-1.5"
-          }`}
+          className="hidden sm:flex sm:flex-wrap sm:justify-center sm:items-center sm:gap-y-2 mb-5 sm:mb-6 list-none p-0 m-0"
           aria-label="Services"
         >
           {displayCategories.map((category, index) => (
             <li key={category} className="flex items-center justify-center">
               {index > 0 && (
-                <span
-                  className="hidden sm:inline text-navy/35 px-2.5 md:px-3 select-none"
-                  aria-hidden
-                >
+                <span className="text-navy/35 px-2.5 md:px-3 select-none" aria-hidden>
                   ·
                 </span>
               )}
-              <span className="text-navy text-[10px] sm:text-xs uppercase tracking-[0.14em] sm:tracking-[0.22em] md:tracking-[0.25em] font-medium text-center max-sm:leading-snug sm:whitespace-nowrap">
+              <span className="text-navy text-xs uppercase tracking-[0.22em] md:tracking-[0.25em] font-medium whitespace-nowrap">
                 {homeCategoryLabel(category)}
               </span>
             </li>
