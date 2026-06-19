@@ -10,6 +10,7 @@ import {
   MESSAGE_INSERT_TAGS,
   PLACEHOLDER_LABELS,
   previewEmailHtml,
+  previewMessage,
 } from "@/lib/notificationTemplates";
 
 type NotificationMessagesEditorProps = {
@@ -200,7 +201,7 @@ function SimpleField({
     <div className="space-y-1.5">
       <div className="flex items-center justify-between gap-2">
         <label className="text-xs font-medium text-charcoal/70">{field.label}:</label>
-        {field.kind === "email" && (
+        {(field.kind === "email" || field.kind === "sms") && (
           <button
             type="button"
             onClick={() => setShowPreview((v) => !v)}
@@ -235,6 +236,17 @@ function SimpleField({
             className="text-sm text-charcoal prose-p:my-2 prose-a:text-navy prose-a:underline max-w-none"
             dangerouslySetInnerHTML={{ __html: previewEmailHtml(value) }}
           />
+        </div>
+      )}
+
+      {showPreview && field.kind === "sms" && (
+        <div className="rounded-lg border border-slate-200 bg-white p-3 space-y-2">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-charcoal/45">
+            Example preview
+          </p>
+          <div className="rounded-2xl bg-slate-100 px-3 py-2.5 max-w-sm">
+            <p className="text-sm text-charcoal whitespace-pre-wrap">{previewMessage(value)}</p>
+          </div>
         </div>
       )}
     </div>

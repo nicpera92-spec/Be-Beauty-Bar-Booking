@@ -188,7 +188,7 @@ export default function BookDatePage() {
                     dayClass += "bg-slate-100 text-slate-300 border-transparent cursor-not-allowed";
                   } else if (isFullyBooked) {
                     dayClass +=
-                      "bg-slate-200/75 text-slate-500 border-slate-200/80 hover:bg-slate-200 hover:border-slate-300";
+                      "bg-slate-100/90 text-slate-400 font-normal border-slate-100 hover:bg-slate-100 hover:border-slate-200/70";
                   } else {
                     dayClass +=
                       "border-slate-200 bg-white text-slate-800 hover:border-navy/40 hover:bg-slate-50";
@@ -208,7 +208,15 @@ export default function BookDatePage() {
                     >
                       {format(d, "d")}
                       <br />
-                      <span className="text-[10px] sm:text-xs font-normal text-slate-500">
+                      <span
+                        className={`text-[10px] sm:text-xs font-normal ${
+                          isPast
+                            ? "text-slate-300"
+                            : isFullyBooked
+                              ? "text-slate-400/60"
+                              : "text-slate-500"
+                        }`}
+                      >
                         {format(d, "EEE")}
                       </span>
                     </button>
