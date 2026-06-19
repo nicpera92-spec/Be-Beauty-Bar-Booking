@@ -1,24 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   NOTIFICATION_MESSAGE_GROUPS,
   type NotificationMessageField,
   type NotificationMessageGroup,
   type NotificationMessages,
 } from "@/lib/notificationDefaults";
+import { migrateTokensToStorageFormat } from "@/lib/messageEditorTokens";
 import {
-  expandRangeToTokenBounds,
-  fixSingleCharTokenDelete,
-  getTokenDeleteRange,
-  migrateTokensToStorageFormat,
-  snapCursorPastToken,
-} from "@/lib/messageEditorTokens";
+  editorDomToStorage,
+  insertStorageTokenAtSelection,
+  removeAdjacentTokenFromEditor,
+  storageToEditorHtml,
+} from "@/lib/messageEditorDom";
 import {
   MESSAGE_INSERT_TAGS,
   previewEmailHtml,
   previewMessage,
-  renderMessageEditorHighlightHtml,
 } from "@/lib/notificationTemplates";
 
 type NotificationMessagesEditorProps = {
@@ -33,46 +32,18 @@ type NotificationMessagesEditorProps = {
 };
 
 function insertAtCursor(
-  el: HTMLTextAreaElement | HTMLInputElement | null,
+  el: HTMLDivElement | null,
   current: string,
   token: string,
   onUpdate: (next: string) => void
 ) {
   if (!el) {
-    onUpdate(current + token);
+    onUpdate(migrateTokensToStorageFormat(current + token));
     return;
   }
 
-  let start = el.selectionStart ?? current.length;
-  let end = el.selectionEnd ?? current.length;
-  start = snapCursorPastToken(current, start);
-  end = snapCursorPastToken(current, end);
-
-  const next = current.slice(0, start) + token + current.slice(end);
-  onUpdate(next);
-  const pos = start + token.length;
-  requestAnimationFrame(() => {
-    el.focus();
-    el.setSelectionRange(pos, pos);
-  });
-}
-
-function applyTokenAwareEdit(
-  el: HTMLTextAreaElement | HTMLInputElement,
-  next: string,
-  selectionStart: number,
-  selectionEnd: number,
-  onChange: (value: string) => void,
-  prevValueRef: React.MutableRefObject<string>
-) {
-  prevValueRef.current = next;
-  onChange(next);
-  const pos = Math.min(selectionStart, next.length);
-  const end = Math.min(selectionEnd, next.length);
-  requestAnimationFrame(() => {
-    el.focus();
-    el.setSelectionRange(pos, end);
-  });
+  insertStorageTokenAtSelection(el, token);
+  onUpdate(editorDomToStorage(el));
 }
 
 function MessageTokenInput({
@@ -82,162 +53,103 @@ function MessageTokenInput({
   rows = 1,
   inputRef,
   onFocus,
+  multiline = true,
 }: {
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
   rows?: number;
-  inputRef?: React.RefObject<HTMLInputElement | HTMLTextAreaElement | null>;
-  onFocus?: (el: HTMLInputElement | HTMLTextAreaElement) => void;
+  inputRef?: React.RefObject<HTMLDivElement | null>;
+  onFocus?: (el: HTMLDivElement) => void;
+  multiline?: boolean;
 }) {
-  const localRef = useRef<HTMLTextAreaElement | HTMLInputElement>(null);
-  const highlightRef = useRef<HTMLDivElement>(null);
-  const prevValueRef = useRef(value);
-  const isMultiline = rows > 1;
+  const editorRef = useRef<HTMLDivElement>(null);
+  const composingRef = useRef(false);
+  const lastEmittedRef = useRef(value);
 
-  const emitChange = (next: string) => {
-    onChange(migrateTokensToStorageFormat(next));
-  };
-
-  useEffect(() => {
-    prevValueRef.current = value;
-  }, [value]);
-
-  const setRef = (el: HTMLTextAreaElement | HTMLInputElement | null) => {
-    (localRef as React.MutableRefObject<HTMLTextAreaElement | HTMLInputElement | null>).current =
-      el;
+  const setRef = (el: HTMLDivElement | null) => {
+    (editorRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
     if (inputRef) {
-      (inputRef as React.MutableRefObject<HTMLInputElement | HTMLTextAreaElement | null>).current =
-        el;
+      (inputRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
     }
   };
 
-  const syncHighlightScroll = useCallback(() => {
-    const field = localRef.current;
-    const highlight = highlightRef.current;
-    if (!field || !highlight || !isMultiline) return;
-    highlight.scrollTop = (field as HTMLTextAreaElement).scrollTop;
-    highlight.scrollLeft = (field as HTMLTextAreaElement).scrollLeft;
-  }, [isMultiline]);
-
   useEffect(() => {
-    syncHighlightScroll();
-  }, [value, syncHighlightScroll]);
+    const el = editorRef.current;
+    if (!el || composingRef.current) return;
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement | HTMLInputElement>) => {
-    const el = e.currentTarget;
-    const start = el.selectionStart ?? 0;
-    const end = el.selectionEnd ?? 0;
+    const stored = migrateTokensToStorageFormat(value);
+    const current = el.innerHTML.length > 0 ? editorDomToStorage(el) : "";
+
+    if (current !== stored) {
+      el.innerHTML = storageToEditorHtml(stored);
+      lastEmittedRef.current = stored;
+    }
+  }, [value]);
+
+  const emitFromEditor = () => {
+    const el = editorRef.current;
+    if (!el) return;
+    const next = editorDomToStorage(el);
+    lastEmittedRef.current = next;
+    onChange(next);
+  };
+
+  const handleInput = () => {
+    if (composingRef.current) return;
+    emitFromEditor();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const el = editorRef.current;
+    if (!el) return;
+
+    if (!multiline && e.key === "Enter") {
+      e.preventDefault();
+      return;
+    }
 
     if (e.key === "Backspace" || e.key === "Delete") {
       const direction = e.key === "Backspace" ? "backspace" : "delete";
-
-      if (start !== end) {
-        const expanded = expandRangeToTokenBounds(value, start, end);
-        if (expanded.start !== start || expanded.end !== end) {
-          e.preventDefault();
-          const next = value.slice(0, expanded.start) + value.slice(expanded.end);
-          applyTokenAwareEdit(el, next, expanded.start, expanded.start, emitChange, prevValueRef);
-        }
-        return;
-      }
-
-      const deleteRange = getTokenDeleteRange(value, start, direction);
-      if (deleteRange) {
+      if (removeAdjacentTokenFromEditor(el, direction)) {
         e.preventDefault();
-        const next = value.slice(0, deleteRange.start) + value.slice(deleteRange.end);
-        applyTokenAwareEdit(el, next, deleteRange.start, deleteRange.start, emitChange, prevValueRef);
+        emitFromEditor();
       }
-      return;
     }
   };
 
   const fieldClass =
-    "col-start-1 row-start-1 w-full px-3 py-2.5 text-base sm:text-sm leading-relaxed bg-transparent focus:outline-none text-transparent caret-charcoal relative z-10";
+    "w-full px-3 py-2.5 text-base sm:text-sm leading-relaxed text-charcoal bg-white focus:outline-none rounded-xl border border-slate-200 focus:border-navy/40 focus:ring-2 focus:ring-navy/10 whitespace-pre-wrap break-words";
 
-  const highlightClass =
-    "col-start-1 row-start-1 px-3 py-2.5 text-base sm:text-sm leading-relaxed text-charcoal whitespace-pre-wrap break-words pointer-events-none overflow-hidden";
-
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => {
-    const el = e.currentTarget;
-    const next = el.value;
-    const prev = prevValueRef.current;
-    const cursor = el.selectionStart ?? next.length;
-
-    const repaired = fixSingleCharTokenDelete(prev, next, cursor);
-    if (repaired) {
-      prevValueRef.current = repaired.value;
-      emitChange(repaired.value);
-      requestAnimationFrame(() => {
-        el.focus();
-        el.setSelectionRange(repaired.cursor, repaired.cursor);
-        syncHighlightScroll();
-      });
-      return;
-    }
-
-    prevValueRef.current = next;
-    emitChange(next);
-    requestAnimationFrame(syncHighlightScroll);
-  };
-
-  const sharedProps = {
-    value,
-    onChange: handleChange,
-    onKeyDown: handleKeyDown,
-    onScroll: syncHighlightScroll,
-    onFocus: (e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement>) =>
-      onFocus?.(e.currentTarget),
-    spellCheck: true,
-    autoComplete: "off",
-    autoCorrect: "off",
-  };
-
-  const wrapperClass =
-    "grid rounded-xl border border-slate-200 bg-white focus-within:border-navy/40 focus-within:ring-2 focus-within:ring-navy/10";
-
-  if (isMultiline) {
-    return (
-      <div className={wrapperClass}>
-        <div
-          ref={highlightRef}
-          className={highlightClass}
-          aria-hidden
-          dangerouslySetInnerHTML={{ __html: renderMessageEditorHighlightHtml(value) }}
-        />
-        <textarea
-          ref={setRef as React.RefCallback<HTMLTextAreaElement>}
-          rows={rows}
-          {...sharedProps}
-          placeholder={value ? undefined : placeholder}
-          className={`${fieldClass} resize-y min-h-[6.5rem] border-0 focus:ring-0`}
-        />
-        {!value && (
-          <div className={`${highlightClass} text-charcoal/35`} aria-hidden>
-            {placeholder}
-          </div>
-        )}
-      </div>
-    );
-  }
+  const minHeight = multiline ? `${Math.max(rows * 1.6, 6.5)}rem` : undefined;
 
   return (
-    <div className={wrapperClass}>
+    <div className="relative">
       <div
-        ref={highlightRef}
-        className={`${highlightClass} truncate`}
-        aria-hidden
-        dangerouslySetInnerHTML={{ __html: renderMessageEditorHighlightHtml(value) }}
-      />
-      <input
-        ref={setRef as React.RefCallback<HTMLInputElement>}
-        type="text"
-        {...sharedProps}
-        placeholder={value ? undefined : placeholder}
-        className={`${fieldClass} border-0 focus:ring-0`}
+        ref={setRef}
+        contentEditable
+        suppressContentEditableWarning
+        role="textbox"
+        aria-multiline={multiline}
+        onInput={handleInput}
+        onKeyDown={handleKeyDown}
+        onFocus={(e) => onFocus?.(e.currentTarget)}
+        onCompositionStart={() => {
+          composingRef.current = true;
+        }}
+        onCompositionEnd={() => {
+          composingRef.current = false;
+          emitFromEditor();
+        }}
+        spellCheck
+        className={`${fieldClass} ${multiline ? "resize-y overflow-auto" : "overflow-x-auto overflow-y-hidden"}`}
+        style={{ minHeight }}
       />
       {!value && (
-        <div className={`${highlightClass} truncate text-charcoal/35`} aria-hidden>
+        <div
+          className="pointer-events-none absolute inset-0 px-3 py-2.5 text-base sm:text-sm leading-relaxed text-charcoal/35 whitespace-pre-wrap"
+          aria-hidden
+        >
           {placeholder}
         </div>
       )}
@@ -280,9 +192,9 @@ function SimpleField({
   field: NotificationMessageField;
   value: string;
   onChange: (value: string) => void;
-  onActivate: (el: HTMLInputElement | HTMLTextAreaElement) => void;
+  onActivate: (el: HTMLDivElement) => void;
 }) {
-  const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
+  const inputRef = useRef<HTMLDivElement>(null);
   const [showPreview, setShowPreview] = useState(false);
 
   const subjectPlaceholder = "e.g. Your booking is confirmed";
@@ -309,6 +221,7 @@ function SimpleField({
         value={value}
         onChange={onChange}
         onFocus={onActivate}
+        multiline={field.kind !== "subject"}
         rows={field.kind === "subject" ? 1 : field.kind === "sms" ? 5 : 10}
         placeholder={
           field.kind === "subject"
@@ -356,14 +269,14 @@ function MessageGroupFields({
   messages: NotificationMessages;
   onUpdate: (key: keyof NotificationMessages, value: string) => void;
 }) {
-  const activeRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
+  const activeRef = useRef<HTMLDivElement | null>(null);
   const activeKeyRef = useRef<keyof NotificationMessages>(group.sections[0]?.fields[0]?.key);
   const hasSmsOnlySection = group.sections.every((section) =>
     section.fields.every((field) => field.kind === "sms")
   );
 
   const handleActivate = (key: keyof NotificationMessages) => {
-    return (el: HTMLInputElement | HTMLTextAreaElement) => {
+    return (el: HTMLDivElement) => {
       activeKeyRef.current = key;
       activeRef.current = el;
     };
@@ -427,7 +340,7 @@ export default function NotificationMessagesEditor({
   const [openGroup, setOpenGroup] = useState<string>("");
 
   const update = (key: keyof NotificationMessages, value: string) => {
-    onChange({ ...messages, [key]: value });
+    onChange({ ...messages, [key]: migrateTokensToStorageFormat(value) });
   };
 
   return (

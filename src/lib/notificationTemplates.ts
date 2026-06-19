@@ -49,36 +49,7 @@ function labelFromTokenMatch(match: RegExpExecArray): string {
   return "";
 }
 
-/** Editor-only HTML: underlined labels with zero-width delimiters (caret stays aligned). */
-export function renderMessageEditorHighlightHtml(text: string): string {
-  if (!text) return "&nbsp;";
-
-  const parts: string[] = [];
-  let lastIndex = 0;
-  const re = getMessageTokenRegex();
-  let match: RegExpExecArray | null;
-
-  while ((match = re.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(escapeHtml(text.slice(lastIndex, match.index)));
-    }
-
-    const label = labelFromTokenMatch(match);
-    parts.push(
-      MESSAGE_TOKEN_OPEN,
-      `<span class="underline decoration-navy/55 decoration-2 underline-offset-[3px]">${escapeHtml(label)}</span>`,
-      MESSAGE_TOKEN_CLOSE
-    );
-
-    lastIndex = match.index + match[0].length;
-  }
-
-  if (lastIndex < text.length) {
-    parts.push(escapeHtml(text.slice(lastIndex)));
-  }
-
-  return parts.join("") || "&nbsp;";
-}
+// Legacy highlight helper removed — editor uses contenteditable spans in messageEditorDom.ts
 
 /** Friendly labels — shown as buttons in Settings → Messages. */
 export const MESSAGE_INSERT_TAGS: { label: string; token: string; hint?: string }[] = [
