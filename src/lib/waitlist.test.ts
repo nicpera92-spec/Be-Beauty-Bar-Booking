@@ -1,5 +1,5 @@
 import { parse } from "date-fns";
-import { isWaitlistSlotStillBookable } from "@/lib/waitlist";
+import { isWaitlistSlotStillBookable, slotsFreedByCancellation } from "@/lib/waitlist";
 
 function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(message);
@@ -30,4 +30,28 @@ assert(
   "slot starting now is still bookable"
 );
 
-console.log("waitlist: 5 checks passed");
+const available = [
+  { start: "10:00", end: "11:00" },
+  { start: "11:00", end: "12:00" },
+  { start: "14:00", end: "15:00" },
+];
+
+const freedOneHour = slotsFreedByCancellation(today, available, "10:00", "11:00", atMorning);
+assert(freedOneHour.length === 1 && freedOneHour[0].startTime === "10:00", "60min cancel frees one slot");
+
+const freedTwoHours = slotsFreedByCancellation(today, available, "10:00", "12:00", atMorning);
+assert(freedTwoHours.length === 2, "longer cancel can free multiple service-length slots");
+
+const freedTooShort = slotsFreedByCancellation(
+  today,
+  [{ start: "14:00", end: "15:00" }],
+  "10:00",
+  "10:30",
+  atMorning
+);
+assert(freedTooShort.length === 0, "no slot when freed window is too short for service duration");
+
+const freedPast = slotsFreedByCancellation(today, available, "10:00", "11:00", atAfternoon);
+assert(freedPast.length === 0, "past slots within cancel window are excluded");
+
+console.log("waitlist: 10 checks passed");

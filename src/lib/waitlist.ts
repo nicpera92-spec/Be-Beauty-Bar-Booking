@@ -111,6 +111,51 @@ async function loadDayContext(
   return { service, slots };
 }
 
+/** Slots on this date that fit the service duration and start within the cancelled booking window. */
+export function slotsFreedByCancellation(
+  date: string,
+  availableSlots: { start: string; end: string }[],
+  cancelledStartTime: string,
+  cancelledEndTime: string,
+  at?: Date
+): OpenSlot[] {
+  return availableSlots
+    .filter((slot) => slot.start >= cancelledStartTime && slot.start < cancelledEndTime)
+    .filter((slot) => isWaitlistSlotStillBookable(date, slot.start, at))
+    .map((slot) => ({
+      date,
+      startTime: slot.start,
+      endTime: slot.end,
+    }));
+}
+
+export async function findBookableSlotsAfterCancellation(
+  serviceId: string,
+  technicianId: string,
+  date: string,
+  cancelledStartTime: string,
+  cancelledEndTime: string
+): Promise<OpenSlot[]> {
+  const ctx = await loadDayContext(serviceId, technicianId, date);
+  if (!ctx) return [];
+  return slotsFreedByCancellation(
+    date,
+    ctx.slots,
+    cancelledStartTime,
+    cancelledEndTime
+  );
+}
+
+export async function isSlotBookableForService(
+  serviceId: string,
+  technicianId: string,
+  slot: OpenSlot
+): Promise<boolean> {
+  const ctx = await loadDayContext(serviceId, technicianId, slot.date);
+  if (!ctx) return false;
+  return ctx.slots.some((s) => s.start === slot.startTime && s.end === slot.endTime);
+}
+
 export async function findEarliestOpenSlot(
   serviceId: string,
   technicianId: string,
@@ -160,6 +205,15 @@ export async function notifyWaitlistEntryForSlot(
   });
   if (!entry || entry.status !== "active") return { ok: false, error: "Entry not active" };
 
+  const bookable = await isSlotBookableForService(
+    entry.serviceId,
+    entry.technicianId,
+    slot
+  );
+  if (!bookable) {
+    return { ok: true };
+  }
+
   const result = await (await import("@/lib/email")).sendWaitlistNotification({
     entry,
     slot,
@@ -193,7 +247,15 @@ export async function notifyWaitlistForFreedSlot(params: {
   const { serviceId, technicianId, date, startTime, endTime } = params;
   const today = todayStr();
   if (date < today) return;
-  if (!isWaitlistSlotStillBookable(date, startTime)) return;
+
+  const bookableSlots = await findBookableSlotsAfterCancellation(
+    serviceId,
+    technicianId,
+    date,
+    startTime,
+    endTime
+  );
+  if (bookableSlots.length === 0) return;
 
   const entries = await prisma.waitingListEntry.findMany({
     where: {
@@ -205,12 +267,13 @@ export async function notifyWaitlistForFreedSlot(params: {
     },
   });
 
-  const slot: OpenSlot = { date, startTime, endTime };
   for (const entry of entries) {
     const wantsThisDay = entry.preferredDate === date;
     const wantsEarlier =
       entry.notifyEarliest && entry.preferredDate >= date && date <= entry.preferredDate;
-    if (wantsThisDay || wantsEarlier) {
+    if (!wantsThisDay && !wantsEarlier) continue;
+
+    for (const slot of bookableSlots) {
       await notifyWaitlistEntryForSlot(entry.id, slot);
     }
   }
