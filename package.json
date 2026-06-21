@@ -8,6 +8,7 @@
     "start": "next start -p 3001",
     "lint": "next lint",
     "test:messages": "tsx src/lib/messageEditorDom.test.ts",
+    "test:waitlist": "tsx src/lib/waitlist.test.ts",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",

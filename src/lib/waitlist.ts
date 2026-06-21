@@ -1,8 +1,7 @@
-import { addDays, format, parse, startOfDay } from "date-fns";
+import { addDays, format, isBefore, parse, startOfDay } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { getSlotsForDay } from "@/lib/slotUtils";
 import { getMaxConcurrentForCategory } from "@/lib/bookingAvailability";
-import { getCustomerBookableRange } from "@/lib/booking-calendar-range";
 
 export type OpenSlot = {
   date: string;
@@ -10,8 +9,22 @@ export type OpenSlot = {
   endTime: string;
 };
 
-function todayStr() {
-  return format(startOfDay(new Date()), "yyyy-MM-dd");
+function todayStr(at: Date = new Date()) {
+  return format(startOfDay(at), "yyyy-MM-dd");
+}
+
+/** True when customers can still book this slot (date in future, or same day before start time). */
+export function isWaitlistSlotStillBookable(
+  date: string,
+  startTime: string,
+  at: Date = new Date()
+): boolean {
+  const today = todayStr(at);
+  if (date < today) return false;
+  if (date > today) return true;
+
+  const slotStart = parse(`${date} ${startTime}`, "yyyy-MM-dd HH:mm", at);
+  return !isBefore(slotStart, at);
 }
 
 export async function isWaitlistEnabled(): Promise<boolean> {
@@ -103,8 +116,8 @@ export async function findEarliestOpenSlot(
   technicianId: string,
   beforeDateInclusive: string
 ): Promise<OpenSlot | null> {
-  const { minBookableDate } = getCustomerBookableRange();
-  let cursor = startOfDay(minBookableDate);
+  const today = todayStr();
+  let cursor = parse(today, "yyyy-MM-dd", new Date());
   const end = parse(beforeDateInclusive, "yyyy-MM-dd", new Date());
 
   while (cursor <= end) {
@@ -133,6 +146,10 @@ export async function notifyWaitlistEntryForSlot(
   entryId: string,
   slot: OpenSlot
 ): Promise<{ ok: boolean; error?: string }> {
+  if (!isWaitlistSlotStillBookable(slot.date, slot.startTime)) {
+    return { ok: true };
+  }
+
   if (await alreadyNotifiedForSlot(entryId, slot.date, slot.startTime)) {
     return { ok: true };
   }
@@ -176,6 +193,7 @@ export async function notifyWaitlistForFreedSlot(params: {
   const { serviceId, technicianId, date, startTime, endTime } = params;
   const today = todayStr();
   if (date < today) return;
+  if (!isWaitlistSlotStillBookable(date, startTime)) return;
 
   const entries = await prisma.waitingListEntry.findMany({
     where: {
@@ -189,7 +207,10 @@ export async function notifyWaitlistForFreedSlot(params: {
 
   const slot: OpenSlot = { date, startTime, endTime };
   for (const entry of entries) {
-    if (entry.preferredDate === date || entry.notifyEarliest) {
+    const wantsThisDay = entry.preferredDate === date;
+    const wantsEarlier =
+      entry.notifyEarliest && entry.preferredDate >= date && date <= entry.preferredDate;
+    if (wantsThisDay || wantsEarlier) {
       await notifyWaitlistEntryForSlot(entry.id, slot);
     }
   }
@@ -223,6 +244,8 @@ export async function processEarliestWaitlistNotifications(): Promise<{
       entry.preferredDate
     );
     if (!slot) continue;
+    if (!isWaitlistSlotStillBookable(slot.date, slot.startTime)) continue;
+
     const wasNotified =
       entry.notifiedSlotDate === slot.date && entry.notifiedSlotTime === slot.startTime;
     if (wasNotified) continue;
