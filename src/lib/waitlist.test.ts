@@ -54,4 +54,28 @@ assert(freedTooShort.length === 0, "no slot when freed window is too short for s
 const freedPast = slotsFreedByCancellation(today, available, "10:00", "11:00", atAfternoon);
 assert(freedPast.length === 0, "past slots within cancel window are excluded");
 
-console.log("waitlist: 10 checks passed");
+// Cross-service: same 2hr window, different services may have different valid slot shapes
+const lashCancelWindow = { start: "14:00", end: "16:00" };
+const lashSlots = [{ start: "14:00", end: "16:00" }];
+const nailSlots = [
+  { start: "14:00", end: "15:00" },
+  { start: "15:00", end: "16:00" },
+];
+const nailsInLashWindow = slotsFreedByCancellation(
+  today,
+  nailSlots,
+  lashCancelWindow.start,
+  lashCancelWindow.end,
+  atMorning
+);
+assert(nailsInLashWindow.length === 2, "shorter nail slots fit inside freed lash window");
+const lashesInOwnWindow = slotsFreedByCancellation(
+  today,
+  lashSlots,
+  lashCancelWindow.start,
+  lashCancelWindow.end,
+  atMorning
+);
+assert(lashesInOwnWindow.length === 1 && lashesInOwnWindow[0].startTime === "14:00", "lash slot fills window");
+
+console.log("waitlist: 12 checks passed");

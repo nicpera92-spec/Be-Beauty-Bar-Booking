@@ -236,6 +236,7 @@ export async function notifyWaitlistEntryForSlot(
 }
 
 export async function notifyWaitlistForFreedSlot(params: {
+  /** Cancelled booking's service — used only by callers; all waitlist services for this tech are checked. */
   serviceId: string;
   technicianId: string;
   date: string;
@@ -244,22 +245,12 @@ export async function notifyWaitlistForFreedSlot(params: {
 }): Promise<void> {
   if (!(await isWaitlistEnabled())) return;
 
-  const { serviceId, technicianId, date, startTime, endTime } = params;
+  const { technicianId, date, startTime, endTime } = params;
   const today = todayStr();
   if (date < today) return;
 
-  const bookableSlots = await findBookableSlotsAfterCancellation(
-    serviceId,
-    technicianId,
-    date,
-    startTime,
-    endTime
-  );
-  if (bookableSlots.length === 0) return;
-
   const entries = await prisma.waitingListEntry.findMany({
     where: {
-      serviceId,
       technicianId,
       status: "active",
       preferredDate: { gte: today },
@@ -272,6 +263,14 @@ export async function notifyWaitlistForFreedSlot(params: {
     const wantsEarlier =
       entry.notifyEarliest && entry.preferredDate >= date && date <= entry.preferredDate;
     if (!wantsThisDay && !wantsEarlier) continue;
+
+    const bookableSlots = await findBookableSlotsAfterCancellation(
+      entry.serviceId,
+      technicianId,
+      date,
+      startTime,
+      endTime
+    );
 
     for (const slot of bookableSlots) {
       await notifyWaitlistEntryForSlot(entry.id, slot);
