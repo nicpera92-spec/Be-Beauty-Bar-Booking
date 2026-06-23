@@ -29,6 +29,8 @@ html {
 body {
   background-color: var(--theme-bg);
   background-image: var(--theme-page-gradient, none);
+  background-size: cover;
+  background-repeat: no-repeat;
   color: var(--theme-text);
   @apply antialiased;
   overflow-x: hidden;
@@ -60,4 +62,24 @@ body {
   .home-theme-orb {
     background-color: rgb(var(--theme-text-rgb) / 0.05);
   }
+
+  html[data-theme-surface="dark"] .home-theme-gradient {
+    background-image: var(--theme-page-gradient);
+    background-size: cover;
+  }
+
+  html[data-theme-surface="dark"] .home-theme-orb {
+    background-color: rgb(255 255 255 / 0.07);
+  }
+}
+
+.bg-navy.text-white {
+  color: var(--theme-on-primary, #ffffff) !important;
+}
+
+.bg-white,
+.bg-white\/90 {
+  --theme-text-rgb: 30 41 59;
+  --theme-text-muted-rgb: 71 85 105;
+  color: rgb(30 41 59);
 }

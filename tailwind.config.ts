@@ -16,10 +16,12 @@ const config: Config = {
         "elegant-grey-deep": "rgb(var(--theme-text-rgb, 30 58 95) / <alpha-value>)",
         slate: {
           50: "rgb(var(--theme-bg-rgb, 248 250 252) / <alpha-value>)",
+          400: "rgb(var(--theme-text-muted-rgb, 148 163 184) / <alpha-value>)",
           500: "rgb(var(--theme-text-muted-rgb, 100 116 139) / <alpha-value>)",
           600: "rgb(var(--theme-text-muted-rgb, 71 85 105) / <alpha-value>)",
           700: "rgb(var(--theme-text-rgb, 51 65 85) / <alpha-value>)",
           800: "rgb(var(--theme-text-rgb, 30 41 59) / <alpha-value>)",
+          900: "rgb(var(--theme-text-rgb, 15 23 42) / <alpha-value>)",
         },
       },
       keyframes: {

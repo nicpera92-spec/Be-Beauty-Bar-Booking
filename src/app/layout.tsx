@@ -1,10 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import type { CSSProperties } from "react";
 import { Playfair_Display, DM_Sans } from "next/font/google";
 import "./globals.css";
 import ColorThemeProvider from "@/components/ColorThemeProvider";
 import Footer from "@/components/Footer";
-import { getSavedThemeCssVars } from "@/lib/getSavedTheme";
+import { getSavedTheme } from "@/lib/getSavedTheme";
 
 const playfair = Playfair_Display({
   subsets: ["latin"],
@@ -55,10 +54,15 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const themeStyle = (await getSavedThemeCssVars()) as CSSProperties;
+  const { cssVars: themeStyle, surface: themeSurface } = await getSavedTheme();
 
   return (
-    <html lang="en" className={`${playfair.variable} ${dmSans.variable}`} style={themeStyle}>
+    <html
+      lang="en"
+      className={`${playfair.variable} ${dmSans.variable}`}
+      style={themeStyle}
+      data-theme-surface={themeSurface}
+    >
       <body className="font-sans min-h-screen flex flex-col antialiased">
         <ColorThemeProvider />
         <main className="flex flex-1 flex-col">{children}</main>

@@ -52,7 +52,7 @@ function PaletteGrid({
             >
               {selected && (
                 <svg
-                  className={`w-5 h-5 drop-shadow ${isGradient ? "text-charcoal" : "text-white"}`}
+                  className="w-5 h-5 text-white drop-shadow"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"

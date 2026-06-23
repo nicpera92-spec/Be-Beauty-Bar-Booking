@@ -44,86 +44,86 @@ export const THEME_PALETTES_GRADIENT: ThemePalette[] = [
   {
     id: "sunset",
     name: "Sunset",
-    primary: "#9d174d",
-    secondary: "#db2777",
-    pageGradient: "linear-gradient(145deg, #fff1f2 0%, #ffe4e6 38%, #fce7f3 72%, #ede9fe 100%)",
+    primary: "#fb7185",
+    secondary: "#f9a8d4",
+    pageGradient: "linear-gradient(145deg, #4a1528 0%, #6b1d3d 35%, #5b2148 68%, #3b1f5c 100%)",
   },
   {
     id: "aurora",
     name: "Aurora",
-    primary: "#5b21b6",
-    secondary: "#0891b2",
-    pageGradient: "linear-gradient(145deg, #ecfeff 0%, #e0e7ff 48%, #f3e8ff 100%)",
+    primary: "#67e8f9",
+    secondary: "#c4b5fd",
+    pageGradient: "linear-gradient(145deg, #0c3d4a 0%, #1e3a5f 42%, #4c1d95 100%)",
   },
   {
     id: "neon-pulse",
     name: "Neon pulse",
-    primary: "#e11d48",
-    secondary: "#06b6d4",
-    pageGradient: "linear-gradient(145deg, #fff1f2 0%, #ffe4e6 30%, #ecfeff 70%, #e0f2fe 100%)",
+    primary: "#fb7185",
+    secondary: "#22d3ee",
+    pageGradient: "linear-gradient(145deg, #5c1228 0%, #831843 32%, #0c4a6e 72%, #164e63 100%)",
   },
   {
     id: "peach-glow",
     name: "Peach glow",
-    primary: "#c2410c",
-    secondary: "#e11d48",
-    pageGradient: "linear-gradient(145deg, #fff7ed 0%, #ffedd5 45%, #fecdd3 100%)",
+    primary: "#fdba74",
+    secondary: "#fda4af",
+    pageGradient: "linear-gradient(145deg, #5c2a12 0%, #7c2d12 45%, #881337 100%)",
   },
   {
     id: "lavender-haze",
     name: "Lavender",
-    primary: "#6b21a8",
-    secondary: "#9333ea",
-    pageGradient: "linear-gradient(145deg, #faf5ff 0%, #f3e8ff 42%, #e9d5ff 100%)",
+    primary: "#d8b4fe",
+    secondary: "#e9d5ff",
+    pageGradient: "linear-gradient(145deg, #3b0764 0%, #581c87 42%, #6b21a8 100%)",
   },
   {
     id: "cotton-candy",
     name: "Cotton candy",
-    primary: "#db2777",
-    secondary: "#6366f1",
-    pageGradient: "linear-gradient(145deg, #fdf2f8 0%, #fce7f3 40%, #e0e7ff 100%)",
+    primary: "#f9a8d4",
+    secondary: "#a5b4fc",
+    pageGradient: "linear-gradient(145deg, #5c1838 0%, #831843 40%, #312e81 100%)",
   },
   {
     id: "ocean-breeze",
     name: "Sea breeze",
-    primary: "#0f766e",
-    secondary: "#0284c7",
-    pageGradient: "linear-gradient(145deg, #f0fdfa 0%, #ccfbf1 45%, #e0f2fe 100%)",
+    primary: "#5eead4",
+    secondary: "#7dd3fc",
+    pageGradient: "linear-gradient(145deg, #0f3d38 0%, #115e59 45%, #0c4a6e 100%)",
   },
   {
     id: "golden-hour",
     name: "Golden hour",
-    primary: "#b45309",
-    secondary: "#d97706",
-    pageGradient: "linear-gradient(145deg, #fffbeb 0%, #fef3c7 50%, #fde68a 100%)",
+    primary: "#fcd34d",
+    secondary: "#fdba74",
+    pageGradient: "linear-gradient(145deg, #5c3a0a 0%, #78350f 50%, #92400e 100%)",
   },
   {
     id: "berry-fusion",
     name: "Berry",
-    primary: "#86198f",
-    secondary: "#7c3aed",
-    pageGradient: "linear-gradient(145deg, #fdf2f8 0%, #fae8ff 50%, #ede9fe 100%)",
+    primary: "#e879f9",
+    secondary: "#c4b5fd",
+    pageGradient: "linear-gradient(145deg, #581c5c 0%, #6b21a8 50%, #4c1d95 100%)",
   },
   {
     id: "mint-fresh",
     name: "Mint fresh",
-    primary: "#166534",
-    secondary: "#059669",
-    pageGradient: "linear-gradient(145deg, #f0fdf4 0%, #dcfce7 50%, #ecfdf5 100%)",
+    primary: "#6ee7b7",
+    secondary: "#86efac",
+    pageGradient: "linear-gradient(145deg, #0f3d24 0%, #14532d 50%, #065f46 100%)",
   },
   {
     id: "champagne-blush",
     name: "Champagne",
-    primary: "#9a3412",
-    secondary: "#f9a8d4",
-    pageGradient: "linear-gradient(145deg, #fffbeb 0%, #fef3c7 35%, #fce7f3 100%)",
+    primary: "#fcd34d",
+    secondary: "#fbcfe8",
+    pageGradient: "linear-gradient(145deg, #5c3a0a 0%, #78350f 35%, #831843 100%)",
   },
   {
     id: "lilac-mist",
     name: "Lilac mist",
-    primary: "#6d28d9",
-    secondary: "#c084fc",
-    pageGradient: "linear-gradient(145deg, #f5f3ff 0%, #ede9fe 50%, #fae8ff 100%)",
+    primary: "#c4b5fd",
+    secondary: "#e9d5ff",
+    pageGradient: "linear-gradient(145deg, #3b0764 0%, #5b21b6 50%, #6d28d9 100%)",
   },
 ];
 
@@ -191,6 +191,37 @@ function darken(hex: string, amount: number): string {
   return rgbToHex(r * f, g * f, b * f);
 }
 
+function lighten(hex: string, amount: number): string {
+  const { r, g, b } = hexToRgb(hex);
+  const f = Math.max(0, Math.min(1, amount));
+  return rgbToHex(r + (255 - r) * f, g + (255 - g) * f, b + (255 - b) * f);
+}
+
+function extractHexColorsFromGradient(gradient: string): string[] {
+  return gradient.match(/#[0-9a-fA-F]{3,8}/g) ?? [];
+}
+
+function averageLuminanceFromGradient(gradient: string): number {
+  const colors = extractHexColorsFromGradient(gradient);
+  if (colors.length === 0) return 1;
+  const total = colors.reduce((sum, hex) => {
+    const { r, g, b } = hexToRgb(hex);
+    return sum + luminance(r, g, b);
+  }, 0);
+  return total / colors.length;
+}
+
+function darkestColorInGradient(gradient: string): string {
+  const colors = extractHexColorsFromGradient(gradient);
+  if (colors.length === 0) return "#1e293b";
+  return colors.reduce((darkest, hex) => {
+    const { r, g, b } = hexToRgb(hex);
+    const lum = luminance(r, g, b);
+    const d = hexToRgb(darkest);
+    return lum < luminance(d.r, d.g, d.b) ? hex : darkest;
+  }, colors[0]);
+}
+
 function ensureContrast(textHex: string, bgHex: string, minRatio = 4.5): string {
   let text = textHex;
   const bg = hexToRgb(bgHex);
@@ -203,6 +234,18 @@ function ensureContrast(textHex: string, bgHex: string, minRatio = 4.5): string 
   return text;
 }
 
+function ensureContrastLight(textHex: string, bgHex: string, minRatio = 4.5): string {
+  let text = textHex;
+  const bg = hexToRgb(bgHex);
+  const bgLum = luminance(bg.r, bg.g, bg.b);
+  for (let i = 0; i < 16; i++) {
+    const fg = hexToRgb(text);
+    if (contrastRatio(luminance(fg.r, fg.g, fg.b), bgLum) >= minRatio) return text;
+    text = lighten(text, 0.1);
+  }
+  return "#ffffff";
+}
+
 export function findThemePalette(primary: string, secondary: string): ThemePalette | undefined {
   const p = primary.toLowerCase();
   const s = secondary.toLowerCase();
@@ -211,17 +254,51 @@ export function findThemePalette(primary: string, secondary: string): ThemePalet
   );
 }
 
+function contrastOnPrimary(primary: string): string {
+  const { r, g, b } = hexToRgb(primary);
+  return luminance(r, g, b) > 0.55 ? ensureContrast("#0f172a", primary) : "#ffffff";
+}
+
+export function isDarkPageGradient(pageGradient?: string): boolean {
+  return Boolean(pageGradient && averageLuminanceFromGradient(pageGradient) < 0.22);
+}
+
 /** Build readable page background + text colours from the chosen accent palette. */
 export function buildThemeTokens(
   primary: string,
   secondary: string,
   pageGradient?: string
 ): ThemeTokens {
+  const isDarkGradient = isDarkPageGradient(pageGradient);
+
+  if (isDarkGradient && pageGradient) {
+    const pageBg = darkestColorInGradient(pageGradient);
+    const text = ensureContrastLight("#f1f5f9", pageBg);
+    const textMuted = ensureContrastLight(mixHex(text, secondary, 0.42), pageBg, 4.5);
+    return {
+      primary,
+      secondary,
+      pageBg,
+      text,
+      textMuted,
+      onPrimary: contrastOnPrimary(primary),
+      pageGradient,
+    };
+  }
+
   const pageBg = mixHex(primary, "#ffffff", pageGradient ? 0.14 : 0.1);
   const text = ensureContrast(primary, pageBg);
   const textMuted = ensureContrast(mixHex(text, "#64748b", 0.45), pageBg, 4.5);
 
-  return { primary, secondary, pageBg, text, textMuted, onPrimary: "#ffffff", pageGradient };
+  return {
+    primary,
+    secondary,
+    pageBg,
+    text,
+    textMuted,
+    onPrimary: contrastOnPrimary(primary),
+    pageGradient,
+  };
 }
 
 function rgbTriplet(hex: string): string {
@@ -280,10 +357,16 @@ export function readPersistedTheme(): { primary: string; secondary: string } | n
 /** Apply theme tokens to the document root (booking + admin). */
 export function applyThemeColors(primary: string, secondary: string) {
   if (typeof document === "undefined") return;
+  const palette = findThemePalette(primary, secondary);
   const vars = themeColorsToCssVars(primary, secondary);
   const root = document.documentElement;
   for (const [name, value] of Object.entries(vars)) {
     root.style.setProperty(name, value);
+  }
+  if (isDarkPageGradient(palette?.pageGradient)) {
+    root.dataset.themeSurface = "dark";
+  } else {
+    delete root.dataset.themeSurface;
   }
 }
 
