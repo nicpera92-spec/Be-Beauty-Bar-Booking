@@ -71,7 +71,7 @@ export default function HomePage() {
   );
 
   return (
-    <div className="relative flex flex-1 flex-col justify-start overflow-hidden pt-[33dvh] sm:min-h-[70vh] sm:flex-none sm:block sm:pt-0">
+    <div className="relative flex flex-1 flex-col overflow-hidden max-sm:min-h-[calc(100svh-5.5rem)] sm:min-h-[70vh] sm:block">
       <div
         className="absolute inset-0 -z-10 animate-home-bg-gradient home-theme-gradient"
         aria-hidden
@@ -86,7 +86,7 @@ export default function HomePage() {
         aria-hidden
       />
 
-      <div className="relative max-w-3xl mx-auto w-full px-5 sm:px-8 py-6 sm:py-28 md:py-40 text-center">
+      <div className="relative max-w-3xl mx-auto w-full px-5 sm:px-8 text-center max-sm:absolute max-sm:top-[33svh] max-sm:inset-x-0 max-sm:py-0 sm:py-28 md:py-40">
         <div className="mx-auto flex max-w-md flex-col items-center gap-6 sm:gap-0">
           <div className="space-y-4 sm:space-y-0">
             <h1 className="font-serif text-[2.35rem] leading-[1.12] sm:text-4xl md:text-5xl font-light tracking-tight text-slate-900 sm:text-slate-800 sm:mb-8">
