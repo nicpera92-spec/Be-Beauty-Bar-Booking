@@ -44,6 +44,9 @@ export async function GET(req: NextRequest) {
   const blocks = await prisma.availabilityBlock.findMany({
     where,
     orderBy: [{ startDate: "asc" }, { startTime: "asc" }],
+    include: {
+      technician: { select: { id: true, name: true } },
+    },
   });
   return NextResponse.json(blocks);
 }

@@ -37,6 +37,7 @@ type Booking = {
 type TimeOffBlock = {
   id: string;
   technicianId?: string | null;
+  technician?: { id: string; name: string } | null;
   startDate: string; // yyyy-MM-dd
   startTime: string;
   endDate: string;
@@ -311,6 +312,18 @@ export default function AdminCalendarPage() {
     });
   };
 
+  const timeOffLabelForDate = (dateStr: string): string => {
+    const blocks = getBlocksForDate(dateStr);
+    if (blocks.length === 0) return "Time off";
+    if (!showAllTechnicians) return "Time off";
+    const names = [
+      ...new Set(blocks.map((b) => b.technician?.name).filter(Boolean) as string[]),
+    ];
+    if (names.length === 0) return "Time off";
+    if (names.length === 1) return `${names[0].split(" ")[0]} · off`;
+    return `${names.length} off`;
+  };
+
   // Use today's calendar date (yyyy-MM-dd) so the highlighted square always matches the actual current day
   const todayDateStr = format(startOfDay(new Date()), "yyyy-MM-dd");
   const isToday = (date: Date) => format(startOfDay(date), "yyyy-MM-dd") === todayDateStr;
@@ -414,8 +427,11 @@ export default function AdminCalendarPage() {
                           {format(day, "d")}
                         </div>
                         {dayHasTimeOff && (
-                          <div className="text-[10px] sm:text-xs text-violet-600 font-medium truncate" title="Time off">
-                            Time off
+                          <div
+                            className="text-[10px] sm:text-xs text-violet-600 font-medium truncate"
+                            title={timeOffLabelForDate(dateStr)}
+                          >
+                            {timeOffLabelForDate(dateStr)}
                           </div>
                         )}
                         {dayBookings.length > 0 && (
@@ -475,20 +491,29 @@ export default function AdminCalendarPage() {
                   <div className="space-y-2">
                     {selectedBlocks.map((block) => {
                       const canRemove = block.technicianId === myTechnicianId;
+                      const techName =
+                        block.technician?.name ??
+                        technicians.find((t) => t.id === block.technicianId)?.name;
                       return (
                         <div
                           key={block.id}
                           className="flex items-center justify-between gap-3 p-3 rounded-lg border border-violet-200 bg-violet-50/80 text-sm text-charcoal"
                         >
-                          <p>
-                            {block.startDate === block.endDate ? (
-                              <>{block.startTime} – {block.endTime}</>
-                            ) : (
-                              <>
-                                {block.startDate} {block.startTime} – {block.endDate} {block.endTime}
-                              </>
+                          <div className="min-w-0">
+                            {techName && (
+                              <p className="font-medium text-violet-900 mb-0.5">{techName}</p>
                             )}
-                          </p>
+                            <p className="text-charcoal/80">
+                              {block.startDate === block.endDate ? (
+                                <>{block.startTime} – {block.endTime}</>
+                              ) : (
+                                <>
+                                  {block.startDate} {block.startTime} – {block.endDate}{" "}
+                                  {block.endTime}
+                                </>
+                              )}
+                            </p>
+                          </div>
                           {canRemove && (
                             <button
                               type="button"
