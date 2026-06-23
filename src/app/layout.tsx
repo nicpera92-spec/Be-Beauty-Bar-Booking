@@ -61,7 +61,7 @@ export default async function RootLayout({
     <html lang="en" className={`${playfair.variable} ${dmSans.variable}`} style={themeStyle}>
       <body className="font-sans min-h-screen flex flex-col antialiased">
         <ColorThemeProvider />
-        <main className="flex-1">{children}</main>
+        <main className="flex flex-1 flex-col">{children}</main>
         <Footer />
       </body>
     </html>
