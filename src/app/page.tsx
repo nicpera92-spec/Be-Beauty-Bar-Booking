@@ -6,7 +6,6 @@ import {
   DEFAULT_HOME_CATEGORIES,
   homeCategoryLabel,
   homeCategoryMobileLabel,
-  mobileHomeCategoryRows,
   sortHomeCategories,
 } from "@/lib/categoryDisplay";
 
@@ -27,9 +26,9 @@ function CategoryLine({
   if (categories.length === 0) return null;
 
   return (
-    <p className="flex flex-wrap justify-center items-center">
+    <p className="flex flex-nowrap justify-center items-center overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
       {categories.map((category, index) => (
-        <span key={category} className="inline-flex items-center">
+        <span key={category} className="inline-flex shrink-0 items-center whitespace-nowrap">
           {index > 0 && (
             <span className="text-navy/35 px-2 select-none" aria-hidden>
               ·
@@ -70,7 +69,6 @@ export default function HomePage() {
   const displayCategories = sortHomeCategories(
     categories.length > 0 ? categories : DEFAULT_HOME_CATEGORIES
   );
-  const mobileCategoryRows = mobileHomeCategoryRows(displayCategories);
 
   return (
     <div className="relative min-h-[70vh] overflow-hidden">
@@ -93,14 +91,11 @@ export default function HomePage() {
           {businessName}
         </h1>
 
-        <div className="sm:hidden mb-5 space-y-1.5" aria-label="Services">
-          {mobileCategoryRows.map((row) => (
-            <CategoryLine
-              key={row.join("-")}
-              categories={row}
-              label={homeCategoryMobileLabel}
-            />
-          ))}
+        <div className="sm:hidden mb-5" aria-label="Services">
+          <CategoryLine
+            categories={displayCategories}
+            label={homeCategoryMobileLabel}
+          />
         </div>
 
         <ul

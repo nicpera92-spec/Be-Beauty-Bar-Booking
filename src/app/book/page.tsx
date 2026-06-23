@@ -81,7 +81,7 @@ export default function BookPage() {
             onClick={() => router.push(`/book/tech/${t.id}`)}
             className="block w-full text-left p-5 sm:p-6 rounded-lg border border-slate-200 bg-white hover:border-navy/30 hover:shadow-md transition-all duration-200 touch-manipulation active:bg-slate-50"
           >
-            <div className="flex items-center gap-x-1.5 sm:gap-x-2 w-full min-w-0 overflow-x-auto flex-nowrap [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex items-center gap-x-1.5 sm:gap-x-2 flex-nowrap w-full min-w-0 overflow-hidden">
               <h3 className="font-medium text-slate-800 text-base sm:text-lg shrink-0">{t.name}</h3>
               {t.skillLevel && t.skillLevel.trim() && (
                 <span className="text-[10px] sm:text-xs font-medium px-1.5 sm:px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 shrink-0">
@@ -90,7 +90,7 @@ export default function BookPage() {
               )}
               {t.categories && t.categories.length > 0 && (
                 <span
-                  className="shrink-0 whitespace-nowrap text-[10px] sm:text-xs font-medium leading-none text-navy bg-navy/[0.07] rounded-full px-1.5 sm:px-2.5 py-1"
+                  className="min-w-0 flex-1 truncate text-[10px] sm:text-xs font-medium leading-none text-navy bg-navy/[0.07] rounded-full px-1.5 sm:px-2.5 py-1"
                   title={t.categories.map((category) => categoryLabel(category)).join(" · ")}
                 >
                   {t.categories.map((category) => compactCategoryLabel(category)).join(" · ")}
