@@ -312,18 +312,6 @@ export default function AdminCalendarPage() {
     });
   };
 
-  const timeOffLabelForDate = (dateStr: string): string => {
-    const blocks = getBlocksForDate(dateStr);
-    if (blocks.length === 0) return "Time off";
-    if (!showAllTechnicians) return "Time off";
-    const names = [
-      ...new Set(blocks.map((b) => b.technician?.name).filter(Boolean) as string[]),
-    ];
-    if (names.length === 0) return "Time off";
-    if (names.length === 1) return `${names[0].split(" ")[0]} · off`;
-    return `${names.length} off`;
-  };
-
   // Use today's calendar date (yyyy-MM-dd) so the highlighted square always matches the actual current day
   const todayDateStr = format(startOfDay(new Date()), "yyyy-MM-dd");
   const isToday = (date: Date) => format(startOfDay(date), "yyyy-MM-dd") === todayDateStr;
@@ -427,11 +415,8 @@ export default function AdminCalendarPage() {
                           {format(day, "d")}
                         </div>
                         {dayHasTimeOff && (
-                          <div
-                            className="text-[10px] sm:text-xs text-violet-600 font-medium truncate"
-                            title={timeOffLabelForDate(dateStr)}
-                          >
-                            {timeOffLabelForDate(dateStr)}
+                          <div className="text-[10px] sm:text-xs text-violet-600 font-medium truncate" title="Time off">
+                            Time off
                           </div>
                         )}
                         {dayBookings.length > 0 && (
