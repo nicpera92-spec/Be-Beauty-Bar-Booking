@@ -15,7 +15,7 @@ const HOME_CATEGORY_LABELS: Record<string, string> = {
 
 const HOME_MOBILE_CATEGORY_LABELS: Record<string, string> = {
   nails: "Nails",
-  lash: "Lash Ext",
+  lash: "Lash Extension",
   brows: "Brows",
   "permanent-makeup": "Permanent Makeup",
 };
@@ -23,8 +23,12 @@ const HOME_MOBILE_CATEGORY_LABELS: Record<string, string> = {
 /** Preferred display order on the home page hero. */
 export const HOME_CATEGORY_ORDER = ["nails", "lash", "brows", "permanent-makeup"];
 
-/** First row on mobile: nails, lash, brows — permanent makeup on the line below. */
-export const HOME_MOBILE_FIRST_ROW = ["nails", "lash", "brows"];
+/** Mobile hero: row 1 = nails + lash; brows and permanent makeup each on their own line below. */
+export const HOME_MOBILE_CATEGORY_ROWS = [
+  ["nails", "lash"],
+  ["brows"],
+  ["permanent-makeup"],
+] as const;
 
 /** Short label for booking UI (technician cards, etc.). */
 export function compactCategoryLabel(category: string): string {
@@ -57,11 +61,19 @@ export function sortHomeCategories(categories: string[]): string[] {
   });
 }
 
-export function partitionHomeCategoriesForMobile(categories: string[]) {
-  const ordered = sortHomeCategories(categories);
-  const firstRow = HOME_MOBILE_FIRST_ROW.filter((category) => ordered.includes(category));
-  const secondRow = ordered.filter((category) => !HOME_MOBILE_FIRST_ROW.includes(category));
-  return { firstRow, secondRow };
+export function mobileHomeCategoryRows(categories: string[]): string[][] {
+  const ordered = new Set(sortHomeCategories(categories));
+  const rows: string[][] = HOME_MOBILE_CATEGORY_ROWS.map((row) =>
+    row.filter((category) => ordered.has(category))
+  ).filter((row) => row.length > 0);
+
+  const inLayout = new Set<string>(HOME_MOBILE_CATEGORY_ROWS.flat());
+  const extras = sortHomeCategories(categories).filter((category) => !inLayout.has(category));
+  if (extras.length > 0) {
+    rows.push(extras);
+  }
+
+  return rows;
 }
 
 export const DEFAULT_HOME_CATEGORIES = ["nails", "lash", "brows", "permanent-makeup"];

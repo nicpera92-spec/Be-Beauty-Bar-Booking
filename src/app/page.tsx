@@ -6,7 +6,7 @@ import {
   DEFAULT_HOME_CATEGORIES,
   homeCategoryLabel,
   homeCategoryMobileLabel,
-  partitionHomeCategoriesForMobile,
+  mobileHomeCategoryRows,
   sortHomeCategories,
 } from "@/lib/categoryDisplay";
 
@@ -70,7 +70,7 @@ export default function HomePage() {
   const displayCategories = sortHomeCategories(
     categories.length > 0 ? categories : DEFAULT_HOME_CATEGORIES
   );
-  const { firstRow, secondRow } = partitionHomeCategoriesForMobile(displayCategories);
+  const mobileCategoryRows = mobileHomeCategoryRows(displayCategories);
 
   return (
     <div className="relative min-h-[70vh] overflow-hidden">
@@ -94,8 +94,13 @@ export default function HomePage() {
         </h1>
 
         <div className="sm:hidden mb-5 space-y-1.5" aria-label="Services">
-          <CategoryLine categories={firstRow} label={homeCategoryMobileLabel} />
-          <CategoryLine categories={secondRow} label={homeCategoryMobileLabel} />
+          {mobileCategoryRows.map((row) => (
+            <CategoryLine
+              key={row.join("-")}
+              categories={row}
+              label={homeCategoryMobileLabel}
+            />
+          ))}
         </div>
 
         <ul
