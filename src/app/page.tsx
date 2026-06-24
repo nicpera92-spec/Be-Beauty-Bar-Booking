@@ -86,7 +86,7 @@ export default function HomePage() {
         aria-hidden
       />
 
-      <div className="relative max-w-3xl mx-auto w-full px-5 sm:px-8 text-center max-sm:absolute max-sm:top-[33svh] max-sm:inset-x-0 max-sm:py-0 sm:py-28 md:py-40">
+      <div className="relative max-w-3xl mx-auto w-full px-5 sm:px-8 text-center max-sm:absolute max-sm:top-[22svh] max-sm:inset-x-0 max-sm:py-0 sm:py-28 md:py-40">
         <div className="mx-auto flex max-w-md flex-col items-center gap-6 sm:gap-0">
           <div className="space-y-4 sm:space-y-0">
             <h1 className="font-serif text-[2.35rem] leading-[1.12] sm:text-4xl md:text-5xl font-light tracking-tight text-slate-900 sm:text-slate-800 sm:mb-8">
