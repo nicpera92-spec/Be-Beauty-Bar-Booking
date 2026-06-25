@@ -419,9 +419,9 @@ export default function AdminCalendarPage() {
         </div>
       </div>
 
-      {/* Calendar + Overview side by side — today's detail first on mobile */}
+      {/* Calendar grids, then day detail below on mobile / right on desktop */}
       <div className="flex flex-col lg:flex-row gap-6 items-start">
-        <div className="order-2 lg:order-1 flex-1 min-w-0 w-full flex flex-col sm:flex-row sm:flex-wrap gap-6">
+        <div className="flex-1 min-w-0 w-full flex flex-col sm:flex-row sm:flex-wrap gap-6">
           {calendarMonths.map(({ days, monthStart, monthEnd, title }) => (
             <div key={title} className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 flex-1 min-w-[300px]">
               <h3 className="text-sm font-semibold text-charcoal mb-3">{title}</h3>
@@ -501,7 +501,7 @@ export default function AdminCalendarPage() {
           ))}
         </div>
 
-        <div ref={detailPanelRef} className="order-1 lg:order-2 w-full lg:w-80 lg:shrink-0 lg:top-4 scroll-mt-6">
+        <div ref={detailPanelRef} className="w-full lg:w-80 lg:shrink-0 lg:top-4 scroll-mt-6">
           {selectedDate && (
             <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
               <div className="flex items-center justify-between gap-2">
