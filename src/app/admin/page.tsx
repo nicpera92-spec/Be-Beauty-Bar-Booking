@@ -425,7 +425,7 @@ export default function AdminPage() {
                 title="Filter by date"
                 aria-label="Filter by date"
                 className={`w-full rounded-lg border border-slate-200 bg-white pl-2.5 pr-7 py-2 text-sm text-charcoal ${
-                  !dateFilter ? "text-transparent" : ""
+                  !dateFilter ? "date-input-empty text-transparent" : ""
                 }`}
               />
               {!dateFilter && (

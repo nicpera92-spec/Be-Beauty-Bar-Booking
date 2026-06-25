@@ -83,3 +83,12 @@ body {
   --theme-text-muted-rgb: 71 85 105;
   color: rgb(30 41 59);
 }
+
+.date-input-empty::-webkit-datetime-edit,
+.date-input-empty::-webkit-datetime-edit-fields-wrapper,
+.date-input-empty::-webkit-datetime-edit-text,
+.date-input-empty::-webkit-datetime-edit-month-field,
+.date-input-empty::-webkit-datetime-edit-day-field,
+.date-input-empty::-webkit-datetime-edit-year-field {
+  opacity: 0;
+}

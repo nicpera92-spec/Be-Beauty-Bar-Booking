@@ -648,9 +648,7 @@ export default function AdminCalendarPage() {
 
           {!selectedDate && (
             <div className="bg-white rounded-xl border border-slate-200 p-6 text-center">
-              <p className="text-sm text-charcoal/60">
-                Tap a date to view bookings
-              </p>
+              <p className="text-sm text-charcoal/60">Choose date</p>
             </div>
           )}
         </div>
