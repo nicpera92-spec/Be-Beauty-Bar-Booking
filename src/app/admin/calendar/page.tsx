@@ -48,6 +48,7 @@ type Technician = {
   id: string;
   name: string;
   active: boolean;
+  role?: string;
 };
 
 export default function AdminCalendarPage() {
@@ -57,10 +58,11 @@ export default function AdminCalendarPage() {
   const [salonOpen, setSalonOpen] = useState("09:00");
   const [salonClose, setSalonClose] = useState("17:00");
   const [technicians, setTechnicians] = useState<Technician[]>([]);
-  const [technicianFilter, setTechnicianFilter] = useState<string>("all");
+  const [technicianFilter, setTechnicianFilter] = useState<string | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [timeOffBlocks, setTimeOffBlocks] = useState<TimeOffBlock[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sessionReady, setSessionReady] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
@@ -96,12 +98,39 @@ export default function AdminCalendarPage() {
             setIsMaster(true);
             fetch("/api/admin/technicians", { headers: getAuthHeaders() })
               .then((r) => (r.ok ? r.json() : []))
-              .then((list) => setTechnicians(Array.isArray(list) ? list : []))
-              .catch(() => setTechnicians([]));
+              .then((list) => {
+                const techs = Array.isArray(list) ? list : [];
+                setTechnicians(techs);
+                const ownerId =
+                  data.technicianId ??
+                  techs.find((tech: Technician) => tech.role === "master")?.id ??
+                  null;
+                if (ownerId) {
+                  setMyTechnicianId(ownerId);
+                  setTechnicianFilter(ownerId);
+                } else {
+                  setTechnicianFilter("all");
+                }
+                setSessionReady(true);
+              })
+              .catch(() => {
+                if (data.technicianId) {
+                  setMyTechnicianId(data.technicianId);
+                  setTechnicianFilter(data.technicianId);
+                } else {
+                  setTechnicianFilter("all");
+                }
+                setSessionReady(true);
+              });
+          } else if (data?.technicianId) {
+            setMyTechnicianId(data.technicianId);
+            setTechnicianFilter(data.technicianId);
+            setSessionReady(true);
+          } else {
+            setSessionReady(true);
           }
-          if (data?.technicianId) setMyTechnicianId(data.technicianId);
         })
-        .catch(() => {});
+        .catch(() => setSessionReady(true));
     } else {
       window.location.href = "/admin";
     }
@@ -150,10 +179,16 @@ export default function AdminCalendarPage() {
   }, [token]);
 
   useEffect(() => {
-    if (!token || !viewWeekStart || !viewWeekEnd) return;
-    const techFilter = isMaster ? technicianFilter : "all";
+    if (!token || !viewWeekStart || !viewWeekEnd || !sessionReady) return;
+    if (isMaster && technicianFilter === null) return;
+    const techFilter = isMaster ? technicianFilter ?? "all" : "all";
     fetchData(format(viewWeekStart, "yyyy-MM-dd"), format(viewWeekEnd, "yyyy-MM-dd"), techFilter);
-  }, [token, viewWeekStart, viewWeekEnd, technicianFilter, isMaster, fetchData]);
+  }, [token, viewWeekStart, viewWeekEnd, technicianFilter, isMaster, sessionReady, fetchData]);
+
+  useEffect(() => {
+    if (!sessionReady) return;
+    setSelectedDate(format(startOfDay(new Date()), "yyyy-MM-dd"));
+  }, [sessionReady]);
 
   const confirmDeposit = useCallback(
     (bookingId: string) => {
@@ -173,7 +208,7 @@ export default function AdminCalendarPage() {
             fetchData(
               format(viewWeekStart, "yyyy-MM-dd"),
               format(viewWeekEnd, "yyyy-MM-dd"),
-              isMaster ? technicianFilter : "all"
+              isMaster ? technicianFilter ?? "all" : "all"
             );
           }
         })
@@ -202,7 +237,7 @@ export default function AdminCalendarPage() {
             fetchData(
               format(viewWeekStart, "yyyy-MM-dd"),
               format(viewWeekEnd, "yyyy-MM-dd"),
-              isMaster ? technicianFilter : "all"
+              isMaster ? technicianFilter ?? "all" : "all"
             );
           }
         })
@@ -217,7 +252,7 @@ export default function AdminCalendarPage() {
     fetchData(
       format(viewWeekStart, "yyyy-MM-dd"),
       format(viewWeekEnd, "yyyy-MM-dd"),
-      isMaster ? technicianFilter : "all"
+      isMaster ? technicianFilter ?? "all" : "all"
     );
   }, [fetchData, viewWeekStart, viewWeekEnd, isMaster, technicianFilter]);
 
@@ -249,7 +284,10 @@ export default function AdminCalendarPage() {
     return () => window.clearTimeout(timer);
   }, [selectedDate]);
 
-  if (!token || loading) {
+  const resolvedTechnicianFilter = isMaster ? technicianFilter ?? "all" : "all";
+  const calendarReady = sessionReady && (!isMaster || technicianFilter !== null);
+
+  if (!token || !calendarReady || loading) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-12">
         <p className="text-charcoal/60">Loading calendar...</p>
@@ -267,14 +305,14 @@ export default function AdminCalendarPage() {
 
   const activeBookings = bookings.filter((b) => {
     if (b.status === "cancelled") return false;
-    if (isMaster && technicianFilter !== "all" && b.technicianId !== technicianFilter) {
+    if (isMaster && resolvedTechnicianFilter !== "all" && b.technicianId !== resolvedTechnicianFilter) {
       return false;
     }
     const bookingDate = parse(b.date, "yyyy-MM-dd", new Date());
     return bookingDate >= weekStart && bookingDate <= weekEnd;
   });
 
-  const showAllTechnicians = isMaster && technicianFilter === "all";
+  const showAllTechnicians = isMaster && resolvedTechnicianFilter === "all";
 
   // Group bookings by date
   const bookingsByDate: Record<string, Booking[]> = {};
@@ -321,7 +359,12 @@ export default function AdminCalendarPage() {
   const selectedBlocks = selectedDate ? getBlocksForDate(selectedDate) : [];
   const canManageOwnTimeOff =
     Boolean(myTechnicianId) &&
-    (!isMaster || technicianFilter === "all" || technicianFilter === myTechnicianId);
+    (!isMaster || resolvedTechnicianFilter === "all" || resolvedTechnicianFilter === myTechnicianId);
+
+  const ownerTechnician =
+    technicians.find((tech) => tech.id === myTechnicianId) ??
+    technicians.find((tech) => tech.role === "master");
+  const otherTechnicians = technicians.filter((tech) => tech.id !== ownerTechnician?.id);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12 min-w-0">
@@ -343,19 +386,25 @@ export default function AdminCalendarPage() {
           {isMaster && technicians.length > 0 && (
             <select
               id="calendar-technician-filter"
-              value={technicianFilter}
+              value={technicianFilter ?? "all"}
               onChange={(e) => setTechnicianFilter(e.target.value)}
               aria-label="Technician schedule"
               title="Technician schedule"
               className="h-[38px] min-w-[140px] max-w-[200px] rounded-lg border border-slate-200 bg-white px-2.5 text-sm text-charcoal"
             >
-              <option value="all">Everyone</option>
-              {technicians.map((tech) => (
+              {ownerTechnician && (
+                <option value={ownerTechnician.id}>
+                  {ownerTechnician.name}
+                  {!ownerTechnician.active ? " (hidden)" : ""}
+                </option>
+              )}
+              {otherTechnicians.map((tech) => (
                 <option key={tech.id} value={tech.id}>
                   {tech.name}
                   {!tech.active ? " (hidden)" : ""}
                 </option>
               ))}
+              <option value="all">Everyone</option>
             </select>
           )}
           {canManageOwnTimeOff && (
@@ -370,10 +419,9 @@ export default function AdminCalendarPage() {
         </div>
       </div>
 
-      {/* Calendar + Overview side by side */}
+      {/* Calendar + Overview side by side — today's detail first on mobile */}
       <div className="flex flex-col lg:flex-row gap-6 items-start">
-        {/* Calendar Grids - two months side by side */}
-        <div className="flex-1 min-w-0 w-full flex flex-col sm:flex-row sm:flex-wrap gap-6">
+        <div className="order-2 lg:order-1 flex-1 min-w-0 w-full flex flex-col sm:flex-row sm:flex-wrap gap-6">
           {calendarMonths.map(({ days, monthStart, monthEnd, title }) => (
             <div key={title} className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 flex-1 min-w-[300px]">
               <h3 className="text-sm font-semibold text-charcoal mb-3">{title}</h3>
@@ -453,8 +501,7 @@ export default function AdminCalendarPage() {
           ))}
         </div>
 
-        {/* Overview - right */}
-        <div ref={detailPanelRef} className="w-full lg:w-80 lg:shrink-0 lg:top-4 scroll-mt-6">
+        <div ref={detailPanelRef} className="order-1 lg:order-2 w-full lg:w-80 lg:shrink-0 lg:top-4 scroll-mt-6">
           {selectedDate && (
             <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
               <div className="flex items-center justify-between gap-2">
@@ -583,15 +630,14 @@ export default function AdminCalendarPage() {
                     ))}
                 </div>
               ) : (
-                selectedBlocks.length === 0 &&
-                !canManageOwnTimeOff && (
+                selectedBlocks.length === 0 && (
                   <p className="text-sm text-charcoal/60 text-center py-2">No bookings on this day.</p>
                 )
               )}
 
               {isMaster &&
-                technicianFilter !== "all" &&
-                technicianFilter !== myTechnicianId &&
+                resolvedTechnicianFilter !== "all" &&
+                resolvedTechnicianFilter !== myTechnicianId &&
                 !canManageOwnTimeOff && (
                   <p className="text-xs text-charcoal/50">
                     To add your own time off, choose your name in the schedule dropdown.
