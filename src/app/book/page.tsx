@@ -20,19 +20,32 @@ export default function BookPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let active = true;
+
     fetch(`/api/technicians?_=${Date.now()}`, { cache: "no-store" })
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to load technicians");
+        return r.json();
+      })
       .then((data) => {
+        if (!active) return;
         const techs = Array.isArray(data) ? data : [];
-        // Only one technician — skip the picker and go straight to their services.
         if (techs.length === 1) {
           router.replace(`/book/tech/${techs[0].id}`);
           return;
         }
         setTechnicians(techs);
-        setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        if (active) setTechnicians([]);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, [router]);
 
   if (loading) {
