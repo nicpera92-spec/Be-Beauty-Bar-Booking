@@ -9,6 +9,44 @@ import {
   migrateTokensToStorageFormat,
 } from "@/lib/messageEditorTokens";
 
+export const BOOKING_LINK_DISPLAY = "bbbar.co.uk";
+
+/** Full booking URL used behind the scenes for email links. */
+export function bookingSiteUrl(path = "/book"): string {
+  const base = (process.env.NEXT_PUBLIC_APP_URL || `https://${BOOKING_LINK_DISPLAY}`).replace(
+    /\/$/,
+    ""
+  );
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  return `${base}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
+/** What customers see for booking links in SMS and the message editor preview. */
+export function bookingLinkMessage(_url?: string): string {
+  return BOOKING_LINK_DISPLAY;
+}
+
+/** Plain-text email fragment — linkify turns this into a clickable bbbar.co.uk link. */
+export function bookingLinkEmail(url: string): string {
+  return `${BOOKING_LINK_DISPLAY}: ${url}`;
+}
+
+export function bookingLinkMessageVars(url: string): {
+  bookLink: string;
+  bookingLink: string;
+} {
+  const display = bookingLinkMessage(url);
+  return { bookLink: display, bookingLink: display };
+}
+
+export function bookingLinkEmailVars(url: string): {
+  bookLink: string;
+  bookingLink: string;
+} {
+  const email = bookingLinkEmail(url);
+  return { bookLink: email, bookingLink: email };
+}
+
 /** Maps internal variable names to the friendly label shown in the editor. */
 export const PLACEHOLDER_LABELS: Record<string, string> = {
   customerName: "Customer name",
@@ -61,7 +99,7 @@ export const MESSAGE_INSERT_TAGS: { label: string; token: string; hint?: string 
   { label: "Date", token: friendlyToken("Date") },
   { label: "Time", token: friendlyToken("Time") },
   { label: "Salon name", token: friendlyToken("Salon name") },
-  { label: "Booking link", token: friendlyToken("Booking link"), hint: "Link to book a slot" },
+  { label: "Booking link", token: friendlyToken("Booking link"), hint: "Shows as bbbar.co.uk" },
   {
     label: "Pay deposit link",
     token: friendlyToken("Pay deposit link"),
@@ -109,8 +147,8 @@ export const MESSAGE_PREVIEW_SAMPLE: Record<string, string> = {
   date: "Saturday, 20 June 2026",
   time: "14:00 – 15:00",
   businessName: "Be Beauty Bar",
-  bookLink: "https://bbbar.co.uk/book",
-  bookingLink: "https://bbbar.co.uk/book",
+  bookLink: BOOKING_LINK_DISPLAY,
+  bookingLink: BOOKING_LINK_DISPLAY,
   depositLink: "https://bbbar.co.uk/booking/example",
   optOutLink: "https://bbbar.co.uk/rebook-reminder/opt-out?token=example",
   instagramLink: "https://instagram.com/bebeauty.bar",
@@ -152,7 +190,15 @@ function linkifyEscapedHtml(escaped: string): string {
     /([^:\n<]+?):\s*(https?:\/\/[^\s<&]+)/g,
     '<a href="$2">$1</a>'
   );
-  return withLabels.replace(/(?<!href=")(https?:\/\/[^\s<&]+)/g, '<a href="$1">$1</a>');
+  const withHttps = withLabels.replace(
+    /(?<!href=")(https?:\/\/[^\s<&]+)/g,
+    '<a href="$1">$1</a>'
+  );
+  const bookingLabel = BOOKING_LINK_DISPLAY.replace(/\./g, "\\.");
+  return withHttps.replace(
+    new RegExp(`(?<!href=")(?<!">)${bookingLabel}(?![^<]*</a>)`, "g"),
+    `<a href="${bookingSiteUrl("/book")}">${BOOKING_LINK_DISPLAY}</a>`
+  );
 }
 
 /** Turn plain text (after placeholders are filled) into a simple HTML email. */

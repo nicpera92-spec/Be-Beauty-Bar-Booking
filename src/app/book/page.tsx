@@ -12,6 +12,8 @@ type Technician = {
   bio: string | null;
   skillLevel: string | null;
   categories?: string[];
+  instagramUrl?: string | null;
+  instagramLabel?: string | null;
 };
 
 export default function BookPage() {
@@ -110,6 +112,17 @@ export default function BookPage() {
                 </span>
               )}
             </div>
+            {t.instagramUrl && t.instagramLabel && (
+              <a
+                href={t.instagramUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="inline-block mt-2 text-sm text-navy hover:underline"
+              >
+                Instagram {t.instagramLabel}
+              </a>
+            )}
             {t.bio && t.bio.trim() && (
               <p className="text-sm text-slate-600 mt-2 whitespace-pre-line">{t.bio}</p>
             )}

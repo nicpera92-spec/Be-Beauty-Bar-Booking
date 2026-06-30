@@ -19,6 +19,7 @@ type Technician = {
   name: string;
   bio: string | null;
   skillLevel: string | null;
+  instagramHandle: string | null;
   role: string;
   loginEmail: string | null;
   active: boolean;
@@ -32,6 +33,7 @@ export default function AdminTechniciansPage() {
   const [name, setName] = useState("");
   const [skillLevel, setSkillLevel] = useState("");
   const [bio, setBio] = useState("");
+  const [instagramHandle, setInstagramHandle] = useState("");
   const [loginEmail, setLoginEmail] = useState("");
   const [password, setPassword] = useState("");
   const [saving, setSaving] = useState(false);
@@ -111,6 +113,7 @@ export default function AdminTechniciansPage() {
         name: name.trim(),
         skillLevel: skillLevel.trim(),
         bio: bio.trim(),
+        instagramHandle: instagramHandle.trim() || undefined,
         loginEmail: loginEmail.trim() || undefined,
         password: password || undefined,
       }),
@@ -121,6 +124,7 @@ export default function AdminTechniciansPage() {
         setName("");
         setSkillLevel("");
         setBio("");
+        setInstagramHandle("");
         setLoginEmail("");
         setPassword("");
         fetchTechnicians();
@@ -195,6 +199,22 @@ export default function AdminTechniciansPage() {
             placeholder="A short description shown to customers."
           />
         </div>
+        <div>
+          <label htmlFor="tech-instagram" className="block text-sm font-medium text-charcoal mb-1">
+            Instagram
+          </label>
+          <input
+            id="tech-instagram"
+            type="text"
+            value={instagramHandle}
+            onChange={(e) => setInstagramHandle(e.target.value)}
+            className="w-full px-3 py-2.5 rounded-lg border border-slate-200 focus:border-sky-400 focus:ring-1 focus:ring-sky-200 outline-none bg-white min-h-[44px]"
+            placeholder="e.g. @username or instagram.com/username"
+          />
+          <p className="text-xs text-slate-500 mt-1">
+            Optional. Shown to customers when they choose a technician.
+          </p>
+        </div>
         <div className="grid sm:grid-cols-2 gap-4">
           <div>
             <label htmlFor="tech-email" className="block text-sm font-medium text-charcoal mb-1">
@@ -267,6 +287,7 @@ function AdminTechnicianRow({
   const [name, setName] = useState(technician.name);
   const [skillLevel, setSkillLevel] = useState(technician.skillLevel ?? "");
   const [bio, setBio] = useState(technician.bio ?? "");
+  const [instagramHandle, setInstagramHandle] = useState(technician.instagramHandle ?? "");
   const [loginEmail, setLoginEmail] = useState(technician.loginEmail ?? "");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -302,6 +323,7 @@ function AdminTechnicianRow({
         name: name.trim(),
         skillLevel: skillLevel.trim(),
         bio: bio.trim(),
+        instagramHandle: instagramHandle.trim() || null,
         loginEmail: loginEmail.trim() || null,
         password: password || undefined,
       },
@@ -362,6 +384,16 @@ function AdminTechnicianRow({
             className="w-full px-3 py-2.5 rounded-lg border border-slate-200 focus:border-sky-400 focus:ring-1 focus:ring-sky-200 outline-none bg-white"
           />
         </div>
+        <div>
+          <label className="block text-sm font-medium text-charcoal mb-1">Instagram</label>
+          <input
+            type="text"
+            value={instagramHandle}
+            onChange={(e) => setInstagramHandle(e.target.value)}
+            className="w-full px-3 py-2.5 rounded-lg border border-slate-200 focus:border-sky-400 focus:ring-1 focus:ring-sky-200 outline-none bg-white min-h-[44px]"
+            placeholder="e.g. @username"
+          />
+        </div>
         {error && <p className="text-sm text-red-600">{error}</p>}
         <div className="flex gap-2">
           <button
@@ -379,6 +411,7 @@ function AdminTechnicianRow({
               setName(technician.name);
               setSkillLevel(technician.skillLevel ?? "");
               setBio(technician.bio ?? "");
+              setInstagramHandle(technician.instagramHandle ?? "");
               setError(null);
             }}
             disabled={busy}
@@ -423,6 +456,11 @@ function AdminTechnicianRow({
             technician.loginEmail && (
               <p className="text-xs text-slate-500 mt-1">Login: {technician.loginEmail}</p>
             )
+          )}
+          {technician.instagramHandle && (
+            <p className="text-xs text-slate-500 mt-1">
+              Instagram: @{technician.instagramHandle.replace(/^@/, "")}
+            </p>
           )}
           {technician.bio && technician.bio.trim() && (
             <p className="text-sm text-slate-600 mt-1 whitespace-pre-line">{technician.bio}</p>

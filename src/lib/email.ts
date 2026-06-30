@@ -6,6 +6,9 @@ import {
   applyTemplate,
   buildBookLink,
   buildInstagramLink,
+  bookingLinkEmailVars,
+  bookingLinkMessageVars,
+  bookingSiteUrl,
   renderEmailBody,
   renderEmailSubject,
   resolveNotificationMessages,
@@ -341,17 +344,16 @@ export async function sendRebookReminderEmails(
 
     const { buildRebookOptOutLink } = await import("@/lib/rebookReminder");
     const { messages, businessName, instagramLink } = await getMessages();
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001";
-    const bookLink = `${baseUrl}/book`;
+    const bookingUrl = bookingSiteUrl("/book");
     const optOutLink = await buildRebookOptOutLink(booking.customerEmail, booking.customerPhone);
 
     const vars = bookingVars(booking, businessName, {
       technicianName: booking.technician.name,
-      bookLink,
-      bookingLink: bookLink,
+      ...bookingLinkMessageVars(bookingUrl),
       optOutLink,
       instagramLink,
     });
+    const emailVars = { ...vars, ...bookingLinkEmailVars(bookingUrl) };
 
     const smsVars = {
       ...vars,
@@ -365,8 +367,8 @@ export async function sendRebookReminderEmails(
       const r = await sendResendEmail({
         from,
         to: booking.customerEmail,
-        subject: renderEmailSubject(messages.rebookReminderCustomerSubject, vars),
-        html: renderEmailBody(messages.rebookReminderCustomerBody, vars),
+        subject: renderEmailSubject(messages.rebookReminderCustomerSubject, emailVars),
+        html: renderEmailBody(messages.rebookReminderCustomerBody, emailVars),
       });
       if (!r.ok) return r;
       sent = true;
@@ -417,7 +419,7 @@ export async function sendWaitlistNotification(
   const { messages, businessName, instagramLink } = await getMessages();
   const dateLabel = formatBookingDate(slot.date, "EEEE, d MMMM yyyy");
   const timeLabel = `${slot.startTime} – ${slot.endTime}`;
-  const bookLink = buildBookLink(entry.technicianId, entry.serviceId, slot.date, slot.startTime);
+  const bookingUrl = buildBookLink(entry.technicianId, entry.serviceId, slot.date, slot.startTime);
 
   const vars = {
     customerName: entry.customerName,
@@ -425,12 +427,12 @@ export async function sendWaitlistNotification(
     technicianName,
     date: dateLabel,
     time: timeLabel,
-    bookLink,
-    bookingLink: bookLink,
-    depositLink: bookLink,
+    ...bookingLinkMessageVars(bookingUrl),
+    depositLink: bookingUrl,
     businessName,
     instagramLink,
   };
+  const emailVars = { ...vars, ...bookingLinkEmailVars(bookingUrl) };
 
   const smsVars = {
     ...vars,
@@ -444,8 +446,8 @@ export async function sendWaitlistNotification(
     const r = await sendResendEmail({
       from,
       to: entry.customerEmail,
-      subject: renderEmailSubject(messages.waitlistCustomerSubject, vars),
-      html: renderEmailBody(messages.waitlistCustomerBody, vars),
+      subject: renderEmailSubject(messages.waitlistCustomerSubject, emailVars),
+      html: renderEmailBody(messages.waitlistCustomerBody, emailVars),
     });
     if (!r.ok) return r;
     sent = true;
@@ -475,24 +477,25 @@ export async function sendWaitlistPreviewEmail(
   if (!resendClient) return { ok: false, error: "RESEND_API_KEY not set" };
 
   const { messages, businessName, instagramLink } = await getMessages();
+  const bookingUrl = bookingSiteUrl("/book");
   const vars = {
     customerName: "Alex",
     serviceName: "Gel Manicure",
     technicianName: "Your technician",
     date: "Saturday, 20 June 2026",
     time: "14:00 – 15:00",
-    bookLink: `${process.env.NEXT_PUBLIC_APP_URL || "https://bbbar.co.uk"}/book`,
-    bookingLink: `${process.env.NEXT_PUBLIC_APP_URL || "https://bbbar.co.uk"}/book`,
-    depositLink: `${process.env.NEXT_PUBLIC_APP_URL || "https://bbbar.co.uk"}/book`,
+    ...bookingLinkMessageVars(bookingUrl),
+    depositLink: bookingUrl,
     businessName,
     instagramLink,
   };
+  const emailVars = { ...vars, ...bookingLinkEmailVars(bookingUrl) };
 
   return sendResendEmail({
     from,
     to: to.trim(),
-    subject: renderEmailSubject(messages.waitlistCustomerSubject, vars),
-    html: renderEmailBody(messages.waitlistCustomerBody, vars),
+    subject: renderEmailSubject(messages.waitlistCustomerSubject, emailVars),
+    html: renderEmailBody(messages.waitlistCustomerBody, emailVars),
   });
 }
 
@@ -502,26 +505,25 @@ export async function sendRebookPreviewEmail(
   if (!resendClient) return { ok: false, error: "RESEND_API_KEY not set" };
 
   const { messages, businessName, instagramLink } = await getMessages();
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001";
-  const bookLink = `${baseUrl}/book`;
+  const bookingUrl = bookingSiteUrl("/book");
   const vars = {
     customerName: "Alex",
     serviceName: "Gel Manicure",
     technicianName: "Sarah",
     date: "Saturday, 20 April 2026",
     time: "14:00 – 15:00",
-    bookLink,
-    bookingLink: bookLink,
-    depositLink: bookLink,
+    ...bookingLinkMessageVars(bookingUrl),
+    depositLink: bookingUrl,
     businessName,
-    optOutLink: `${baseUrl}/rebook-reminder/opt-out?token=preview`,
+    optOutLink: `${bookingSiteUrl("/book").replace(/\/book$/, "")}/rebook-reminder/opt-out?token=preview`,
     instagramLink,
   };
+  const emailVars = { ...vars, ...bookingLinkEmailVars(bookingUrl) };
 
   return sendResendEmail({
     from,
     to: to.trim(),
-    subject: renderEmailSubject(messages.rebookReminderCustomerSubject, vars),
-    html: renderEmailBody(messages.rebookReminderCustomerBody, vars),
+    subject: renderEmailSubject(messages.rebookReminderCustomerSubject, emailVars),
+    html: renderEmailBody(messages.rebookReminderCustomerBody, emailVars),
   });
 }

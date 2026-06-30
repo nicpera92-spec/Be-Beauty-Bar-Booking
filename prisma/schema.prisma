@@ -42,6 +42,7 @@ model Technician {
   name         String
   bio          String?   @default("")
   skillLevel   String?   @default("")
+  instagramHandle String?
   role         String    @default("technician") // master | technician
   loginEmail   String?   @unique
   passwordHash String?

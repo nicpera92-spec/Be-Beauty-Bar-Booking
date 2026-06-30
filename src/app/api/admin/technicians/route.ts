@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireMaster, hashPassword } from "@/lib/auth";
+import { normalizeInstagramHandle } from "@/lib/instagram";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,7 @@ export async function GET(req: NextRequest) {
       name: true,
       bio: true,
       skillLevel: true,
+      instagramHandle: true,
       role: true,
       loginEmail: true,
       position: true,
@@ -43,7 +45,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json().catch(() => ({}));
-  const { name, bio, skillLevel, loginEmail, password } = body;
+  const { name, bio, skillLevel, loginEmail, password, instagramHandle } = body;
 
   if (!name || String(name).trim() === "") {
     return NextResponse.json({ error: "Technician name is required" }, { status: 400 });
@@ -61,11 +63,17 @@ export async function POST(req: NextRequest) {
     .aggregate({ _max: { position: true } })
     .then((r) => (r._max.position ?? -1) + 1);
 
+  const instagramNorm =
+    instagramHandle != null && String(instagramHandle).trim() !== ""
+      ? normalizeInstagramHandle(String(instagramHandle))
+      : null;
+
   const technician = await prisma.technician.create({
     data: {
       name: String(name).trim(),
       bio: bio == null ? "" : String(bio),
       skillLevel: skillLevel == null ? "" : String(skillLevel),
+      instagramHandle: instagramNorm,
       role: "technician",
       loginEmail: emailNorm,
       passwordHash: password ? await hashPassword(String(password)) : null,
@@ -76,6 +84,7 @@ export async function POST(req: NextRequest) {
       name: true,
       bio: true,
       skillLevel: true,
+      instagramHandle: true,
       role: true,
       loginEmail: true,
       position: true,

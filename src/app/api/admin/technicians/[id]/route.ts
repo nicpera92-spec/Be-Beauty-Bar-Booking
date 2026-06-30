@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireMaster, hashPassword } from "@/lib/auth";
+import { normalizeInstagramHandle } from "@/lib/instagram";
 
 export async function PATCH(
   req: NextRequest,
@@ -16,7 +17,7 @@ export async function PATCH(
 
   const { id } = params;
   const body = await req.json().catch(() => ({}));
-  const { name, bio, skillLevel, active, loginEmail, password } = body;
+  const { name, bio, skillLevel, active, loginEmail, password, instagramHandle } = body;
 
   const current = await prisma.technician.findUnique({ where: { id } });
   if (!current) {
@@ -31,6 +32,7 @@ export async function PATCH(
     role?: string;
     loginEmail?: string | null;
     passwordHash?: string;
+    instagramHandle?: string | null;
   } = {};
 
   if (name !== undefined) {
@@ -42,6 +44,12 @@ export async function PATCH(
   }
   if (bio !== undefined) data.bio = bio === null ? "" : String(bio);
   if (skillLevel !== undefined) data.skillLevel = skillLevel === null ? "" : String(skillLevel);
+  if (instagramHandle !== undefined) {
+    data.instagramHandle =
+      instagramHandle == null || String(instagramHandle).trim() === ""
+        ? null
+        : normalizeInstagramHandle(String(instagramHandle));
+  }
   if (active !== undefined) data.active = Boolean(active);
   // The master (owner) signs in with the business-owner login managed in
   // Business settings, not with a technician login. Ignore credential edits
@@ -69,6 +77,7 @@ export async function PATCH(
       name: current.name,
       bio: current.bio,
       skillLevel: current.skillLevel,
+      instagramHandle: current.instagramHandle,
       role: current.role,
       loginEmail: current.loginEmail,
       position: current.position,
@@ -86,6 +95,7 @@ export async function PATCH(
       name: true,
       bio: true,
       skillLevel: true,
+      instagramHandle: true,
       role: true,
       loginEmail: true,
       position: true,
