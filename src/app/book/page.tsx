@@ -118,9 +118,9 @@ export default function BookPage() {
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
-                className="inline-block mt-2 text-sm text-navy hover:underline"
+                className="inline-block mt-2 text-sm font-medium text-theme-link hover:underline"
               >
-                Instagram {t.instagramLabel}
+                {t.instagramLabel}
               </a>
             )}
             {t.bio && t.bio.trim() && (

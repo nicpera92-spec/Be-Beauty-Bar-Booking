@@ -317,6 +317,7 @@ export function themeColorsToCssVars(primary: string, secondary: string): Record
     "--theme-text": tokens.text,
     "--theme-text-muted": tokens.textMuted,
     "--theme-on-primary": tokens.onPrimary,
+    "--theme-link": ensureContrast(tokens.secondary, "#ffffff", 4.5),
     "--navy-rgb": rgbTriplet(tokens.primary),
     "--theme-text-rgb": rgbTriplet(tokens.text),
     "--theme-text-muted-rgb": rgbTriplet(tokens.textMuted),

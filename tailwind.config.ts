@@ -11,6 +11,7 @@ const config: Config = {
       colors: {
         navy: "var(--navy, #1e3a5f)",
         "navy-light": "var(--navy-light, #2c5282)",
+        "theme-link": "var(--theme-link, var(--navy-light, #2c5282))",
         charcoal: "rgb(var(--theme-text-rgb, 30 58 95) / <alpha-value>)",
         "elegant-grey": "rgb(var(--theme-text-muted-rgb, 71 85 105) / <alpha-value>)",
         "elegant-grey-deep": "rgb(var(--theme-text-rgb, 30 58 95) / <alpha-value>)",
