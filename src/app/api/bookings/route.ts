@@ -239,6 +239,15 @@ export async function POST(req: NextRequest) {
       console.error("Booking emails failed:", emailResult.error);
     }
 
+    const { removeWaitlistEntriesAfterBooking } = await import("@/lib/waitlist");
+    await removeWaitlistEntriesAfterBooking({
+      serviceId: booking.serviceId,
+      technicianId: booking.technicianId,
+      customerEmail: booking.customerEmail,
+      customerPhone: booking.customerPhone,
+      date: booking.date,
+    });
+
     return NextResponse.json(booking);
   } catch (e) {
     console.error(e);

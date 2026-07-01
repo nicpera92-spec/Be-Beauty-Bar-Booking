@@ -47,6 +47,55 @@ export async function expirePastWaitlistEntries(): Promise<number> {
   return result.count;
 }
 
+/** True when a booking on bookingDate satisfies this waitlist entry. */
+export function waitlistEntryFulfilledByBooking(
+  entry: { preferredDate: string; notifyEarliest: boolean },
+  bookingDate: string
+): boolean {
+  if (bookingDate === entry.preferredDate) return true;
+  if (entry.notifyEarliest && bookingDate < entry.preferredDate) return true;
+  return false;
+}
+
+/** Remove waitlist entries once the customer has booked on their date (or earlier if opted in). */
+export async function removeWaitlistEntriesAfterBooking(params: {
+  serviceId: string;
+  technicianId: string;
+  customerEmail: string | null;
+  customerPhone: string | null;
+  date: string;
+}): Promise<number> {
+  const { serviceId, technicianId, customerEmail, customerPhone, date } = params;
+  const email = customerEmail?.trim() || "";
+  const phone = customerPhone?.trim() || "";
+  if (!email && !phone) return 0;
+
+  const contactOr: Array<{ customerEmail: string } | { customerPhone: string }> = [];
+  if (email) contactOr.push({ customerEmail: email });
+  if (phone) contactOr.push({ customerPhone: phone });
+
+  const entries = await prisma.waitingListEntry.findMany({
+    where: {
+      status: "active",
+      serviceId,
+      technicianId,
+      OR: contactOr,
+    },
+  });
+
+  const ids = entries
+    .filter((entry) => waitlistEntryFulfilledByBooking(entry, date))
+    .map((entry) => entry.id);
+
+  if (ids.length === 0) return 0;
+
+  const result = await prisma.waitingListEntry.updateMany({
+    where: { id: { in: ids } },
+    data: { status: "fulfilled" },
+  });
+  return result.count;
+}
+
 async function loadDayContext(
   serviceId: string,
   technicianId: string,

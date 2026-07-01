@@ -1,5 +1,5 @@
 import { parse } from "date-fns";
-import { isWaitlistSlotStillBookable, slotsFreedByCancellation } from "@/lib/waitlist";
+import { isWaitlistSlotStillBookable, slotsFreedByCancellation, waitlistEntryFulfilledByBooking } from "@/lib/waitlist";
 
 function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(message);
@@ -78,4 +78,17 @@ const lashesInOwnWindow = slotsFreedByCancellation(
 );
 assert(lashesInOwnWindow.length === 1 && lashesInOwnWindow[0].startTime === "14:00", "lash slot fills window");
 
-console.log("waitlist: 12 checks passed");
+assert(
+  waitlistEntryFulfilledByBooking({ preferredDate: "2026-07-02", notifyEarliest: false }, "2026-07-02"),
+  "exact preferred date fulfills entry"
+);
+assert(
+  !waitlistEntryFulfilledByBooking({ preferredDate: "2026-07-04", notifyEarliest: false }, "2026-07-02"),
+  "earlier booking does not fulfill without earliest opt-in"
+);
+assert(
+  waitlistEntryFulfilledByBooking({ preferredDate: "2026-07-04", notifyEarliest: true }, "2026-07-02"),
+  "earlier booking fulfills when earliest opt-in"
+);
+
+console.log("waitlist: 15 checks passed");
