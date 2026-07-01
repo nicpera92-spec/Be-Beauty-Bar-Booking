@@ -141,23 +141,20 @@ We look forward to seeing you!
   reminderCustomerSms:
     "Hi **Customer name**! Just a reminder – your **Service** appointment at **Salon name** is tomorrow **Date** at **Time**. See you soon!",
 
-  waitlistCustomerSubject: "Good news — a slot has opened at **Salon name**",
+  waitlistCustomerSubject: "Good news — a slot has opened on **Date** at **Salon name**",
   waitlistCustomerBody: `Hi **Customer name**,
 
-Great news — a time has become available for **Service** with **Technician**:
+Great news — a slot has opened on **Date** for **Service** with **Technician**.
 
-Date: **Date**
-Time: **Time**
+Book now: **Booking link**
 
-Book this slot now: **Booking link**
-
-Slots aren't held, so please book as soon as you can. First to complete their booking gets the appointment.
+Slots aren't held, so please book as soon as you can and choose a time that suits you.
 
 We hope to see you soon!
 
 — **Salon name**`,
   waitlistCustomerSms:
-    "Hi **Customer name**! A **Service** slot opened at **Salon name** on **Date** at **Time**. Book now: **Booking link**",
+    "Hi **Customer name**! A **Service** slot opened on **Date** at **Salon name**. Book now: **Booking link**",
 
   rebookReminderCustomerSubject: "We would love to see you again at **Salon name**",
   rebookReminderCustomerBody: `Hi **Customer name**,
@@ -313,7 +310,7 @@ export const NOTIFICATION_MESSAGE_GROUPS: NotificationMessageGroup[] = [
   {
     id: "waitlist",
     title: "Waiting list",
-    description: "When a slot opens up for someone on the waiting list.",
+    description: "When a slot opens on a date someone is waiting for.",
     sections: [
       {
         title: "Customer email",

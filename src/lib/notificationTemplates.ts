@@ -266,6 +266,16 @@ export function buildBookLink(
   return `${baseUrl}/book/tech/${technicianId}/${serviceId}/${date}/${encodeURIComponent(startTime)}`;
 }
 
+/** Booking page with the date pre-selected (no specific time). */
+export function buildBookLinkForDate(
+  technicianId: string,
+  serviceId: string,
+  date: string
+): string {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001";
+  return `${baseUrl}/book/tech/${technicianId}/${serviceId}?date=${encodeURIComponent(date)}`;
+}
+
 /** Instagram profile URL from the handle saved in business settings. */
 export function buildInstagramLink(handle?: string | null): string {
   const normalized = (handle || "bebeauty.bar").replace(/^@/, "").trim();

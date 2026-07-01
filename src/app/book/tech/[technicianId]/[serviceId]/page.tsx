@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { eachDayOfInterval, format, isBefore, isAfter, parse, getDay } from "date-fns";
 import Link from "next/link";
@@ -28,6 +28,7 @@ function formatTime24to12(t: string): string {
 
 export default function BookDatePage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const technicianId = params.technicianId as string;
   const serviceId = params.serviceId as string;
   const [service, setService] = useState<Service | null>(null);
@@ -72,6 +73,18 @@ export default function BookDatePage() {
       })
       .catch(() => setLoading(false));
   }, [serviceId, technicianId, fromStr, toStr]);
+
+  useEffect(() => {
+    const param = searchParams.get("date");
+    if (!param || !/^\d{4}-\d{2}-\d{2}$/.test(param)) return;
+    try {
+      const day = parse(param, "yyyy-MM-dd", new Date());
+      if (isBefore(day, minBookableDate) || isAfter(day, calendarEnd)) return;
+      setSelectedDate(param);
+    } catch {
+      /* ignore invalid date */
+    }
+  }, [searchParams, minBookableDate, calendarEnd]);
 
   const fetchSlots = useCallback(() => {
     if (!selectedDate || !serviceId || !technicianId) {

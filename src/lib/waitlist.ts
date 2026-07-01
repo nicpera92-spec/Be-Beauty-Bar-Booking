@@ -1,4 +1,4 @@
-import { addDays, format, isBefore, parse, startOfDay } from "date-fns";
+import { addDays, eachDayOfInterval, format, isBefore, parse, startOfDay } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { getSlotsForDay } from "@/lib/slotUtils";
 import { getMaxConcurrentForCategory } from "@/lib/bookingAvailability";
@@ -194,46 +194,39 @@ export async function findOpenSlotsOnDate(
     }));
 }
 
-async function alreadyNotifiedForSlot(
-  entryId: string,
-  date: string,
-  startTime: string
-) {
+async function alreadyNotifiedForDate(entryId: string, date: string) {
   const entry = await prisma.waitingListEntry.findUnique({ where: { id: entryId } });
   if (!entry) return true;
-  return entry.notifiedSlotDate === date && entry.notifiedSlotTime === startTime;
+  return entry.notifiedSlotDate === date;
 }
 
-export async function notifyWaitlistEntryForSlot(
+export async function notifyWaitlistEntryForDate(
   entryId: string,
-  slot: OpenSlot
-): Promise<{ ok: boolean; error?: string }> {
-  if (!isWaitlistSlotStillBookable(slot.date, slot.startTime)) {
-    return { ok: true };
-  }
+  date: string
+): Promise<{ ok: boolean; sent?: boolean; error?: string }> {
+  const today = todayStr();
+  if (date < today) return { ok: true, sent: false };
 
-  if (await alreadyNotifiedForSlot(entryId, slot.date, slot.startTime)) {
-    return { ok: true };
+  if (await alreadyNotifiedForDate(entryId, date)) {
+    return { ok: true, sent: false };
   }
 
   const entry = await prisma.waitingListEntry.findUnique({
     where: { id: entryId },
     include: { service: true, technician: true },
   });
-  if (!entry || entry.status !== "active") return { ok: false, error: "Entry not active" };
+  if (!entry || entry.status !== "active") {
+    return { ok: false, error: "Entry not active" };
+  }
 
-  const bookable = await isSlotBookableForService(
-    entry.serviceId,
-    entry.technicianId,
-    slot
-  );
-  if (!bookable) {
-    return { ok: true };
+  const openSlots = await findOpenSlotsOnDate(entry.serviceId, entry.technicianId, date);
+  if (openSlots.length === 0) {
+    return { ok: true, sent: false };
   }
 
   const result = await (await import("@/lib/email")).sendWaitlistNotification({
     entry,
-    slot,
+    date,
     serviceName: entry.service.name,
     technicianName: entry.technician.name,
   });
@@ -243,28 +236,25 @@ export async function notifyWaitlistEntryForSlot(
       where: { id: entryId },
       data: {
         lastNotifiedAt: new Date(),
-        notifiedSlotDate: slot.date,
-        notifiedSlotTime: slot.startTime,
+        notifiedSlotDate: date,
+        notifiedSlotTime: null,
       },
     });
+    return { ok: true, sent: true };
   }
 
   return result;
 }
 
-export async function notifyWaitlistForFreedSlot(params: {
-  /** Cancelled booking's service — used only by callers; all waitlist services for this tech are checked. */
-  serviceId: string;
-  technicianId: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-}): Promise<void> {
-  if (!(await isWaitlistEnabled())) return;
+/** Notify all waitlist customers for this technician when a date has open slots. */
+export async function notifyWaitlistForTechnicianOnDate(
+  technicianId: string,
+  date: string
+): Promise<number> {
+  if (!(await isWaitlistEnabled())) return 0;
 
-  const { technicianId, date, startTime, endTime } = params;
   const today = todayStr();
-  if (date < today) return;
+  if (date < today) return 0;
 
   const entries = await prisma.waitingListEntry.findMany({
     where: {
@@ -275,24 +265,50 @@ export async function notifyWaitlistForFreedSlot(params: {
     },
   });
 
+  let notified = 0;
   for (const entry of entries) {
     const wantsThisDay = entry.preferredDate === date;
-    const wantsEarlier =
-      entry.notifyEarliest && entry.preferredDate >= date && date <= entry.preferredDate;
+    const wantsEarlier = entry.notifyEarliest && entry.preferredDate >= date;
     if (!wantsThisDay && !wantsEarlier) continue;
 
-    const bookableSlots = await findBookableSlotsAfterCancellation(
-      entry.serviceId,
-      technicianId,
-      date,
-      startTime,
-      endTime
-    );
-
-    for (const slot of bookableSlots) {
-      await notifyWaitlistEntryForSlot(entry.id, slot);
+    const result = await notifyWaitlistEntryForDate(entry.id, date);
+    if (result.sent) notified++;
+    else if (result.error && result.error !== "Entry not active") {
+      console.warn("waitlist date notify failed:", entry.id, result.error);
     }
   }
+
+  return notified;
+}
+
+/** After time off is removed, notify waitlist for each affected day. */
+export async function notifyWaitlistAfterTimeOffRemoved(
+  technicianId: string,
+  startDate: string,
+  endDate: string
+): Promise<void> {
+  const today = todayStr();
+  if (endDate < today) return;
+
+  const rangeStart = startDate < today ? today : startDate;
+  const start = parse(rangeStart, "yyyy-MM-dd", new Date());
+  const end = parse(endDate, "yyyy-MM-dd", new Date());
+  if (end < start) return;
+
+  for (const day of eachDayOfInterval({ start, end })) {
+    const dateStr = format(day, "yyyy-MM-dd");
+    await notifyWaitlistForTechnicianOnDate(technicianId, dateStr);
+  }
+}
+
+export async function notifyWaitlistForFreedSlot(params: {
+  serviceId: string;
+  technicianId: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+}): Promise<void> {
+  await notifyWaitlistForTechnicianOnDate(params.technicianId, params.date);
 }
 
 export async function processEarliestWaitlistNotifications(): Promise<{
@@ -323,14 +339,9 @@ export async function processEarliestWaitlistNotifications(): Promise<{
       entry.preferredDate
     );
     if (!slot) continue;
-    if (!isWaitlistSlotStillBookable(slot.date, slot.startTime)) continue;
 
-    const wasNotified =
-      entry.notifiedSlotDate === slot.date && entry.notifiedSlotTime === slot.startTime;
-    if (wasNotified) continue;
-
-    const result = await notifyWaitlistEntryForSlot(entry.id, slot);
-    if (result.ok) notified++;
+    const result = await notifyWaitlistEntryForDate(entry.id, slot.date);
+    if (result.sent) notified++;
   }
 
   return { notified, expired };
@@ -350,35 +361,10 @@ export async function processPreferredDateWaitlistNotifications(): Promise<numbe
 
   let notified = 0;
   for (const entry of entries) {
-    const slots = await findOpenSlotsOnDate(
-      entry.serviceId,
-      entry.technicianId,
-      entry.preferredDate
-    );
-
-    for (const slot of slots) {
-      if (await alreadyNotifiedForSlot(entry.id, slot.date, slot.startTime)) continue;
-
-      const result = await notifyWaitlistEntryForSlot(entry.id, slot);
-      if (result.ok) {
-        const updated = await prisma.waitingListEntry.findUnique({
-          where: { id: entry.id },
-          select: { notifiedSlotDate: true, notifiedSlotTime: true },
-        });
-        if (
-          updated?.notifiedSlotDate === slot.date &&
-          updated?.notifiedSlotTime === slot.startTime
-        ) {
-          notified++;
-          break;
-        }
-        continue;
-      }
-
-      if (result.error && result.error !== "Entry not active") {
-        console.warn("waitlist preferred-date notify failed:", entry.id, result.error);
-      }
-      break;
+    const result = await notifyWaitlistEntryForDate(entry.id, entry.preferredDate);
+    if (result.sent) notified++;
+    else if (result.error && result.error !== "Entry not active") {
+      console.warn("waitlist preferred-date notify failed:", entry.id, result.error);
     }
   }
 

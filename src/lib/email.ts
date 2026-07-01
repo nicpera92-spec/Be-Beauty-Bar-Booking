@@ -5,6 +5,7 @@ import { formatBookingDate } from "@/lib/format";
 import {
   applyTemplate,
   buildBookLink,
+  buildBookLinkForDate,
   buildInstagramLink,
   bookingLinkEmailVars,
   bookingLinkMessageVars,
@@ -407,7 +408,7 @@ type WaitlistNotifyParams = {
     technicianId: string;
     serviceId: string;
   };
-  slot: { date: string; startTime: string; endTime: string };
+  date: string;
   serviceName: string;
   technicianName: string;
 };
@@ -415,18 +416,17 @@ type WaitlistNotifyParams = {
 export async function sendWaitlistNotification(
   params: WaitlistNotifyParams
 ): Promise<{ ok: boolean; error?: string }> {
-  const { entry, slot, serviceName, technicianName } = params;
+  const { entry, date, serviceName, technicianName } = params;
   const { messages, businessName, instagramLink } = await getMessages();
-  const dateLabel = formatBookingDate(slot.date, "EEEE, d MMMM yyyy");
-  const timeLabel = `${slot.startTime} – ${slot.endTime}`;
-  const bookingUrl = buildBookLink(entry.technicianId, entry.serviceId, slot.date, slot.startTime);
+  const dateLabel = formatBookingDate(date, "EEEE, d MMMM yyyy");
+  const bookingUrl = buildBookLinkForDate(entry.technicianId, entry.serviceId, date);
 
   const vars = {
     customerName: entry.customerName,
     serviceName,
     technicianName,
     date: dateLabel,
-    time: timeLabel,
+    time: "",
     ...bookingLinkMessageVars(bookingUrl),
     depositLink: bookingUrl,
     businessName,
@@ -436,8 +436,7 @@ export async function sendWaitlistNotification(
 
   const smsVars = {
     ...vars,
-    date: formatBookingDate(slot.date, "dd/MM/yyyy"),
-    time: `${slot.startTime}–${slot.endTime}`,
+    date: formatBookingDate(date, "dd/MM/yyyy"),
   };
 
   let sent = false;
@@ -483,7 +482,7 @@ export async function sendWaitlistPreviewEmail(
     serviceName: "Gel Manicure",
     technicianName: "Your technician",
     date: "Saturday, 20 June 2026",
-    time: "14:00 – 15:00",
+    time: "",
     ...bookingLinkMessageVars(bookingUrl),
     depositLink: bookingUrl,
     businessName,

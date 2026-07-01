@@ -22,6 +22,15 @@ export async function DELETE(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const technicianId = block.technicianId;
+  const { startDate, endDate } = block;
+
   await prisma.availabilityBlock.delete({ where: { id } });
+
+  if (technicianId) {
+    const { notifyWaitlistAfterTimeOffRemoved } = await import("@/lib/waitlist");
+    await notifyWaitlistAfterTimeOffRemoved(technicianId, startDate, endDate);
+  }
+
   return NextResponse.json({ ok: true });
 }
