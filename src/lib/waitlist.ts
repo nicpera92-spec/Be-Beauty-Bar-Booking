@@ -62,7 +62,7 @@ export function waitlistEntryFulfilledByBooking(
 
 export type WaitlistDatePreference = {
   preferredDate: string;
-  preferredDateEnd?: string | null;
+  preferredDateEnd: string | null;
   notifyEarliest: boolean;
 };
 
