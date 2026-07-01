@@ -273,10 +273,7 @@ export default function BookDatePage() {
                   technicianId={technicianId}
                   preferredDate={selectedDate}
                   dateLabel={selectedDateLabel}
-                  canNotifyEarlier={isAfter(
-                    parse(selectedDate, "yyyy-MM-dd", new Date()),
-                    minBookableDate
-                  )}
+                  maxBookableDate={format(calendarEnd, "yyyy-MM-dd")}
                 />
               ) : (
                 <p className="text-slate-500 text-sm">

@@ -100,6 +100,7 @@ model WaitingListEntry {
   notifyByEmail     Boolean    @default(true)
   notifyBySMS       Boolean    @default(false)
   preferredDate     String
+  preferredDateEnd  String?
   notifyEarliest    Boolean    @default(false)
   status            String     @default("active")
   lastNotifiedAt    DateTime?

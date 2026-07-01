@@ -8,7 +8,7 @@ type WaitlistJoinFormProps = {
   technicianId: string;
   preferredDate: string;
   dateLabel: string;
-  canNotifyEarlier: boolean;
+  maxBookableDate: string;
 };
 
 export default function WaitlistJoinForm({
@@ -16,7 +16,7 @@ export default function WaitlistJoinForm({
   technicianId,
   preferredDate,
   dateLabel,
-  canNotifyEarlier,
+  maxBookableDate,
 }: WaitlistJoinFormProps) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -24,16 +24,30 @@ export default function WaitlistJoinForm({
   const [phone, setPhone] = useState("");
   const [notifyByEmail, setNotifyByEmail] = useState(true);
   const [notifyBySMS, setNotifyBySMS] = useState(false);
-  const [notifyEarliest, setNotifyEarliest] = useState(false);
+  const [useDateRange, setUseDateRange] = useState(false);
+  const [preferredDateEnd, setPreferredDateEnd] = useState(preferredDate);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [successRangeLabel, setSuccessRangeLabel] = useState(dateLabel);
 
   useEffect(() => {
-    if (!canNotifyEarlier) {
-      setNotifyEarliest(false);
+    setPreferredDateEnd(preferredDate);
+    setUseDateRange(false);
+    setSuccess(false);
+  }, [preferredDate]);
+
+  const rangeLabel = () => {
+    if (!useDateRange || preferredDateEnd === preferredDate) {
+      return dateLabel;
     }
-  }, [canNotifyEarlier, preferredDate]);
+    try {
+      const endLabel = formatBookingDate(preferredDateEnd, "EEEE, d MMMM yyyy");
+      return `${dateLabel} to ${endLabel}`;
+    } catch {
+      return dateLabel;
+    }
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,6 +69,10 @@ export default function WaitlistJoinForm({
       setError("Phone is required for SMS notifications.");
       return;
     }
+    if (useDateRange && preferredDateEnd < preferredDate) {
+      setError("End date must be on or after the start date.");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -68,9 +86,10 @@ export default function WaitlistJoinForm({
           customerEmail: email.trim() || undefined,
           customerPhone: phone.trim() || undefined,
           preferredDate,
+          preferredDateEnd:
+            useDateRange && preferredDateEnd !== preferredDate ? preferredDateEnd : undefined,
           notifyByEmail,
           notifyBySMS,
-          notifyEarliest: canNotifyEarlier && notifyEarliest,
         }),
       });
       const data = await r.json();
@@ -78,6 +97,7 @@ export default function WaitlistJoinForm({
         setError(data.error ?? "Could not join the waiting list.");
         return;
       }
+      setSuccessRangeLabel(rangeLabel());
       setSuccess(true);
       setOpen(false);
     } catch {
@@ -92,8 +112,7 @@ export default function WaitlistJoinForm({
       <div className="rounded-xl border border-green-200 bg-green-50/80 p-4 text-sm text-green-900">
         <p className="font-medium">You&apos;re on the waiting list</p>
         <p className="mt-1 text-green-800/90">
-          We&apos;ll contact you if a slot opens for {dateLabel}
-          {notifyEarliest ? " or an earlier date" : ""}.
+          We&apos;ll contact you if a slot opens between {successRangeLabel}.
         </p>
       </div>
     );
@@ -115,7 +134,7 @@ export default function WaitlistJoinForm({
         </button>
       ) : (
         <form onSubmit={submit} className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
-          <p className="text-sm font-medium text-slate-800">Waiting list for {dateLabel}</p>
+          <p className="text-sm font-medium text-slate-800">Waiting list from {dateLabel}</p>
 
           <div>
             <label className="block text-xs text-slate-600 mb-1">Your name</label>
@@ -171,19 +190,43 @@ export default function WaitlistJoinForm({
             </label>
           </fieldset>
 
-          {canNotifyEarlier && (
-            <label className="flex items-start gap-2 text-sm text-slate-700">
+          <label className="flex items-start gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={useDateRange}
+              onChange={(e) => {
+                setUseDateRange(e.target.checked);
+                if (!e.target.checked) setPreferredDateEnd(preferredDate);
+              }}
+              className="mt-0.5 rounded border-slate-300 text-navy focus:ring-navy/20"
+            />
+            <span>Notify me for a <strong>range of dates</strong></span>
+          </label>
+
+          {useDateRange && (
+            <div>
+              <label htmlFor="waitlist-end-date" className="block text-xs text-slate-600 mb-1">
+                Last date (from {formatBookingDate(preferredDate, "d MMM")})
+              </label>
               <input
-                type="checkbox"
-                checked={notifyEarliest}
-                onChange={(e) => setNotifyEarliest(e.target.checked)}
-                className="mt-0.5 rounded border-slate-300 text-navy focus:ring-navy/20"
+                id="waitlist-end-date"
+                type="date"
+                required
+                min={preferredDate}
+                max={maxBookableDate}
+                value={preferredDateEnd}
+                onChange={(e) => setPreferredDateEnd(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:border-navy/40 focus:ring-2 focus:ring-navy/10 outline-none"
               />
-              <span>
-                Also notify me if an <strong>earlier date</strong> becomes available before{" "}
-                {formatBookingDate(preferredDate, "d MMMM")}
-              </span>
-            </label>
+              <p className="text-xs text-slate-500 mt-1">
+                We&apos;ll let you know if a slot opens on any day from{" "}
+                {formatBookingDate(preferredDate, "d MMMM")} to{" "}
+                {preferredDateEnd
+                  ? formatBookingDate(preferredDateEnd, "d MMMM yyyy")
+                  : "…"}
+                .
+              </p>
+            </div>
           )}
 
           <div className="flex flex-wrap gap-2 pt-1">

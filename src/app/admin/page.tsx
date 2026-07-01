@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { formatCurrency, formatBookingDateFriendly } from "@/lib/format";
+import { formatWaitlistDateRange } from "@/lib/waitlist";
 import AdminNav from "@/components/AdminNav";
 
 const ADMIN_TOKEN_KEY = "admin-token";
@@ -49,6 +50,7 @@ type WaitlistEntry = {
   notifyByEmail: boolean;
   notifyBySMS: boolean;
   preferredDate: string;
+  preferredDateEnd: string | null;
   notifyEarliest: boolean;
   status: string;
   lastNotifiedAt: string | null;
@@ -346,7 +348,13 @@ export default function AdminPage() {
   const inactiveWaitlist = waitlistEntries.filter((e) => e.status !== "active");
 
   const waitlistFiltered = activeWaitlist
-    .filter((e) => !dateFilter || e.preferredDate === dateFilter)
+    .filter((e) => {
+      if (!dateFilter) return true;
+      const end = e.preferredDateEnd && e.preferredDateEnd >= e.preferredDate
+        ? e.preferredDateEnd
+        : e.preferredDate;
+      return dateFilter >= e.preferredDate && dateFilter <= end;
+    })
     .slice()
     .sort((a, b) => {
       const da = a.createdAt ?? "";
@@ -663,10 +671,7 @@ function AdminWaitlistRow({
           {entry.service.name} · {entry.technician.name}
         </p>
         <p className="text-sm text-charcoal/70 mt-1">
-          Wants: {formatBookingDateFriendly(entry.preferredDate)}
-          {entry.notifyEarliest && (
-            <span className="text-charcoal/50"> · earlier dates too</span>
-          )}
+          Wants: {formatWaitlistDateRange(entry, formatBookingDateFriendly)}
         </p>
         <p className="text-xs text-charcoal/55 mt-2">
           {entry.customerPhone ? (

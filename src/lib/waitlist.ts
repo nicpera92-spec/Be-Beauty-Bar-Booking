@@ -37,11 +37,16 @@ export async function isWaitlistEnabled(): Promise<boolean> {
 
 export async function expirePastWaitlistEntries(): Promise<number> {
   const today = todayStr();
+  const active = await prisma.waitingListEntry.findMany({
+    where: { status: "active" },
+    select: { id: true, preferredDate: true, preferredDateEnd: true, notifyEarliest: true },
+  });
+  const expiredIds = active
+    .filter((entry) => waitlistRangeEnd(entry) < today)
+    .map((entry) => entry.id);
+  if (expiredIds.length === 0) return 0;
   const result = await prisma.waitingListEntry.updateMany({
-    where: {
-      status: "active",
-      preferredDate: { lt: today },
-    },
+    where: { id: { in: expiredIds } },
     data: { status: "expired" },
   });
   return result.count;
@@ -49,12 +54,96 @@ export async function expirePastWaitlistEntries(): Promise<number> {
 
 /** True when a booking on bookingDate satisfies this waitlist entry. */
 export function waitlistEntryFulfilledByBooking(
-  entry: { preferredDate: string; notifyEarliest: boolean },
+  entry: WaitlistDatePreference,
   bookingDate: string
 ): boolean {
-  if (bookingDate === entry.preferredDate) return true;
-  if (entry.notifyEarliest && bookingDate < entry.preferredDate) return true;
+  return waitlistEntryInterestedInDate(entry, bookingDate);
+}
+
+export type WaitlistDatePreference = {
+  preferredDate: string;
+  preferredDateEnd?: string | null;
+  notifyEarliest: boolean;
+};
+
+/** Inclusive end of the customer's requested date range. */
+export function waitlistRangeEnd(entry: WaitlistDatePreference): string {
+  if (entry.preferredDateEnd && entry.preferredDateEnd >= entry.preferredDate) {
+    return entry.preferredDateEnd;
+  }
+  return entry.preferredDate;
+}
+
+export function waitlistHasExplicitRange(entry: WaitlistDatePreference): boolean {
+  return Boolean(entry.preferredDateEnd && entry.preferredDateEnd > entry.preferredDate);
+}
+
+/** First date to scan when looking for open slots for this entry. */
+export function waitlistNotificationSearchStart(
+  entry: WaitlistDatePreference,
+  today: string
+): string {
+  if (entry.notifyEarliest && !waitlistHasExplicitRange(entry)) {
+    return today;
+  }
+  return entry.preferredDate > today ? entry.preferredDate : today;
+}
+
+/** True when an open slot on date is relevant to this waitlist entry. */
+export function waitlistEntryInterestedInDate(
+  entry: WaitlistDatePreference,
+  date: string
+): boolean {
+  const end = waitlistRangeEnd(entry);
+  const start = entry.preferredDate;
+
+  if (waitlistHasExplicitRange(entry)) {
+    return date >= start && date <= end;
+  }
+
+  if (date === start) return true;
+  if (entry.notifyEarliest && date < start) return true;
   return false;
+}
+
+/** Merge two waitlist sign-ups from the same customer into one preference. */
+export function mergeWaitlistPreferences(
+  a: WaitlistDatePreference,
+  b: WaitlistDatePreference
+): WaitlistDatePreference {
+  const endA = waitlistRangeEnd(a);
+  const endB = waitlistRangeEnd(b);
+  const start = a.preferredDate <= b.preferredDate ? a.preferredDate : b.preferredDate;
+  const end = endA >= endB ? endA : endB;
+  const hasRange = end > start;
+  return {
+    preferredDate: start,
+    preferredDateEnd: hasRange ? end : null,
+    notifyEarliest: !hasRange && (a.notifyEarliest || b.notifyEarliest),
+  };
+}
+
+/** Human-readable waitlist date range for admin and confirmations. */
+export function formatWaitlistDateRange(
+  entry: WaitlistDatePreference,
+  formatDate: (dateStr: string) => string
+): string {
+  if (waitlistHasExplicitRange(entry)) {
+    return `${formatDate(entry.preferredDate)} – ${formatDate(waitlistRangeEnd(entry))}`;
+  }
+  if (entry.notifyEarliest) {
+    return `${formatDate(entry.preferredDate)} · earlier dates too`;
+  }
+  return formatDate(entry.preferredDate);
+}
+
+function waitlistContactOr(customerEmail: string | null, customerPhone: string | null) {
+  const email = customerEmail?.trim() || "";
+  const phone = customerPhone?.trim() || "";
+  const contactOr: Array<{ customerEmail: string } | { customerPhone: string }> = [];
+  if (email) contactOr.push({ customerEmail: email });
+  if (phone) contactOr.push({ customerPhone: phone });
+  return contactOr;
 }
 
 /** Remove waitlist entries once the customer has booked on their date (or earlier if opted in). */
@@ -70,9 +159,7 @@ export async function removeWaitlistEntriesAfterBooking(params: {
   const phone = customerPhone?.trim() || "";
   if (!email && !phone) return 0;
 
-  const contactOr: Array<{ customerEmail: string } | { customerPhone: string }> = [];
-  if (email) contactOr.push({ customerEmail: email });
-  if (phone) contactOr.push({ customerPhone: phone });
+  const contactOr = waitlistContactOr(customerEmail, customerPhone);
 
   const entries = await prisma.waitingListEntry.findMany({
     where: {
@@ -249,6 +336,41 @@ async function alreadyNotifiedForDate(entryId: string, date: string) {
   return entry.notifiedSlotDate === date;
 }
 
+async function markWaitlistEntriesNotifiedForDate(
+  entryIds: string[],
+  date: string
+): Promise<void> {
+  if (entryIds.length === 0) return;
+  const now = new Date();
+  await prisma.waitingListEntry.updateMany({
+    where: { id: { in: entryIds } },
+    data: {
+      lastNotifiedAt: now,
+      notifiedSlotDate: date,
+      notifiedSlotTime: null,
+    },
+  });
+}
+
+async function siblingEntriesForContact(
+  serviceId: string,
+  technicianId: string,
+  customerEmail: string | null,
+  customerPhone: string | null
+) {
+  const contactOr = waitlistContactOr(customerEmail, customerPhone);
+  if (contactOr.length === 0) return [];
+  return prisma.waitingListEntry.findMany({
+    where: {
+      status: "active",
+      serviceId,
+      technicianId,
+      OR: contactOr,
+    },
+    orderBy: { createdAt: "asc" },
+  });
+}
+
 export async function notifyWaitlistEntryForDate(
   entryId: string,
   date: string
@@ -268,6 +390,26 @@ export async function notifyWaitlistEntryForDate(
     return { ok: false, error: "Entry not active" };
   }
 
+  if (!waitlistEntryInterestedInDate(entry, date)) {
+    return { ok: true, sent: false };
+  }
+
+  const siblings = await siblingEntriesForContact(
+    entry.serviceId,
+    entry.technicianId,
+    entry.customerEmail,
+    entry.customerPhone
+  );
+  const interestedSiblings = siblings.filter((s) => waitlistEntryInterestedInDate(s, date));
+  const alreadyNotifiedSibling = interestedSiblings.find((s) => s.notifiedSlotDate === date);
+  if (alreadyNotifiedSibling) {
+    await markWaitlistEntriesNotifiedForDate(
+      interestedSiblings.filter((s) => s.notifiedSlotDate !== date).map((s) => s.id),
+      date
+    );
+    return { ok: true, sent: false };
+  }
+
   const openSlots = await findOpenSlotsOnDate(entry.serviceId, entry.technicianId, date);
   if (openSlots.length === 0) {
     return { ok: true, sent: false };
@@ -281,14 +423,10 @@ export async function notifyWaitlistEntryForDate(
   });
 
   if (result.ok) {
-    await prisma.waitingListEntry.update({
-      where: { id: entryId },
-      data: {
-        lastNotifiedAt: new Date(),
-        notifiedSlotDate: date,
-        notifiedSlotTime: null,
-      },
-    });
+    await markWaitlistEntriesNotifiedForDate(
+      interestedSiblings.map((s) => s.id),
+      date
+    );
     return { ok: true, sent: true };
   }
 
@@ -309,20 +447,22 @@ export async function notifyWaitlistForTechnicianOnDate(
     where: {
       technicianId,
       status: "active",
-      preferredDate: { gte: today },
-      OR: [{ preferredDate: date }, { notifyEarliest: true }],
     },
   });
 
   let notified = 0;
+  const notifiedContacts = new Set<string>();
   for (const entry of entries) {
-    const wantsThisDay = entry.preferredDate === date;
-    const wantsEarlier = entry.notifyEarliest && entry.preferredDate >= date;
-    if (!wantsThisDay && !wantsEarlier) continue;
+    if (!waitlistEntryInterestedInDate(entry, date)) continue;
+
+    const contactKey = `${entry.serviceId}:${entry.customerEmail ?? ""}:${entry.customerPhone ?? ""}`;
+    if (notifiedContacts.has(contactKey)) continue;
 
     const result = await notifyWaitlistEntryForDate(entry.id, date);
-    if (result.sent) notified++;
-    else if (result.error && result.error !== "Entry not active") {
+    if (result.sent) {
+      notified++;
+      notifiedContacts.add(contactKey);
+    } else if (result.error && result.error !== "Entry not active") {
       console.warn("waitlist date notify failed:", entry.id, result.error);
     }
   }
@@ -364,60 +504,67 @@ export async function processEarliestWaitlistNotifications(): Promise<{
   notified: number;
   expired: number;
 }> {
-  if (!(await isWaitlistEnabled())) {
-    const expired = await expirePastWaitlistEntries();
-    return { notified: 0, expired };
-  }
-
   const expired = await expirePastWaitlistEntries();
-  const today = todayStr();
-
-  const entries = await prisma.waitingListEntry.findMany({
-    where: {
-      status: "active",
-      notifyEarliest: true,
-      preferredDate: { gte: today },
-    },
-  });
-
-  let notified = 0;
-  for (const entry of entries) {
-    const slot = await findEarliestOpenSlot(
-      entry.serviceId,
-      entry.technicianId,
-      entry.preferredDate
-    );
-    if (!slot) continue;
-
-    const result = await notifyWaitlistEntryForDate(entry.id, slot.date);
-    if (result.sent) notified++;
-  }
-
+  const notified = await processActiveWaitlistNotifications();
   return { notified, expired };
 }
 
-/** Notify customers waiting for a specific date when slots are open (runs on cron). */
-export async function processPreferredDateWaitlistNotifications(): Promise<number> {
+async function notifyEntryForNextOpenDateInRange(
+  entryId: string,
+  entry: WaitlistDatePreference,
+  today: string
+): Promise<{ ok: boolean; sent?: boolean; error?: string }> {
+  const end = waitlistRangeEnd(entry);
+  if (end < today) return { ok: true, sent: false };
+
+  let cursor = parse(waitlistNotificationSearchStart(entry, today), "yyyy-MM-dd", new Date());
+  const endDay = parse(end, "yyyy-MM-dd", new Date());
+
+  while (cursor <= endDay) {
+    const dateStr = format(cursor, "yyyy-MM-dd");
+    if (waitlistEntryInterestedInDate(entry, dateStr)) {
+      const result = await notifyWaitlistEntryForDate(entryId, dateStr);
+      if (result.sent) return result;
+      if (result.error && result.error !== "Entry not active") return result;
+    }
+    cursor = addDays(cursor, 1);
+  }
+
+  return { ok: true, sent: false };
+}
+
+/** Scan each entry's date range for the next open day to notify about. */
+export async function processActiveWaitlistNotifications(): Promise<number> {
   if (!(await isWaitlistEnabled())) return 0;
 
   const today = todayStr();
   const entries = await prisma.waitingListEntry.findMany({
-    where: {
-      status: "active",
-      preferredDate: { gte: today },
-    },
+    where: { status: "active" },
   });
 
   let notified = 0;
+  const notifiedContacts = new Set<string>();
   for (const entry of entries) {
-    const result = await notifyWaitlistEntryForDate(entry.id, entry.preferredDate);
-    if (result.sent) notified++;
-    else if (result.error && result.error !== "Entry not active") {
-      console.warn("waitlist preferred-date notify failed:", entry.id, result.error);
+    if (waitlistRangeEnd(entry) < today) continue;
+
+    const contactKey = `${entry.serviceId}:${entry.customerEmail ?? ""}:${entry.customerPhone ?? ""}`;
+    if (notifiedContacts.has(contactKey)) continue;
+
+    const result = await notifyEntryForNextOpenDateInRange(entry.id, entry, today);
+    if (result.sent) {
+      notified++;
+      notifiedContacts.add(contactKey);
+    } else if (result.error && result.error !== "Entry not active") {
+      console.warn("waitlist range notify failed:", entry.id, result.error);
     }
   }
 
   return notified;
+}
+
+/** Notify customers waiting for a specific date when slots are open (runs on cron). */
+export async function processPreferredDateWaitlistNotifications(): Promise<number> {
+  return processActiveWaitlistNotifications();
 }
 
 export async function processWaitlistNotifications(): Promise<{
@@ -425,7 +572,7 @@ export async function processWaitlistNotifications(): Promise<{
   notifiedPreferredDate: number;
   expired: number;
 }> {
-  const { notified: notifiedEarliest, expired } = await processEarliestWaitlistNotifications();
-  const notifiedPreferredDate = await processPreferredDateWaitlistNotifications();
-  return { notifiedEarliest, notifiedPreferredDate, expired };
+  const expired = await expirePastWaitlistEntries();
+  const notified = await processActiveWaitlistNotifications();
+  return { notifiedEarliest: 0, notifiedPreferredDate: notified, expired };
 }

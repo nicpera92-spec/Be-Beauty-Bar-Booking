@@ -1,5 +1,5 @@
 import { parse } from "date-fns";
-import { isWaitlistSlotStillBookable, slotsFreedByCancellation, waitlistEntryFulfilledByBooking } from "@/lib/waitlist";
+import { isWaitlistSlotStillBookable, slotsFreedByCancellation, waitlistEntryFulfilledByBooking, mergeWaitlistPreferences, waitlistEntryInterestedInDate } from "@/lib/waitlist";
 
 function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(message);
@@ -79,16 +79,51 @@ const lashesInOwnWindow = slotsFreedByCancellation(
 assert(lashesInOwnWindow.length === 1 && lashesInOwnWindow[0].startTime === "14:00", "lash slot fills window");
 
 assert(
-  waitlistEntryFulfilledByBooking({ preferredDate: "2026-07-02", notifyEarliest: false }, "2026-07-02"),
+  waitlistEntryFulfilledByBooking(
+    { preferredDate: "2026-07-02", preferredDateEnd: null, notifyEarliest: false },
+    "2026-07-02"
+  ),
   "exact preferred date fulfills entry"
 );
 assert(
-  !waitlistEntryFulfilledByBooking({ preferredDate: "2026-07-04", notifyEarliest: false }, "2026-07-02"),
+  !waitlistEntryFulfilledByBooking(
+    { preferredDate: "2026-07-04", preferredDateEnd: null, notifyEarliest: false },
+    "2026-07-02"
+  ),
   "earlier booking does not fulfill without earliest opt-in"
 );
 assert(
-  waitlistEntryFulfilledByBooking({ preferredDate: "2026-07-04", notifyEarliest: true }, "2026-07-02"),
+  waitlistEntryFulfilledByBooking(
+    { preferredDate: "2026-07-04", preferredDateEnd: null, notifyEarliest: true },
+    "2026-07-02"
+  ),
   "earlier booking fulfills when earliest opt-in"
 );
 
-console.log("waitlist: 15 checks passed");
+const merged = mergeWaitlistPreferences(
+  { preferredDate: "2026-07-02", preferredDateEnd: null, notifyEarliest: false },
+  { preferredDate: "2026-07-03", preferredDateEnd: "2026-07-05", notifyEarliest: false }
+);
+assert(
+  merged.preferredDate === "2026-07-02" &&
+    merged.preferredDateEnd === "2026-07-05" &&
+    !merged.notifyEarliest,
+  "overlapping sign-ups merge to one date range"
+);
+
+assert(
+  waitlistEntryInterestedInDate(
+    { preferredDate: "2026-07-02", preferredDateEnd: "2026-07-05", notifyEarliest: false },
+    "2026-07-04"
+  ),
+  "date inside explicit range matches"
+);
+assert(
+  !waitlistEntryInterestedInDate(
+    { preferredDate: "2026-07-02", preferredDateEnd: "2026-07-05", notifyEarliest: false },
+    "2026-07-06"
+  ),
+  "date after range does not match"
+);
+
+console.log("waitlist: 18 checks passed");
