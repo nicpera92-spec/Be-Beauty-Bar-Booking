@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { processEarliestWaitlistNotifications } from "@/lib/waitlist";
+import { processWaitlistNotifications } from "@/lib/waitlist";
 
 async function run(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
@@ -15,7 +15,7 @@ async function run(req: NextRequest) {
   }
 
   try {
-    const result = await processEarliestWaitlistNotifications();
+    const result = await processWaitlistNotifications();
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
     console.error("waitlist cron:", e);

@@ -71,6 +71,8 @@ export default function AdminPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("confirmed");
   const [waitlistEntries, setWaitlistEntries] = useState<WaitlistEntry[]>([]);
   const [waitlistLoading, setWaitlistLoading] = useState(false);
+  const [waitlistNotifyBusy, setWaitlistNotifyBusy] = useState(false);
+  const [waitlistNotifyResult, setWaitlistNotifyResult] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -133,6 +135,23 @@ export default function AdminPage() {
       .then((data) => setWaitlistEntries(Array.isArray(data) ? data : []))
       .catch(() => setWaitlistEntries([]))
       .finally(() => setWaitlistLoading(false));
+  };
+
+  const notifyWaitlistNow = () => {
+    if (!token || staffRole !== "master") return;
+    setWaitlistNotifyBusy(true);
+    setWaitlistNotifyResult(null);
+    fetch("/api/admin/waitlist/notify", {
+      method: "POST",
+      headers: getAuthHeaders(),
+    })
+      .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
+      .then(({ ok, data }) => {
+        setWaitlistNotifyResult(ok ? data.message : data.error ?? "Could not send notifications");
+        if (ok) refreshWaitlist();
+      })
+      .catch(() => setWaitlistNotifyResult("Request failed"))
+      .finally(() => setWaitlistNotifyBusy(false));
   };
 
   const login = (e: React.FormEvent) => {
@@ -488,6 +507,26 @@ export default function AdminPage() {
             <p className="text-charcoal/60 text-sm">No one on the waiting list right now.</p>
           ) : (
             <div className="space-y-3">
+              {staffRole === "master" && activeWaitlist.length > 0 && (
+                <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-sm text-charcoal/70">
+                    Check for open slots and email or text anyone who should be notified.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={notifyWaitlistNow}
+                    disabled={waitlistNotifyBusy}
+                    className="px-4 py-2 rounded-lg bg-navy text-white text-sm font-medium hover:bg-navy-light disabled:opacity-50 shrink-0"
+                  >
+                    {waitlistNotifyBusy ? "Sending…" : "Notify waiting list now"}
+                  </button>
+                </div>
+              )}
+              {waitlistNotifyResult && (
+                <p className="text-sm text-charcoal/80 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+                  {waitlistNotifyResult}
+                </p>
+              )}
               {waitlistFiltered.length === 0 ? (
                 <p className="text-charcoal/60 text-sm">No active waiting list entries match this filter.</p>
               ) : (

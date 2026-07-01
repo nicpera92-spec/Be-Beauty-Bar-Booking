@@ -177,6 +177,23 @@ export async function findEarliestOpenSlot(
   return null;
 }
 
+/** Bookable slots on a specific date for this service (still in the future). */
+export async function findOpenSlotsOnDate(
+  serviceId: string,
+  technicianId: string,
+  date: string
+): Promise<OpenSlot[]> {
+  const ctx = await loadDayContext(serviceId, technicianId, date);
+  if (!ctx) return [];
+  return ctx.slots
+    .filter((slot) => isWaitlistSlotStillBookable(date, slot.start))
+    .map((slot) => ({
+      date,
+      startTime: slot.start,
+      endTime: slot.end,
+    }));
+}
+
 async function alreadyNotifiedForSlot(
   entryId: string,
   date: string,
@@ -317,4 +334,63 @@ export async function processEarliestWaitlistNotifications(): Promise<{
   }
 
   return { notified, expired };
+}
+
+/** Notify customers waiting for a specific date when slots are open (runs on cron). */
+export async function processPreferredDateWaitlistNotifications(): Promise<number> {
+  if (!(await isWaitlistEnabled())) return 0;
+
+  const today = todayStr();
+  const entries = await prisma.waitingListEntry.findMany({
+    where: {
+      status: "active",
+      preferredDate: { gte: today },
+    },
+  });
+
+  let notified = 0;
+  for (const entry of entries) {
+    const slots = await findOpenSlotsOnDate(
+      entry.serviceId,
+      entry.technicianId,
+      entry.preferredDate
+    );
+
+    for (const slot of slots) {
+      if (await alreadyNotifiedForSlot(entry.id, slot.date, slot.startTime)) continue;
+
+      const result = await notifyWaitlistEntryForSlot(entry.id, slot);
+      if (result.ok) {
+        const updated = await prisma.waitingListEntry.findUnique({
+          where: { id: entry.id },
+          select: { notifiedSlotDate: true, notifiedSlotTime: true },
+        });
+        if (
+          updated?.notifiedSlotDate === slot.date &&
+          updated?.notifiedSlotTime === slot.startTime
+        ) {
+          notified++;
+          break;
+        }
+        continue;
+      }
+
+      if (result.error && result.error !== "Entry not active") {
+        console.warn("waitlist preferred-date notify failed:", entry.id, result.error);
+      }
+      break;
+    }
+  }
+
+  return notified;
+}
+
+export async function processWaitlistNotifications(): Promise<{
+  notifiedEarliest: number;
+  notifiedPreferredDate: number;
+  expired: number;
+}> {
+  const { notified: notifiedEarliest, expired } = await processEarliestWaitlistNotifications();
+  const notifiedPreferredDate = await processPreferredDateWaitlistNotifications();
+  return { notifiedEarliest, notifiedPreferredDate, expired };
 }
