@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
       customerPhone,
       preferredDate,
       preferredDateEnd,
+      notifyEarliest,
       notifyByEmail,
       notifyBySMS,
     } = body;
@@ -90,6 +91,20 @@ export async function POST(req: NextRequest) {
       endDate = endStr === preferredDate ? null : endStr;
     }
 
+    const wantsEarlier = Boolean(notifyEarliest);
+    if (wantsEarlier && endDate) {
+      return NextResponse.json(
+        { error: "Choose either a date range or earlier dates, not both" },
+        { status: 400 }
+      );
+    }
+    if (wantsEarlier && !isBefore(minBookableDate, startDay)) {
+      return NextResponse.json(
+        { error: "Choose a later date to include earlier days" },
+        { status: 400 }
+      );
+    }
+
     const service = await prisma.service.findUnique({
       where: { id: serviceId },
       include: { technician: { select: { active: true } } },
@@ -116,8 +131,8 @@ export async function POST(req: NextRequest) {
 
     const newPreference = {
       preferredDate,
-      preferredDateEnd: endDate,
-      notifyEarliest: false,
+      preferredDateEnd: wantsEarlier ? null : endDate,
+      notifyEarliest: wantsEarlier,
     };
 
     let merged = newPreference;

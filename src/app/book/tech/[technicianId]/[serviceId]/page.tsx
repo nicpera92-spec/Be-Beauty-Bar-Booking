@@ -273,6 +273,7 @@ export default function BookDatePage() {
                   technicianId={technicianId}
                   preferredDate={selectedDate}
                   dateLabel={selectedDateLabel}
+                  minBookableDate={format(minBookableDate, "yyyy-MM-dd")}
                   maxBookableDate={format(calendarEnd, "yyyy-MM-dd")}
                 />
               ) : (

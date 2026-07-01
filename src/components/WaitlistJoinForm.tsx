@@ -3,11 +3,14 @@
 import { useEffect, useState } from "react";
 import { formatBookingDate } from "@/lib/format";
 
+type DateMode = "single" | "range" | "earlier";
+
 type WaitlistJoinFormProps = {
   serviceId: string;
   technicianId: string;
   preferredDate: string;
   dateLabel: string;
+  minBookableDate: string;
   maxBookableDate: string;
 };
 
@@ -16,6 +19,7 @@ export default function WaitlistJoinForm({
   technicianId,
   preferredDate,
   dateLabel,
+  minBookableDate,
   maxBookableDate,
 }: WaitlistJoinFormProps) {
   const [open, setOpen] = useState(false);
@@ -24,28 +28,48 @@ export default function WaitlistJoinForm({
   const [phone, setPhone] = useState("");
   const [notifyByEmail, setNotifyByEmail] = useState(true);
   const [notifyBySMS, setNotifyBySMS] = useState(false);
-  const [useDateRange, setUseDateRange] = useState(false);
-  const [preferredDateEnd, setPreferredDateEnd] = useState(preferredDate);
+  const [dateMode, setDateMode] = useState<DateMode>("single");
+  const [rangeStartDate, setRangeStartDate] = useState(preferredDate);
+  const [rangeEndDate, setRangeEndDate] = useState(preferredDate);
+  const [earlierLatestDate, setEarlierLatestDate] = useState(preferredDate);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [successRangeLabel, setSuccessRangeLabel] = useState(dateLabel);
+  const [successDateLabel, setSuccessDateLabel] = useState(dateLabel);
+
+  const canOfferEarlier = preferredDate > minBookableDate;
 
   useEffect(() => {
-    setPreferredDateEnd(preferredDate);
-    setUseDateRange(false);
+    setRangeStartDate(preferredDate);
+    setRangeEndDate(preferredDate);
+    setEarlierLatestDate(preferredDate);
+    setDateMode("single");
     setSuccess(false);
   }, [preferredDate]);
 
-  const rangeLabel = () => {
-    if (!useDateRange || preferredDateEnd === preferredDate) {
-      return dateLabel;
+  const formatRangeLabel = (start: string, end: string) => {
+    if (start === end) {
+      try {
+        return formatBookingDate(start, "EEEE, d MMMM yyyy");
+      } catch {
+        return dateLabel;
+      }
     }
     try {
-      const endLabel = formatBookingDate(preferredDateEnd, "EEEE, d MMMM yyyy");
-      return `${dateLabel} to ${endLabel}`;
+      const startLabel = formatBookingDate(start, "d MMMM");
+      const endLabel = formatBookingDate(end, "d MMMM yyyy");
+      return `${startLabel} to ${endLabel}`;
     } catch {
       return dateLabel;
+    }
+  };
+
+  const formatEarlierLabel = (latest: string) => {
+    try {
+      const formatted = formatBookingDate(latest, "EEEE, d MMMM yyyy");
+      return `${formatted} or any earlier day`;
+    } catch {
+      return `${dateLabel} or any earlier day`;
     }
   };
 
@@ -69,9 +93,29 @@ export default function WaitlistJoinForm({
       setError("Phone is required for SMS notifications.");
       return;
     }
-    if (useDateRange && preferredDateEnd < preferredDate) {
-      setError("End date must be on or after the start date.");
-      return;
+
+    let startDate = preferredDate;
+    let endDate: string | undefined;
+    let notifyEarliest = false;
+
+    if (dateMode === "range") {
+      startDate = rangeStartDate;
+      endDate = rangeEndDate;
+      if (startDate < minBookableDate) {
+        setError("Start date must be in the future.");
+        return;
+      }
+      if (endDate < startDate) {
+        setError("The second date must be on or after the first.");
+        return;
+      }
+    } else if (dateMode === "earlier") {
+      startDate = earlierLatestDate;
+      notifyEarliest = true;
+      if (startDate <= minBookableDate) {
+        setError("Choose a later date to include earlier days.");
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -85,9 +129,9 @@ export default function WaitlistJoinForm({
           customerName: name.trim(),
           customerEmail: email.trim() || undefined,
           customerPhone: phone.trim() || undefined,
-          preferredDate,
-          preferredDateEnd:
-            useDateRange && preferredDateEnd !== preferredDate ? preferredDateEnd : undefined,
+          preferredDate: startDate,
+          preferredDateEnd: endDate && endDate !== startDate ? endDate : undefined,
+          notifyEarliest,
           notifyByEmail,
           notifyBySMS,
         }),
@@ -97,7 +141,13 @@ export default function WaitlistJoinForm({
         setError(data.error ?? "Could not join the waiting list.");
         return;
       }
-      setSuccessRangeLabel(rangeLabel());
+      if (dateMode === "earlier") {
+        setSuccessDateLabel(formatEarlierLabel(startDate));
+      } else if (dateMode === "range") {
+        setSuccessDateLabel(formatRangeLabel(startDate, endDate ?? startDate));
+      } else {
+        setSuccessDateLabel(dateLabel);
+      }
       setSuccess(true);
       setOpen(false);
     } catch {
@@ -112,7 +162,7 @@ export default function WaitlistJoinForm({
       <div className="rounded-xl border border-green-200 bg-green-50/80 p-4 text-sm text-green-900">
         <p className="font-medium">You&apos;re on the waiting list</p>
         <p className="mt-1 text-green-800/90">
-          We&apos;ll contact you if a slot opens between {successRangeLabel}.
+          We&apos;ll contact you if a slot opens on {successDateLabel}.
         </p>
       </div>
     );
@@ -134,7 +184,9 @@ export default function WaitlistJoinForm({
         </button>
       ) : (
         <form onSubmit={submit} className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
-          <p className="text-sm font-medium text-slate-800">Waiting list from {dateLabel}</p>
+          <p className="text-sm font-medium text-slate-800">
+            {dateMode === "single" ? `Waiting list for ${dateLabel}` : "Join the waiting list"}
+          </p>
 
           <div>
             <label className="block text-xs text-slate-600 mb-1">Your name</label>
@@ -190,41 +242,113 @@ export default function WaitlistJoinForm({
             </label>
           </fieldset>
 
-          <label className="flex items-start gap-2 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              checked={useDateRange}
-              onChange={(e) => {
-                setUseDateRange(e.target.checked);
-                if (!e.target.checked) setPreferredDateEnd(preferredDate);
-              }}
-              className="mt-0.5 rounded border-slate-300 text-navy focus:ring-navy/20"
-            />
-            <span>Notify me for a <strong>range of dates</strong></span>
-          </label>
-
-          {useDateRange && (
-            <div>
-              <label htmlFor="waitlist-end-date" className="block text-xs text-slate-600 mb-1">
-                Last date (from {formatBookingDate(preferredDate, "d MMM")})
-              </label>
+          <fieldset className="space-y-2">
+            <legend className="text-xs text-slate-600 mb-1">Which dates?</legend>
+            <label className="flex items-start gap-2 text-sm text-slate-700">
               <input
-                id="waitlist-end-date"
-                type="date"
-                required
-                min={preferredDate}
-                max={maxBookableDate}
-                value={preferredDateEnd}
-                onChange={(e) => setPreferredDateEnd(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:border-navy/40 focus:ring-2 focus:ring-navy/10 outline-none"
+                type="radio"
+                name="waitlist-date-mode"
+                checked={dateMode === "single"}
+                onChange={() => setDateMode("single")}
+                className="mt-0.5 border-slate-300 text-navy focus:ring-navy/20"
               />
-              <p className="text-xs text-slate-500 mt-1">
+              <span>This day only ({dateLabel})</span>
+            </label>
+            <label className="flex items-start gap-2 text-sm text-slate-700">
+              <input
+                type="radio"
+                name="waitlist-date-mode"
+                checked={dateMode === "range"}
+                onChange={() => {
+                  setDateMode("range");
+                  setRangeStartDate(preferredDate);
+                  setRangeEndDate(preferredDate);
+                }}
+                className="mt-0.5 border-slate-300 text-navy focus:ring-navy/20"
+              />
+              <span>A <strong>range of dates</strong> (from – to)</span>
+            </label>
+            {canOfferEarlier && (
+              <label className="flex items-start gap-2 text-sm text-slate-700">
+                <input
+                  type="radio"
+                  name="waitlist-date-mode"
+                  checked={dateMode === "earlier"}
+                  onChange={() => {
+                    setDateMode("earlier");
+                    setEarlierLatestDate(preferredDate);
+                  }}
+                  className="mt-0.5 border-slate-300 text-navy focus:ring-navy/20"
+                />
+                <span>This date or any <strong>earlier</strong> day</span>
+              </label>
+            )}
+          </fieldset>
+
+          {dateMode === "range" && (
+            <div className="space-y-3">
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="waitlist-start-date" className="block text-xs text-slate-600 mb-1">
+                    From
+                  </label>
+                  <input
+                    id="waitlist-start-date"
+                    type="date"
+                    required
+                    min={minBookableDate}
+                    max={maxBookableDate}
+                    value={rangeStartDate}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setRangeStartDate(next);
+                      if (rangeEndDate < next) setRangeEndDate(next);
+                    }}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:border-navy/40 focus:ring-2 focus:ring-navy/10 outline-none"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="waitlist-end-date" className="block text-xs text-slate-600 mb-1">
+                    To
+                  </label>
+                  <input
+                    id="waitlist-end-date"
+                    type="date"
+                    required
+                    min={rangeStartDate}
+                    max={maxBookableDate}
+                    value={rangeEndDate}
+                    onChange={(e) => setRangeEndDate(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:border-navy/40 focus:ring-2 focus:ring-navy/10 outline-none"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-slate-500">
                 We&apos;ll let you know if a slot opens on any day from{" "}
-                {formatBookingDate(preferredDate, "d MMMM")} to{" "}
-                {preferredDateEnd
-                  ? formatBookingDate(preferredDateEnd, "d MMMM yyyy")
-                  : "…"}
-                .
+                {formatRangeLabel(rangeStartDate, rangeEndDate)}.
+              </p>
+            </div>
+          )}
+
+          {dateMode === "earlier" && (
+            <div className="space-y-2">
+              <div>
+                <label htmlFor="waitlist-earlier-date" className="block text-xs text-slate-600 mb-1">
+                  Latest date
+                </label>
+                <input
+                  id="waitlist-earlier-date"
+                  type="date"
+                  required
+                  min={minBookableDate}
+                  max={maxBookableDate}
+                  value={earlierLatestDate}
+                  onChange={(e) => setEarlierLatestDate(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:border-navy/40 focus:ring-2 focus:ring-navy/10 outline-none"
+                />
+              </div>
+              <p className="text-xs text-slate-500">
+                We&apos;ll notify you if a slot opens on {formatEarlierLabel(earlierLatestDate)}.
               </p>
             </div>
           )}
