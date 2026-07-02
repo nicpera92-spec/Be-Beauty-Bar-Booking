@@ -727,7 +727,7 @@ function AdminWaitlistRow({
             disabled={notifyBusy}
             className="text-sm text-navy hover:underline disabled:opacity-50"
           >
-            {notifyBusy ? "Sending…" : "Notify"}
+            {notifyBusy ? "Sending…" : entry.lastNotifiedAt ? "Notify again" : "Notify"}
           </button>
         )}
         <button

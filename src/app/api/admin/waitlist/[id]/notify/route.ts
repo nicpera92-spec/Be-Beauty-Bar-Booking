@@ -17,7 +17,7 @@ export async function POST(
   }
 
   try {
-    const result = await notifyWaitlistEntryNow(params.id);
+    const result = await notifyWaitlistEntryNow(params.id, { force: true });
     if (!result.ok) {
       return NextResponse.json({ error: result.error ?? "Could not notify" }, { status: 400 });
     }

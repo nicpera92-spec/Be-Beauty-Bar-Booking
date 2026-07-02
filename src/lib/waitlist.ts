@@ -1,5 +1,6 @@
 import { addDays, eachDayOfInterval, format, isBefore, parse, startOfDay } from "date-fns";
 import { prisma } from "@/lib/prisma";
+import { formatBookingDate } from "@/lib/format";
 import { getSlotsForDay } from "@/lib/slotUtils";
 import { getMaxConcurrentForCategory } from "@/lib/bookingAvailability";
 
@@ -373,12 +374,13 @@ async function siblingEntriesForContact(
 
 export async function notifyWaitlistEntryForDate(
   entryId: string,
-  date: string
+  date: string,
+  options?: { force?: boolean }
 ): Promise<{ ok: boolean; sent?: boolean; error?: string }> {
   const today = todayStr();
   if (date < today) return { ok: true, sent: false };
 
-  if (await alreadyNotifiedForDate(entryId, date)) {
+  if (!options?.force && (await alreadyNotifiedForDate(entryId, date))) {
     return { ok: true, sent: false };
   }
 
@@ -402,7 +404,7 @@ export async function notifyWaitlistEntryForDate(
   );
   const interestedSiblings = siblings.filter((s) => waitlistEntryInterestedInDate(s, date));
   const alreadyNotifiedSibling = interestedSiblings.find((s) => s.notifiedSlotDate === date);
-  if (alreadyNotifiedSibling) {
+  if (alreadyNotifiedSibling && !options?.force) {
     await markWaitlistEntriesNotifiedForDate(
       interestedSiblings.filter((s) => s.notifiedSlotDate !== date).map((s) => s.id),
       date
@@ -512,7 +514,8 @@ export async function processEarliestWaitlistNotifications(): Promise<{
 async function notifyEntryForNextOpenDateInRange(
   entryId: string,
   entry: WaitlistDatePreference,
-  today: string
+  today: string,
+  options?: { force?: boolean }
 ): Promise<{ ok: boolean; sent?: boolean; error?: string }> {
   const end = waitlistRangeEnd(entry);
   if (end < today) return { ok: true, sent: false };
@@ -523,7 +526,7 @@ async function notifyEntryForNextOpenDateInRange(
   while (cursor <= endDay) {
     const dateStr = format(cursor, "yyyy-MM-dd");
     if (waitlistEntryInterestedInDate(entry, dateStr)) {
-      const result = await notifyWaitlistEntryForDate(entryId, dateStr);
+      const result = await notifyWaitlistEntryForDate(entryId, dateStr, options);
       if (result.sent) return result;
       if (result.error && result.error !== "Entry not active") return result;
     }
@@ -534,7 +537,10 @@ async function notifyEntryForNextOpenDateInRange(
 }
 
 /** Notify one waitlist entry about the next open day in their date preference. */
-export async function notifyWaitlistEntryNow(entryId: string): Promise<{
+export async function notifyWaitlistEntryNow(
+  entryId: string,
+  options?: { force?: boolean }
+): Promise<{
   ok: boolean;
   sent?: boolean;
   message?: string;
@@ -544,7 +550,10 @@ export async function notifyWaitlistEntryNow(entryId: string): Promise<{
     return { ok: false, error: "Waiting list is not enabled" };
   }
 
-  const entry = await prisma.waitingListEntry.findUnique({ where: { id: entryId } });
+  const entry = await prisma.waitingListEntry.findUnique({
+    where: { id: entryId },
+    include: { service: { select: { name: true } }, technician: { select: { name: true } } },
+  });
   if (!entry || entry.status !== "active") {
     return { ok: false, error: "Entry not found or not active" };
   }
@@ -554,19 +563,36 @@ export async function notifyWaitlistEntryNow(entryId: string): Promise<{
     return { ok: false, error: "This waitlist preference has expired" };
   }
 
-  const result = await notifyEntryForNextOpenDateInRange(entryId, entry, today);
+  const force = options?.force ?? false;
+  const result = await notifyEntryForNextOpenDateInRange(entryId, entry, today, { force });
   if (result.sent) {
-    return { ok: true, sent: true, message: "Notification sent." };
+    return {
+      ok: true,
+      sent: true,
+      message: force ? "Notification sent again." : "Notification sent.",
+    };
   }
   if (result.error && result.error !== "Entry not active") {
     return { ok: false, error: result.error };
   }
 
+  if (waitlistEntryInterestedInDate(entry, today)) {
+    const openToday = await findOpenSlotsOnDate(entry.serviceId, entry.technicianId, today);
+    if (openToday.length === 0) {
+      return { ok: true, sent: false, message: "No open slots today for this service." };
+    }
+  } else {
+    return {
+      ok: true,
+      sent: false,
+      message: `Not waiting for today — preferences are ${formatWaitlistDateRange(entry, (d) => formatBookingDate(d, "d MMMM yyyy"))}.`,
+    };
+  }
+
   return {
     ok: true,
     sent: false,
-    message:
-      "No open slots to notify about, or this person was already notified for available dates.",
+    message: "No open slots to notify about in this person's date preferences.",
   };
 }
 
