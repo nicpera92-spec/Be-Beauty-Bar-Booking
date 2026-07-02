@@ -1,6 +1,7 @@
 import { addDays, eachDayOfInterval, format, isBefore, parse, startOfDay } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { formatBookingDate } from "@/lib/format";
+import { businessDateStr } from "@/lib/business-time";
 import { getSlotsForDay } from "@/lib/slotUtils";
 import { getMaxConcurrentForCategory } from "@/lib/bookingAvailability";
 
@@ -11,7 +12,7 @@ export type OpenSlot = {
 };
 
 function todayStr(at: Date = new Date()) {
-  return format(startOfDay(at), "yyyy-MM-dd");
+  return businessDateStr(at);
 }
 
 /** True when customers can still book this slot (date in future, or same day before start time). */
@@ -564,24 +565,37 @@ export async function notifyWaitlistEntryNow(
   }
 
   const force = options?.force ?? false;
-  const result = await notifyEntryForNextOpenDateInRange(entryId, entry, today, { force });
-  if (result.sent) {
-    return {
-      ok: true,
-      sent: true,
-      message: force ? "Notification sent again." : "Notification sent.",
-    };
-  }
-  if (result.error && result.error !== "Entry not active") {
-    return { ok: false, error: result.error };
-  }
 
   if (waitlistEntryInterestedInDate(entry, today)) {
     const openToday = await findOpenSlotsOnDate(entry.serviceId, entry.technicianId, today);
-    if (openToday.length === 0) {
-      return { ok: true, sent: false, message: "No open slots today for this service." };
+    if (openToday.length > 0) {
+      const todayResult = await notifyWaitlistEntryForDate(entryId, today, { force });
+      if (todayResult.sent) {
+        return {
+          ok: true,
+          sent: true,
+          message: force
+            ? `Notification sent for today (${openToday.length} slot${openToday.length === 1 ? "" : "s"} open).`
+            : "Notification sent.",
+        };
+      }
+      if (todayResult.error) {
+        return { ok: false, error: todayResult.error };
+      }
     }
-  } else {
+  }
+
+  if (!force) {
+    const result = await notifyEntryForNextOpenDateInRange(entryId, entry, today);
+    if (result.sent) {
+      return { ok: true, sent: true, message: "Notification sent." };
+    }
+    if (result.error && result.error !== "Entry not active") {
+      return { ok: false, error: result.error };
+    }
+  }
+
+  if (!waitlistEntryInterestedInDate(entry, today)) {
     return {
       ok: true,
       sent: false,
@@ -589,10 +603,19 @@ export async function notifyWaitlistEntryNow(
     };
   }
 
+  const openToday = await findOpenSlotsOnDate(entry.serviceId, entry.technicianId, today);
+  if (openToday.length === 0) {
+    return {
+      ok: true,
+      sent: false,
+      message: `No open slots today (${formatBookingDate(today, "d MMMM")}) for ${entry.service.name}.`,
+    };
+  }
+
   return {
     ok: true,
     sent: false,
-    message: "No open slots to notify about in this person's date preferences.",
+    message: "Slots are open today but the notification could not be sent. Check email/SMS settings.",
   };
 }
 

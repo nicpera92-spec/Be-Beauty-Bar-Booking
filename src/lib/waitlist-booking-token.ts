@@ -1,6 +1,7 @@
 import * as jose from "jose";
-import { endOfDay, format, parse, startOfToday } from "date-fns";
+import { endOfDay, parse } from "date-fns";
 import { prisma } from "@/lib/prisma";
+import { businessDateStr } from "@/lib/business-time";
 
 const TOKEN_PURPOSE = "waitlist_same_day_booking";
 
@@ -63,7 +64,7 @@ export async function hasWaitlistSameDayBookingAccess(
 ): Promise<boolean> {
   if (!token?.trim()) return false;
 
-  const today = format(startOfToday(), "yyyy-MM-dd");
+  const today = businessDateStr();
   if (context.date !== today) return false;
 
   const claims = await verifyWaitlistBookingToken(token.trim());
