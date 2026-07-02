@@ -5,6 +5,7 @@ import { verifyAdminRequest } from "@/lib/auth";
 import { blockOverlapsBooking } from "@/lib/blockOverlap";
 import { sendBookingCreatedEmails, sendBookingConfirmationEmails } from "@/lib/email";
 import { isBookingSlotAvailable } from "@/lib/bookingAvailability";
+import { hasWaitlistSameDayBookingAccess } from "@/lib/waitlist-booking-token";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -52,6 +53,8 @@ export async function POST(req: NextRequest) {
       notes,
       notifyByEmail,
       notifyBySMS,
+      waitlistToken,
+      wl,
     } = body;
 
     if (
@@ -165,7 +168,11 @@ export async function POST(req: NextRequest) {
     if (isNaN(bookingDay.getTime())) {
       return NextResponse.json({ error: "Invalid date" }, { status: 400 });
     }
-    if (isBefore(bookingDay, minBookableDate)) {
+    const sameDayWaitlistAccess = await hasWaitlistSameDayBookingAccess(
+      typeof waitlistToken === "string" ? waitlistToken : typeof wl === "string" ? wl : null,
+      { date, serviceId, technicianId }
+    );
+    if (!sameDayWaitlistAccess && isBefore(bookingDay, minBookableDate)) {
       return NextResponse.json(
         { error: "Bookings must be at least one day in advance. Please choose tomorrow or later." },
         { status: 400 }

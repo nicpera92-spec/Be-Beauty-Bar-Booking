@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { addDays, format, parse, startOfDay, isBefore, isSameDay } from "date-fns";
 import { getSlotsForDay } from "@/lib/slotUtils";
 import { getMaxConcurrentForCategory } from "@/lib/bookingAvailability";
+import { hasWaitlistSameDayBookingAccess } from "@/lib/waitlist-booking-token";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -10,6 +11,7 @@ export async function GET(req: NextRequest) {
   const technicianId = searchParams.get("technicianId");
   const from = searchParams.get("from");
   const to = searchParams.get("to");
+  const waitlistToken = searchParams.get("wl");
 
   if (!serviceId || !technicianId || !from || !to) {
     return NextResponse.json(
@@ -72,6 +74,16 @@ export async function GET(req: NextRequest) {
     const now = new Date();
     // Match /api/slots: nothing is bookable today or earlier.
     const minBookableDate = addDays(startOfDay(now), 1);
+    const todayStr = format(startOfDay(now), "yyyy-MM-dd");
+    const sameDayWaitlistAccess =
+      waitlistToken &&
+      serviceId &&
+      technicianId &&
+      (await hasWaitlistSameDayBookingAccess(waitlistToken, {
+        date: todayStr,
+        serviceId,
+        technicianId,
+      }));
     const numDays = Math.round((toDate.getTime() - fromDate.getTime()) / (24 * 60 * 60 * 1000)) + 1;
     const availability: Record<string, boolean> = {};
 
@@ -80,7 +92,11 @@ export async function GET(req: NextRequest) {
       const dateStr = format(d, "yyyy-MM-dd");
       const day = parse(dateStr, "yyyy-MM-dd", new Date());
 
-      if (isBefore(day, minBookableDate) || isSameDay(day, startOfDay(now))) {
+      const allowSameDayWaitlist = sameDayWaitlistAccess && dateStr === todayStr;
+      if (
+        !allowSameDayWaitlist &&
+        (isBefore(day, minBookableDate) || isSameDay(day, startOfDay(now)))
+      ) {
         availability[dateStr] = false;
         continue;
       }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { formatBookingDate, formatCurrency } from "@/lib/format";
@@ -19,6 +19,8 @@ type Slot = { start: string; end: string };
 export default function BookFormPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const waitlistToken = searchParams.get("wl");
   const technicianId = params.technicianId as string;
   const serviceId = params.serviceId as string;
   const date = params.date as string;
@@ -39,16 +41,19 @@ export default function BookFormPage() {
   const [notifyByEmail, setNotifyByEmail] = useState(false);
   const [notifyBySMS, setNotifyBySMS] = useState(true);
 
-  const datePageHref = `/book/tech/${technicianId}/${serviceId}`;
+  const datePageHref = `/book/tech/${technicianId}/${serviceId}${
+    waitlistToken ? `?wl=${encodeURIComponent(waitlistToken)}&date=${encodeURIComponent(date)}` : ""
+  }`;
 
   const fetchData = useCallback(() => {
     setLoading(true);
+    const wlParam = waitlistToken ? `&wl=${encodeURIComponent(waitlistToken)}` : "";
     Promise.all([
       fetch(`/api/services?technicianId=${encodeURIComponent(technicianId)}&_=${Date.now()}`, {
         cache: "no-store",
       }).then((r) => r.json()),
       fetch(
-        `/api/slots?date=${date}&serviceId=${encodeURIComponent(serviceId)}&technicianId=${encodeURIComponent(technicianId)}`
+        `/api/slots?date=${date}&serviceId=${encodeURIComponent(serviceId)}&technicianId=${encodeURIComponent(technicianId)}${wlParam}`
       ).then((r) => r.json()),
       fetch("/api/settings").then((r) => r.json()),
     ])
@@ -61,7 +66,7 @@ export default function BookFormPage() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [date, serviceId, technicianId]);
+  }, [date, serviceId, technicianId, waitlistToken]);
 
   useEffect(() => {
     fetchData();
@@ -122,6 +127,7 @@ export default function BookFormPage() {
         notes: notes || undefined,
         notifyByEmail,
         notifyBySMS,
+        ...(waitlistToken ? { waitlistToken } : {}),
       }),
     })
       .then((r) => {

@@ -14,6 +14,7 @@ import {
   renderEmailSubject,
   resolveNotificationMessages,
 } from "@/lib/notificationTemplates";
+import { createWaitlistBookingToken } from "@/lib/waitlist-booking-token";
 
 const resendClient = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const from = process.env.EMAIL_FROM || "Be Beauty Bar <onboarding@resend.dev>";
@@ -419,7 +420,18 @@ export async function sendWaitlistNotification(
   const { entry, date, serviceName, technicianName } = params;
   const { messages, businessName, instagramLink } = await getMessages();
   const dateLabel = formatBookingDate(date, "EEEE, d MMMM yyyy");
-  const bookingUrl = buildBookLinkForDate(entry.technicianId, entry.serviceId, date);
+  const waitlistToken = await createWaitlistBookingToken({
+    entryId: entry.id,
+    date,
+    serviceId: entry.serviceId,
+    technicianId: entry.technicianId,
+  });
+  const bookingUrl = buildBookLinkForDate(
+    entry.technicianId,
+    entry.serviceId,
+    date,
+    waitlistToken
+  );
 
   const vars = {
     customerName: entry.customerName,

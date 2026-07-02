@@ -270,10 +270,15 @@ export function buildBookLink(
 export function buildBookLinkForDate(
   technicianId: string,
   serviceId: string,
-  date: string
+  date: string,
+  waitlistToken?: string
 ): string {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001";
-  return `${baseUrl}/book/tech/${technicianId}/${serviceId}?date=${encodeURIComponent(date)}`;
+  let url = `${baseUrl}/book/tech/${technicianId}/${serviceId}?date=${encodeURIComponent(date)}`;
+  if (waitlistToken) {
+    url += `&wl=${encodeURIComponent(waitlistToken)}`;
+  }
+  return url;
 }
 
 /** Instagram profile URL from the handle saved in business settings. */

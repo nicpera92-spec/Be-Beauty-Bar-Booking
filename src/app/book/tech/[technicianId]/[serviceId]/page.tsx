@@ -40,8 +40,16 @@ export default function BookDatePage() {
   const [slotsLoading, setSlotsLoading] = useState(false);
   const timeSectionRef = useRef<HTMLDivElement>(null);
 
-  const { minBookableDate, rangeEnd: calendarEnd, fromStr, toStr } = getCustomerBookableRange();
-  const dates = eachDayOfInterval({ start: minBookableDate, end: calendarEnd });
+  const { today, minBookableDate, rangeEnd: calendarEnd, fromStr, toStr } = getCustomerBookableRange();
+  const waitlistToken = searchParams.get("wl");
+  const [waitlistAccessDate, setWaitlistAccessDate] = useState<string | null>(null);
+  const calendarStart =
+    waitlistAccessDate && waitlistAccessDate < format(minBookableDate, "yyyy-MM-dd")
+      ? today
+      : minBookableDate;
+  const dates = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+  const availabilityFrom =
+    waitlistAccessDate && waitlistAccessDate < fromStr ? waitlistAccessDate : fromStr;
 
   const monthsWithDates = (() => {
     const map = new Map<string, Date[]>();
@@ -54,12 +62,27 @@ export default function BookDatePage() {
   })();
 
   useEffect(() => {
+    if (!waitlistToken) {
+      setWaitlistAccessDate(null);
+      return;
+    }
+    const paramDate = searchParams.get("date");
+    if (!paramDate) return;
+    fetch(
+      `/api/waitlist/booking-access?wl=${encodeURIComponent(waitlistToken)}&date=${encodeURIComponent(paramDate)}&serviceId=${encodeURIComponent(serviceId)}&technicianId=${encodeURIComponent(technicianId)}`
+    )
+      .then((r) => r.json())
+      .then((data) => setWaitlistAccessDate(data?.ok ? data.date : null))
+      .catch(() => setWaitlistAccessDate(null));
+  }, [waitlistToken, searchParams, serviceId, technicianId]);
+
+  useEffect(() => {
     Promise.all([
       fetch(`/api/services?technicianId=${encodeURIComponent(technicianId)}&_=${Date.now()}`, {
         cache: "no-store",
       }).then((r) => r.json()),
       fetch(
-        `/api/slots/availability?serviceId=${encodeURIComponent(serviceId)}&technicianId=${encodeURIComponent(technicianId)}&from=${fromStr}&to=${toStr}`
+        `/api/slots/availability?serviceId=${encodeURIComponent(serviceId)}&technicianId=${encodeURIComponent(technicianId)}&from=${availabilityFrom}&to=${toStr}${waitlistToken ? `&wl=${encodeURIComponent(waitlistToken)}` : ""}`
       ).then((r) => r.json()),
       fetch("/api/settings").then((r) => r.json()),
     ])
@@ -72,19 +95,21 @@ export default function BookDatePage() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [serviceId, technicianId, fromStr, toStr]);
+  }, [serviceId, technicianId, availabilityFrom, toStr, waitlistToken]);
 
   useEffect(() => {
     const param = searchParams.get("date");
     if (!param || !/^\d{4}-\d{2}-\d{2}$/.test(param)) return;
     try {
       const day = parse(param, "yyyy-MM-dd", new Date());
-      if (isBefore(day, minBookableDate) || isAfter(day, calendarEnd)) return;
-      setSelectedDate(param);
+      const allowed =
+        param === waitlistAccessDate ||
+        (!isBefore(day, minBookableDate) && !isAfter(day, calendarEnd));
+      if (allowed) setSelectedDate(param);
     } catch {
       /* ignore invalid date */
     }
-  }, [searchParams, minBookableDate, calendarEnd]);
+  }, [searchParams, minBookableDate, calendarEnd, waitlistAccessDate]);
 
   const fetchSlots = useCallback(() => {
     if (!selectedDate || !serviceId || !technicianId) {
@@ -92,14 +117,15 @@ export default function BookDatePage() {
       return;
     }
     setSlotsLoading(true);
+    const wlParam = waitlistToken ? `&wl=${encodeURIComponent(waitlistToken)}` : "";
     fetch(
-      `/api/slots?date=${selectedDate}&serviceId=${encodeURIComponent(serviceId)}&technicianId=${encodeURIComponent(technicianId)}`
+      `/api/slots?date=${selectedDate}&serviceId=${encodeURIComponent(serviceId)}&technicianId=${encodeURIComponent(technicianId)}${wlParam}`
     )
       .then((r) => r.json())
       .then((data) => setSlots(data.slots ?? []))
       .catch(() => setSlots([]))
       .finally(() => setSlotsLoading(false));
-  }, [selectedDate, serviceId, technicianId]);
+  }, [selectedDate, serviceId, technicianId, waitlistToken]);
 
   useEffect(() => {
     fetchSlots();
@@ -163,6 +189,13 @@ export default function BookDatePage() {
         {service.durationMin} min · {formatCurrency(service.depositAmount)} deposit
       </p>
 
+      {waitlistAccessDate && (
+        <p className="mb-6 rounded-lg border border-navy/20 bg-navy/5 px-4 py-3 text-sm text-slate-700">
+          You&apos;re booking from your waiting list notification. Same-day booking is available for{" "}
+          {selectedDateLabel ?? waitlistAccessDate}.
+        </p>
+      )}
+
       <div className="grid md:grid-cols-[1fr,1fr] gap-10 md:gap-12 items-start">
         <div>
           <h2 className="text-xs font-medium uppercase tracking-[0.2em] text-navy mb-4">
@@ -191,7 +224,7 @@ export default function BookDatePage() {
                 ))}
                 {monthDates.map((d) => {
                   const dateStr = format(d, "yyyy-MM-dd");
-                  const isPast = isBefore(d, minBookableDate);
+                  const isPast = isBefore(d, minBookableDate) && dateStr !== waitlistAccessDate;
                   const hasSlots = availability[dateStr] ?? true;
                   const isFullyBooked = !isPast && !hasSlots;
                   const isSelected = selectedDate === dateStr;
@@ -288,15 +321,20 @@ export default function BookDatePage() {
             <>
               <p className="text-slate-600 text-sm mb-4">{selectedDateLabel}</p>
               <div className="grid grid-cols-2 gap-2 sm:gap-3 min-w-0">
-                {slots.map((slot) => (
+                {slots.map((slot) => {
+                  const wlQuery = waitlistToken
+                    ? `?wl=${encodeURIComponent(waitlistToken)}`
+                    : "";
+                  return (
                   <Link
                     key={slot.start}
-                    href={`/book/tech/${technicianId}/${serviceId}/${selectedDate}/${encodeURIComponent(slot.start)}`}
+                    href={`/book/tech/${technicianId}/${serviceId}/${selectedDate}/${encodeURIComponent(slot.start)}${wlQuery}`}
                     className="flex items-center justify-center px-2 py-2 sm:py-2.5 rounded-lg border border-slate-200 bg-white text-slate-800 text-[11px] sm:text-xs font-medium hover:border-navy/40 hover:bg-navy/5 hover:text-navy transition touch-manipulation text-center min-h-[40px] sm:min-h-[44px] min-w-0"
                   >
                     {formatTime24to12(slot.start)} – {formatTime24to12(slot.end)}
                   </Link>
-                ))}
+                  );
+                })}
               </div>
             </>
           )}
