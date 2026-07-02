@@ -533,6 +533,43 @@ async function notifyEntryForNextOpenDateInRange(
   return { ok: true, sent: false };
 }
 
+/** Notify one waitlist entry about the next open day in their date preference. */
+export async function notifyWaitlistEntryNow(entryId: string): Promise<{
+  ok: boolean;
+  sent?: boolean;
+  message?: string;
+  error?: string;
+}> {
+  if (!(await isWaitlistEnabled())) {
+    return { ok: false, error: "Waiting list is not enabled" };
+  }
+
+  const entry = await prisma.waitingListEntry.findUnique({ where: { id: entryId } });
+  if (!entry || entry.status !== "active") {
+    return { ok: false, error: "Entry not found or not active" };
+  }
+
+  const today = todayStr();
+  if (waitlistRangeEnd(entry) < today) {
+    return { ok: false, error: "This waitlist preference has expired" };
+  }
+
+  const result = await notifyEntryForNextOpenDateInRange(entryId, entry, today);
+  if (result.sent) {
+    return { ok: true, sent: true, message: "Notification sent." };
+  }
+  if (result.error && result.error !== "Entry not active") {
+    return { ok: false, error: result.error };
+  }
+
+  return {
+    ok: true,
+    sent: false,
+    message:
+      "No open slots to notify about, or this person was already notified for available dates.",
+  };
+}
+
 /** Scan each entry's date range for the next open day to notify about. */
 export async function processActiveWaitlistNotifications(): Promise<number> {
   if (!(await isWaitlistEnabled())) return 0;

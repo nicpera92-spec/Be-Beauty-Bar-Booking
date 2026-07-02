@@ -544,6 +544,7 @@ export default function AdminPage() {
                     entry={entry}
                     getAuthHeaders={getAuthHeaders}
                     onUpdate={refreshWaitlist}
+                    canNotify={staffRole === "master"}
                   />
                 ))
               )}
@@ -649,11 +650,16 @@ function AdminWaitlistRow({
   entry,
   getAuthHeaders,
   onUpdate,
+  canNotify = false,
 }: {
   entry: WaitlistEntry;
   getAuthHeaders: () => Record<string, string>;
   onUpdate: () => void;
+  canNotify?: boolean;
 }) {
+  const [notifyBusy, setNotifyBusy] = useState(false);
+  const [notifyMessage, setNotifyMessage] = useState<string | null>(null);
+
   const remove = () => {
     if (!confirm("Remove this person from the waiting list?")) return;
     fetch(`/api/admin/waitlist/${entry.id}`, { method: "DELETE", headers: getAuthHeaders() })
@@ -661,6 +667,24 @@ function AdminWaitlistRow({
         if (r.ok) onUpdate();
       })
       .catch(() => {});
+  };
+
+  const notify = () => {
+    setNotifyBusy(true);
+    setNotifyMessage(null);
+    fetch(`/api/admin/waitlist/${entry.id}/notify`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+    })
+      .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
+      .then(({ ok, data }) => {
+        setNotifyMessage(
+          ok ? (data.message ?? "Done.") : (data.error ?? "Could not send notification.")
+        );
+        if (ok && data.sent) onUpdate();
+      })
+      .catch(() => setNotifyMessage("Request failed"))
+      .finally(() => setNotifyBusy(false));
   };
 
   return (
@@ -689,14 +713,31 @@ function AdminWaitlistRow({
             <> · Notified {new Date(entry.lastNotifiedAt).toLocaleDateString("en-GB")}</>
           )}
         </p>
+        {notifyMessage && (
+          <p className="text-xs text-charcoal/70 mt-2 bg-slate-50 border border-slate-100 rounded px-2 py-1.5">
+            {notifyMessage}
+          </p>
+        )}
       </div>
-      <button
-        type="button"
-        onClick={remove}
-        className="text-sm text-red-600 hover:underline shrink-0"
-      >
-        Remove
-      </button>
+      <div className="flex flex-wrap items-center gap-3 shrink-0">
+        {canNotify && (
+          <button
+            type="button"
+            onClick={notify}
+            disabled={notifyBusy}
+            className="text-sm text-navy hover:underline disabled:opacity-50"
+          >
+            {notifyBusy ? "Sending…" : "Notify"}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={remove}
+          className="text-sm text-red-600 hover:underline"
+        >
+          Remove
+        </button>
+      </div>
     </div>
   );
 }
