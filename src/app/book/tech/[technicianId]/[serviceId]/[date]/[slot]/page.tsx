@@ -296,9 +296,9 @@ export default function BookFormPage() {
               appointment.
             </li>
             <li>
-              If you arrive more than 20 minutes late we may need to shorten your service or
-              reschedule your appointment. In some cases, a late arrival may be treated as a
-              no-show.
+              If you arrive more than 20 minutes late, we may need to shorten your service or
+              reschedule your appointment. In some cases, this may be treated as a no-show and your
+              deposit may be retained.
             </li>
           </ul>
           <p className="text-xs text-slate-600 mb-3">Thank you for your understanding.</p>
