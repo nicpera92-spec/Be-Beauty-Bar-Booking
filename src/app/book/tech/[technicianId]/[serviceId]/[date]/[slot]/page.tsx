@@ -295,7 +295,13 @@ export default function BookFormPage() {
               Deposits are non-refundable for cancellations made less than 24 hours before your
               appointment.
             </li>
+            <li>
+              If you arrive more than 20 minutes late we may need to shorten your service or
+              reschedule your appointment. In some cases, a late arrival may be treated as a
+              no-show.
+            </li>
           </ul>
+          <p className="text-xs text-slate-600 mb-3">Thank you for your understanding.</p>
           <label className="flex items-start gap-3 cursor-pointer mt-3">
             <input
               type="checkbox"
