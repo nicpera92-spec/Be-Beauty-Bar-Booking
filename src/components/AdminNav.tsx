@@ -99,10 +99,10 @@ export default function AdminNav({ staffRole, staffName, onLogout }: AdminNavPro
         </div>
         <div className="flex items-center gap-1.5 sm:gap-2">
           <Link
-            href="/"
+            href="/book"
             className="inline-flex items-center min-h-[38px] px-3 py-1.5 rounded-lg text-sm text-charcoal/70 hover:text-charcoal hover:bg-slate-50 transition"
           >
-            ← Back to site
+            ← Booking page
           </Link>
           {staffRole === "master" ? (
             <Link
