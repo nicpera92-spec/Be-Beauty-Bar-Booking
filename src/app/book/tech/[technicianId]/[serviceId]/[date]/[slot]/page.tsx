@@ -301,7 +301,6 @@ export default function BookFormPage() {
               deposit may be retained.
             </li>
           </ul>
-          <p className="text-xs text-slate-600 mb-3">Thank you for your understanding.</p>
           <label className="flex items-start gap-3 cursor-pointer mt-3">
             <input
               type="checkbox"
