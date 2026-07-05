@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { addDays, parse, startOfDay, isBefore, isSameDay } from "date-fns";
+import { parse } from "date-fns";
 import { getSlotsForDay } from "@/lib/slotUtils";
 import { getMaxConcurrentForCategory } from "@/lib/bookingAvailability";
 import { hasWaitlistSameDayBookingAccess } from "@/lib/waitlist-booking-token";
+import { isBeforeMinBookableDate } from "@/lib/business-time";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -38,17 +39,13 @@ export async function GET(req: NextRequest) {
     }
 
     const day = parse(date, "yyyy-MM-dd", new Date());
-    const minBookableDate = addDays(startOfDay(new Date()), 1);
     const waitlistToken = searchParams.get("wl");
     const sameDayWaitlistAccess = await hasWaitlistSameDayBookingAccess(waitlistToken, {
       date,
       serviceId,
       technicianId,
     });
-    if (
-      !sameDayWaitlistAccess &&
-      (isBefore(day, minBookableDate) || isSameDay(day, startOfDay(new Date())))
-    ) {
+    if (!sameDayWaitlistAccess && isBeforeMinBookableDate(date)) {
       return NextResponse.json({ slots: [] });
     }
 

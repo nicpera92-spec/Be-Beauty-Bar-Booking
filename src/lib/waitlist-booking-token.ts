@@ -1,7 +1,7 @@
 import * as jose from "jose";
-import { endOfDay, parse } from "date-fns";
 import { prisma } from "@/lib/prisma";
-import { businessDateStr } from "@/lib/business-time";
+import { businessDateStr, businessEndOfDayUtc } from "@/lib/business-time";
+import { waitlistEntryInterestedInDate } from "@/lib/waitlist";
 
 const TOKEN_PURPOSE = "waitlist_same_day_booking";
 
@@ -17,10 +17,18 @@ export type WaitlistBookingTokenClaims = {
   technicianId: string;
 };
 
+export type WaitlistEntryForAccess = {
+  status: string;
+  serviceId: string;
+  technicianId: string;
+  preferredDate: string;
+  preferredDateEnd: string | null;
+  notifyEarliest: boolean;
+};
+
 export async function createWaitlistBookingToken(
   claims: WaitlistBookingTokenClaims
 ): Promise<string> {
-  const expiresAt = endOfDay(parse(claims.date, "yyyy-MM-dd", new Date()));
   return new jose.SignJWT({
     purpose: TOKEN_PURPOSE,
     entryId: claims.entryId,
@@ -29,7 +37,7 @@ export async function createWaitlistBookingToken(
     technicianId: claims.technicianId,
   })
     .setProtectedHeader({ alg: "HS256" })
-    .setExpirationTime(expiresAt)
+    .setExpirationTime(businessEndOfDayUtc(claims.date))
     .sign(jwtSecret());
 }
 
@@ -57,36 +65,56 @@ export async function verifyWaitlistBookingToken(
   }
 }
 
+/** Pure validation — used by tests and hasWaitlistSameDayBookingAccess. */
+export function validateWaitlistBookingAccess(
+  claims: WaitlistBookingTokenClaims,
+  context: { date: string; serviceId: string; technicianId: string },
+  today: string,
+  entry: WaitlistEntryForAccess | null
+): boolean {
+  if (claims.date !== context.date) return false;
+  if (claims.date !== today) return false;
+  if (claims.serviceId !== context.serviceId) return false;
+  if (claims.technicianId !== context.technicianId) return false;
+  if (!entry || entry.status !== "active") return false;
+  if (entry.serviceId !== context.serviceId || entry.technicianId !== context.technicianId) {
+    return false;
+  }
+  return waitlistEntryInterestedInDate(entry, context.date);
+}
+
 /** True when a waitlist notification link grants same-day booking for this context. */
 export async function hasWaitlistSameDayBookingAccess(
   token: string | null | undefined,
-  context: { date: string; serviceId: string; technicianId: string }
+  context: { date: string; serviceId: string; technicianId: string },
+  at: Date = new Date()
 ): Promise<boolean> {
   if (!token?.trim()) return false;
 
-  const today = businessDateStr();
-  if (context.date !== today) return false;
-
   const claims = await verifyWaitlistBookingToken(token.trim());
   if (!claims) return false;
-  if (claims.date !== context.date) return false;
-  if (claims.serviceId !== context.serviceId) return false;
-  if (claims.technicianId !== context.technicianId) return false;
 
+  const today = businessDateStr(at);
   const entry = await prisma.waitingListEntry.findUnique({
     where: { id: claims.entryId },
     select: {
       status: true,
-      notifiedSlotDate: true,
       serviceId: true,
       technicianId: true,
+      preferredDate: true,
+      preferredDateEnd: true,
+      notifyEarliest: true,
     },
   });
-  if (!entry || entry.status !== "active") return false;
-  if (entry.notifiedSlotDate !== context.date) return false;
-  if (entry.serviceId !== context.serviceId || entry.technicianId !== context.technicianId) {
-    return false;
-  }
 
-  return true;
+  return validateWaitlistBookingAccess(claims, context, today, entry);
+}
+
+/** Decode token date without DB lookup (for calendar prefetch). */
+export async function getWaitlistTokenBookingDate(
+  token: string | null | undefined
+): Promise<string | null> {
+  if (!token?.trim()) return null;
+  const claims = await verifyWaitlistBookingToken(token.trim());
+  return claims?.date ?? null;
 }

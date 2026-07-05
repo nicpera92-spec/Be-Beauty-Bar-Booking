@@ -2,7 +2,7 @@
 
 import { useParams, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { eachDayOfInterval, format, isBefore, isAfter, parse, getDay } from "date-fns";
+import { eachDayOfInterval, format, parse, getDay } from "date-fns";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/format";
 import { getCustomerBookableRange } from "@/lib/booking-calendar-range";
@@ -41,12 +41,13 @@ export default function BookDatePage() {
   const timeSectionRef = useRef<HTMLDivElement>(null);
 
   const { today, minBookableDate, rangeEnd: calendarEnd, fromStr, toStr } = getCustomerBookableRange();
+  const minBookableDateStr = format(minBookableDate, "yyyy-MM-dd");
   const waitlistToken = searchParams.get("wl");
+  const linkDateParam = searchParams.get("date");
+  const [waitlistAccessResolved, setWaitlistAccessResolved] = useState(!waitlistToken);
   const [waitlistAccessDate, setWaitlistAccessDate] = useState<string | null>(null);
   const calendarStart =
-    waitlistAccessDate && waitlistAccessDate < format(minBookableDate, "yyyy-MM-dd")
-      ? today
-      : minBookableDate;
+    waitlistAccessDate && waitlistAccessDate < minBookableDateStr ? today : minBookableDate;
   const dates = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
   const availabilityFrom =
     waitlistAccessDate && waitlistAccessDate < fromStr ? waitlistAccessDate : fromStr;
@@ -64,19 +65,27 @@ export default function BookDatePage() {
   useEffect(() => {
     if (!waitlistToken) {
       setWaitlistAccessDate(null);
+      setWaitlistAccessResolved(true);
       return;
     }
-    const paramDate = searchParams.get("date");
-    if (!paramDate) return;
+    if (!linkDateParam || !/^\d{4}-\d{2}-\d{2}$/.test(linkDateParam)) {
+      setWaitlistAccessDate(null);
+      setWaitlistAccessResolved(true);
+      return;
+    }
+    setWaitlistAccessResolved(false);
     fetch(
-      `/api/waitlist/booking-access?wl=${encodeURIComponent(waitlistToken)}&date=${encodeURIComponent(paramDate)}&serviceId=${encodeURIComponent(serviceId)}&technicianId=${encodeURIComponent(technicianId)}`
+      `/api/waitlist/booking-access?wl=${encodeURIComponent(waitlistToken)}&date=${encodeURIComponent(linkDateParam)}&serviceId=${encodeURIComponent(serviceId)}&technicianId=${encodeURIComponent(technicianId)}`
     )
       .then((r) => r.json())
       .then((data) => setWaitlistAccessDate(data?.ok ? data.date : null))
-      .catch(() => setWaitlistAccessDate(null));
-  }, [waitlistToken, searchParams, serviceId, technicianId]);
+      .catch(() => setWaitlistAccessDate(null))
+      .finally(() => setWaitlistAccessResolved(true));
+  }, [waitlistToken, linkDateParam, serviceId, technicianId]);
 
   useEffect(() => {
+    if (!waitlistAccessResolved) return;
+    setLoading(true);
     Promise.all([
       fetch(`/api/services?technicianId=${encodeURIComponent(technicianId)}&_=${Date.now()}`, {
         cache: "no-store",
@@ -95,21 +104,17 @@ export default function BookDatePage() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [serviceId, technicianId, availabilityFrom, toStr, waitlistToken]);
+  }, [serviceId, technicianId, availabilityFrom, toStr, waitlistToken, waitlistAccessResolved]);
 
   useEffect(() => {
-    const param = searchParams.get("date");
+    if (!waitlistAccessResolved) return;
+    const param = linkDateParam;
     if (!param || !/^\d{4}-\d{2}-\d{2}$/.test(param)) return;
-    try {
-      const day = parse(param, "yyyy-MM-dd", new Date());
-      const allowed =
-        param === waitlistAccessDate ||
-        (!isBefore(day, minBookableDate) && !isAfter(day, calendarEnd));
-      if (allowed) setSelectedDate(param);
-    } catch {
-      /* ignore invalid date */
-    }
-  }, [searchParams, minBookableDate, calendarEnd, waitlistAccessDate]);
+    const allowed =
+      param === waitlistAccessDate ||
+      (param >= minBookableDateStr && param <= format(calendarEnd, "yyyy-MM-dd"));
+    if (allowed) setSelectedDate(param);
+  }, [linkDateParam, minBookableDateStr, calendarEnd, waitlistAccessDate, waitlistAccessResolved]);
 
   const fetchSlots = useCallback(() => {
     if (!selectedDate || !serviceId || !technicianId) {
@@ -154,7 +159,7 @@ export default function BookDatePage() {
       })()
     : null;
 
-  if (loading) {
+  if (loading || (waitlistToken && !waitlistAccessResolved)) {
     return (
       <div className="max-w-2xl mx-auto px-6 py-24 text-center">
         <p className="text-slate-500">Loading…</p>
@@ -188,6 +193,13 @@ export default function BookDatePage() {
       <p className="text-slate-600 text-sm mb-10">
         {service.durationMin} min · {formatCurrency(service.depositAmount)} deposit
       </p>
+
+      {waitlistToken && waitlistAccessResolved && !waitlistAccessDate && (
+        <p className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          This waiting list link is no longer valid for same-day booking. Please choose another date,
+          or contact us if you still need an appointment today.
+        </p>
+      )}
 
       {waitlistAccessDate && (
         <p className="mb-6 rounded-lg border border-navy/20 bg-navy/5 px-4 py-3 text-sm text-slate-700">
@@ -224,7 +236,7 @@ export default function BookDatePage() {
                 ))}
                 {monthDates.map((d) => {
                   const dateStr = format(d, "yyyy-MM-dd");
-                  const isPast = isBefore(d, minBookableDate) && dateStr !== waitlistAccessDate;
+                  const isPast = dateStr < minBookableDateStr && dateStr !== waitlistAccessDate;
                   const hasSlots = availability[dateStr] ?? true;
                   const isFullyBooked = !isPast && !hasSlots;
                   const isSelected = selectedDate === dateStr;
@@ -306,7 +318,7 @@ export default function BookDatePage() {
                   technicianId={technicianId}
                   preferredDate={selectedDate}
                   dateLabel={selectedDateLabel}
-                  minBookableDate={format(minBookableDate, "yyyy-MM-dd")}
+                  minBookableDate={minBookableDateStr}
                   maxBookableDate={format(calendarEnd, "yyyy-MM-dd")}
                 />
               ) : (

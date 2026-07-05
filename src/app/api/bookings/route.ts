@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { addDays, isBefore, parse, startOfDay } from "date-fns";
+import { parse } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { verifyAdminRequest } from "@/lib/auth";
 import { blockOverlapsBooking } from "@/lib/blockOverlap";
 import { sendBookingCreatedEmails, sendBookingConfirmationEmails } from "@/lib/email";
 import { isBookingSlotAvailable } from "@/lib/bookingAvailability";
 import { hasWaitlistSameDayBookingAccess } from "@/lib/waitlist-booking-token";
+import { isBeforeMinBookableDate } from "@/lib/business-time";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -163,7 +164,6 @@ export async function POST(req: NextRequest) {
     if (typeof date !== "string" || !dateRegex.test(date)) {
       return NextResponse.json({ error: "Invalid date format" }, { status: 400 });
     }
-    const minBookableDate = addDays(startOfDay(new Date()), 1);
     const bookingDay = parse(date, "yyyy-MM-dd", new Date());
     if (isNaN(bookingDay.getTime())) {
       return NextResponse.json({ error: "Invalid date" }, { status: 400 });
@@ -172,7 +172,7 @@ export async function POST(req: NextRequest) {
       typeof waitlistToken === "string" ? waitlistToken : typeof wl === "string" ? wl : null,
       { date, serviceId, technicianId }
     );
-    if (!sameDayWaitlistAccess && isBefore(bookingDay, minBookableDate)) {
+    if (!sameDayWaitlistAccess && isBeforeMinBookableDate(date)) {
       return NextResponse.json(
         { error: "Bookings must be at least one day in advance. Please choose tomorrow or later." },
         { status: 400 }
