@@ -6,6 +6,7 @@ import { format, startOfWeek, endOfWeek, eachDayOfInterval, parse, endOfMonth, s
 import { formatCurrency } from "@/lib/format";
 import { CopyPhoneButton } from "@/components/CopyPhoneButton";
 import CalendarTimeOffAdd from "@/components/CalendarTimeOffAdd";
+import CalendarWorkingHoursEdit from "@/components/CalendarWorkingHoursEdit";
 import { getCustomerBookableRange } from "@/lib/booking-calendar-range";
 
 const ADMIN_TOKEN_KEY = "admin-token";
@@ -413,6 +414,13 @@ export default function AdminCalendarPage() {
               closeTime={salonClose}
               defaultDate={selectedDate}
               onSuccess={refreshCalendar}
+              getAuthHeaders={getAuthHeaders}
+            />
+          )}
+          {myTechnicianId && (
+            <CalendarWorkingHoursEdit
+              technicianId={myTechnicianId}
+              isMaster={isMaster}
               getAuthHeaders={getAuthHeaders}
             />
           )}
