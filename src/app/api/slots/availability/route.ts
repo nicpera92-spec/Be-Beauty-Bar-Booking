@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { addDays, format, parse } from "date-fns";
 import { getSlotsForDay } from "@/lib/slotUtils";
-import { getMaxConcurrentForCategory } from "@/lib/bookingAvailability";
+import { getMaxConcurrentForCategory, getCategoryExclusionPairs } from "@/lib/bookingAvailability";
 import { hasWaitlistSameDayBookingAccess } from "@/lib/waitlist-booking-token";
 import { businessDateStr, isBeforeMinBookableDate } from "@/lib/business-time";
 import { resolveHoursForDate } from "@/lib/workingHours";
@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ availability });
     }
 
-    const [settings, bookings, blocks, maxConcurrent] = await Promise.all([
+    const [settings, bookings, blocks, maxConcurrent, exclusionPairs] = await Promise.all([
       prisma.businessSettings.findUnique({ where: { id: "default" } }),
       prisma.booking.findMany({
         where: { date: { gte: from, lte: to }, status: { not: "cancelled" } },
@@ -68,6 +68,7 @@ export async function GET(req: NextRequest) {
         },
       }),
       getMaxConcurrentForCategory(service.category),
+      getCategoryExclusionPairs(),
     ]);
 
     const s = settings ?? { openTime: "09:00", closeTime: "17:00", slotInterval: 30 };
@@ -137,6 +138,7 @@ export async function GET(req: NextRequest) {
           categoryBookings,
           serviceCategory: service.category,
           maxConcurrentInCategory: maxConcurrent,
+          exclusionPairs,
         }
       );
 

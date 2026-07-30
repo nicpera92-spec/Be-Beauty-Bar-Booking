@@ -160,6 +160,14 @@ type CategoryRule = {
   maxConcurrent: number;
 };
 
+type CategoryExclusion = {
+  id?: string | null;
+  categoryA: string;
+  categoryB: string;
+  labelA: string;
+  labelB: string;
+};
+
 function AdminSettingsPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -180,6 +188,9 @@ function AdminSettingsPageInner() {
   const [sessionCheck, setSessionCheck] = useState<{ ok: boolean; message: string } | null>(null);
   const [saveMessage, setSaveMessage] = useState<{ ok: boolean; message: string } | null>(null);
   const [categoryRules, setCategoryRules] = useState<CategoryRule[]>([]);
+  const [categoryExclusions, setCategoryExclusions] = useState<CategoryExclusion[]>([]);
+  const [exclusionPickA, setExclusionPickA] = useState("");
+  const [exclusionPickB, setExclusionPickB] = useState("");
   const [notificationMessages, setNotificationMessages] = useState<NotificationMessages>(() =>
     resolveNotificationMessages(null)
   );
@@ -283,6 +294,11 @@ function AdminSettingsPageInner() {
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => setCategoryRules(Array.isArray(data) ? data : []))
       .catch(() => {});
+
+    fetch("/api/admin/category-exclusions", { headers: getAuthHeaders() })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setCategoryExclusions(Array.isArray(data) ? data : []))
+      .catch(() => {});
   }, [hasToken, router, applySettingsData]);
 
   const save = async () => {
@@ -343,6 +359,17 @@ function AdminSettingsPageInner() {
           }),
         });
       }
+
+      await fetch("/api/admin/category-exclusions", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({
+          exclusions: categoryExclusions.map((ex) => ({
+            categoryA: ex.categoryA,
+            categoryB: ex.categoryB,
+          })),
+        }),
+      });
 
       applySettingsData(data);
       setSaveMessage({ ok: true, message: "Settings saved." });
@@ -880,6 +907,119 @@ function AdminSettingsPageInner() {
                   ))}
                 </div>
               )}
+
+              <div className="pt-2 space-y-2">
+                <div className="flex items-center gap-1.5">
+                  <p className="text-sm font-medium text-charcoal">Can&apos;t overlap</p>
+                  <SettingsInfoTip text="These two categories cannot be booked at the same time (any technician). Example: no pedicure while lashes are in progress, and the other way around." />
+                </div>
+                {categoryExclusions.length === 0 ? (
+                  <p className="text-xs text-charcoal/50">No overlap blocks yet.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {categoryExclusions.map((ex) => (
+                      <div
+                        key={`${ex.categoryA}::${ex.categoryB}`}
+                        className="flex items-center justify-between gap-2 rounded-lg border border-slate-100 bg-slate-50/30 px-3 py-2"
+                      >
+                        <p className="text-sm text-charcoal min-w-0">
+                          <span className="font-medium">{ex.labelA}</span>
+                          <span className="text-charcoal/45 mx-1.5">↔</span>
+                          <span className="font-medium">{ex.labelB}</span>
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCategoryExclusions((prev) =>
+                              prev.filter(
+                                (x) =>
+                                  !(x.categoryA === ex.categoryA && x.categoryB === ex.categoryB)
+                              )
+                            )
+                          }
+                          className="text-xs text-red-600 hover:text-red-700 shrink-0 px-1.5 py-1"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {categoryRules.length >= 2 && (
+                  <div className="flex flex-wrap items-end gap-2">
+                    <div className="min-w-[7.5rem] flex-1">
+                      <label className="block text-[11px] font-medium text-slate-500 mb-0.5">
+                        Category
+                      </label>
+                      <select
+                        value={exclusionPickA}
+                        onChange={(e) => setExclusionPickA(e.target.value)}
+                        className={compactInputClass}
+                      >
+                        <option value="">Select…</option>
+                        {categoryRules.map((r) => (
+                          <option key={r.category} value={r.category}>
+                            {r.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="min-w-[7.5rem] flex-1">
+                      <label className="block text-[11px] font-medium text-slate-500 mb-0.5">
+                        Can&apos;t overlap with
+                      </label>
+                      <select
+                        value={exclusionPickB}
+                        onChange={(e) => setExclusionPickB(e.target.value)}
+                        className={compactInputClass}
+                      >
+                        <option value="">Select…</option>
+                        {categoryRules
+                          .filter((r) => r.category !== exclusionPickA)
+                          .map((r) => (
+                            <option key={r.category} value={r.category}>
+                              {r.label}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!exclusionPickA || !exclusionPickB || exclusionPickA === exclusionPickB) {
+                          return;
+                        }
+                        const [a, b] =
+                          exclusionPickA <= exclusionPickB
+                            ? [exclusionPickA, exclusionPickB]
+                            : [exclusionPickB, exclusionPickA];
+                        const exists = categoryExclusions.some(
+                          (x) => x.categoryA === a && x.categoryB === b
+                        );
+                        if (exists) {
+                          setExclusionPickA("");
+                          setExclusionPickB("");
+                          return;
+                        }
+                        const labelA =
+                          categoryRules.find((r) => r.category === a)?.label ?? a;
+                        const labelB =
+                          categoryRules.find((r) => r.category === b)?.label ?? b;
+                        setCategoryExclusions((prev) => [
+                          ...prev,
+                          { categoryA: a, categoryB: b, labelA, labelB },
+                        ]);
+                        setExclusionPickA("");
+                        setExclusionPickB("");
+                      }}
+                      disabled={!exclusionPickA || !exclusionPickB || exclusionPickA === exclusionPickB}
+                      className="h-[38px] px-3 rounded-lg border border-slate-200 bg-white text-sm font-medium text-charcoal hover:bg-slate-50 disabled:opacity-40 transition"
+                    >
+                      Add
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </>
         )}

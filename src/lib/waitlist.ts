@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { formatBookingDate } from "@/lib/format";
 import { businessDateStr } from "@/lib/business-time";
 import { getSlotsForDay } from "@/lib/slotUtils";
-import { getMaxConcurrentForCategory } from "@/lib/bookingAvailability";
+import { getMaxConcurrentForCategory, getCategoryExclusionPairs } from "@/lib/bookingAvailability";
 import { resolveHoursForDate } from "@/lib/workingHours";
 
 export type OpenSlot = {
@@ -197,7 +197,7 @@ async function loadDayContext(
   });
   if (!service || !service.technician?.active) return null;
 
-  const [settings, dayBookings, blocks, maxConcurrent] = await Promise.all([
+  const [settings, dayBookings, blocks, maxConcurrent, exclusionPairs] = await Promise.all([
     prisma.businessSettings.findUnique({ where: { id: "default" } }),
     prisma.booking.findMany({
       where: { date: dateStr, status: { not: "cancelled" } },
@@ -216,6 +216,7 @@ async function loadDayContext(
       },
     }),
     getMaxConcurrentForCategory(service.category),
+    getCategoryExclusionPairs(),
   ]);
 
   const s = settings ?? { openTime: "09:00", closeTime: "17:00", slotInterval: 30 };
@@ -254,6 +255,7 @@ async function loadDayContext(
       categoryBookings,
       serviceCategory: service.category,
       maxConcurrentInCategory: maxConcurrent,
+      exclusionPairs,
     }
   );
 

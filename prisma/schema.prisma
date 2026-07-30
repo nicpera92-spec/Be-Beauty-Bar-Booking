@@ -66,6 +66,17 @@ model CategoryCapacityRule {
   updatedAt     DateTime @updatedAt
 }
 
+// Two categories that must not overlap in time (salon-wide). Stored with categoryA <= categoryB.
+model CategoryExclusionRule {
+  id        String   @id @default(cuid())
+  categoryA String
+  categoryB String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([categoryA, categoryB])
+}
+
 model BusinessSettings {
   id                   String   @id // single row, use "default"
   businessName         String   @default("Be Beauty Bar")

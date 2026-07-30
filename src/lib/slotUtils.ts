@@ -7,7 +7,12 @@ import {
   isSameDay,
 } from "date-fns";
 import { blockOverlapsSlot } from "@/lib/blockOverlap";
-import { countCategoryOverlaps, TimedBooking } from "@/lib/categoryCapacity";
+import {
+  countCategoryOverlaps,
+  hasExcludedCategoryOverlap,
+  type CategoryExclusionPair,
+  type TimedBooking,
+} from "@/lib/categoryCapacity";
 
 type BookingSlot = { startTime: string; endTime: string };
 type Block = { startDate: string; startTime: string; endDate: string; endTime: string };
@@ -19,6 +24,8 @@ export type SlotRuleOptions = {
   categoryBookings: TimedBooking[];
   serviceCategory: string;
   maxConcurrentInCategory: number;
+  /** Category pairs that must not overlap (e.g. lash vs pedicure). */
+  exclusionPairs?: CategoryExclusionPair[];
 };
 
 /**
@@ -69,7 +76,15 @@ export function getSlotsForDay(
         startStr,
         endStr
       );
-      blockedByCategory = overlaps >= rules.maxConcurrentInCategory;
+      const excluded = hasExcludedCategoryOverlap(
+        rules.categoryBookings,
+        rules.serviceCategory,
+        day,
+        startStr,
+        endStr,
+        rules.exclusionPairs ?? []
+      );
+      blockedByCategory = overlaps >= rules.maxConcurrentInCategory || excluded;
     } else if (!useCategoryRules) {
       const overlapsBooking = existingBookings.some((b) => {
         const aStart = parse(b.startTime, "HH:mm", day);

@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import {
   countCategoryOverlaps,
   DEFAULT_CATEGORY_RULES,
+  hasExcludedCategoryOverlap,
+  type CategoryExclusionPair,
   timeRangesOverlap,
 } from "@/lib/categoryCapacity";
 
@@ -13,6 +15,13 @@ export async function getMaxConcurrentForCategory(category: string): Promise<num
   return fallback?.maxConcurrent ?? 1;
 }
 
+export async function getCategoryExclusionPairs(): Promise<CategoryExclusionPair[]> {
+  const rows = await prisma.categoryExclusionRule.findMany({
+    select: { categoryA: true, categoryB: true },
+  });
+  return rows;
+}
+
 export async function isBookingSlotAvailable(params: {
   date: string;
   startTime: string;
@@ -21,15 +30,18 @@ export async function isBookingSlotAvailable(params: {
   serviceCategory: string;
 }): Promise<{ ok: true } | { ok: false; reason: string }> {
   const day = parse(params.date, "yyyy-MM-dd", new Date());
-  const bookings = await prisma.booking.findMany({
-    where: { date: params.date, status: { not: "cancelled" } },
-    select: {
-      technicianId: true,
-      startTime: true,
-      endTime: true,
-      service: { select: { category: true } },
-    },
-  });
+  const [bookings, exclusionPairs] = await Promise.all([
+    prisma.booking.findMany({
+      where: { date: params.date, status: { not: "cancelled" } },
+      select: {
+        technicianId: true,
+        startTime: true,
+        endTime: true,
+        service: { select: { category: true } },
+      },
+    }),
+    getCategoryExclusionPairs(),
+  ]);
 
   const technicianOverlap = bookings.some(
     (b) =>
@@ -40,13 +52,15 @@ export async function isBookingSlotAvailable(params: {
     return { ok: false, reason: "This technician is already booked at that time." };
   }
 
+  const categoryBookings = bookings.map((b) => ({
+    startTime: b.startTime,
+    endTime: b.endTime,
+    service: { category: b.service.category },
+  }));
+
   const maxConcurrent = await getMaxConcurrentForCategory(params.serviceCategory);
   const categoryOverlaps = countCategoryOverlaps(
-    bookings.map((b) => ({
-      startTime: b.startTime,
-      endTime: b.endTime,
-      service: { category: b.service.category },
-    })),
+    categoryBookings,
     params.serviceCategory,
     day,
     params.startTime,
@@ -56,6 +70,23 @@ export async function isBookingSlotAvailable(params: {
     return {
       ok: false,
       reason: `Only ${maxConcurrent} ${params.serviceCategory.replace(/-/g, " ")} appointment(s) can run at this time. Please choose another slot.`,
+    };
+  }
+
+  if (
+    hasExcludedCategoryOverlap(
+      categoryBookings,
+      params.serviceCategory,
+      day,
+      params.startTime,
+      params.endTime,
+      exclusionPairs
+    )
+  ) {
+    return {
+      ok: false,
+      reason:
+        "This time overlaps another service that cannot run at the same time. Please choose another slot.",
     };
   }
 
