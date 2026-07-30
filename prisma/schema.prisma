@@ -49,6 +49,8 @@ model Technician {
   position     Int       @default(0)
   active       Boolean   @default(true)
   categoryOrder String?  // JSON array of category slugs controlling booking-page order
+  // Weekly schedule JSON: 7 DaySchedule (index = JS getDay, Sun=0). null = salon open/close every day.
+  workingHours Json?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   services     Service[]

@@ -1,7 +1,51 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireMaster, hashPassword } from "@/lib/auth";
 import { normalizeInstagramHandle } from "@/lib/instagram";
+import { parseWorkingHours, validateWorkingHoursPayload } from "@/lib/workingHours";
+
+async function salonDefaults() {
+  const settings = await prisma.businessSettings.findUnique({ where: { id: "default" } });
+  return {
+    openTime: settings?.openTime ?? "09:00",
+    closeTime: settings?.closeTime ?? "17:00",
+  };
+}
+
+function serializeTech(
+  tech: {
+    id: string;
+    name: string;
+    bio: string | null;
+    skillLevel: string | null;
+    instagramHandle: string | null;
+    role: string;
+    loginEmail: string | null;
+    position: number;
+    active: boolean;
+    workingHours: unknown;
+    createdAt: Date;
+    updatedAt: Date;
+  },
+  salonOpen: string,
+  salonClose: string
+) {
+  return {
+    id: tech.id,
+    name: tech.name,
+    bio: tech.bio,
+    skillLevel: tech.skillLevel,
+    instagramHandle: tech.instagramHandle,
+    role: tech.role,
+    loginEmail: tech.loginEmail,
+    position: tech.position,
+    active: tech.active,
+    workingHours: parseWorkingHours(tech.workingHours, salonOpen, salonClose),
+    createdAt: tech.createdAt,
+    updatedAt: tech.updatedAt,
+  };
+}
 
 export async function PATCH(
   req: NextRequest,
@@ -17,7 +61,8 @@ export async function PATCH(
 
   const { id } = params;
   const body = await req.json().catch(() => ({}));
-  const { name, bio, skillLevel, active, loginEmail, password, instagramHandle } = body;
+  const { name, bio, skillLevel, active, loginEmail, password, instagramHandle, workingHours } =
+    body;
 
   const current = await prisma.technician.findUnique({ where: { id } });
   if (!current) {
@@ -33,6 +78,7 @@ export async function PATCH(
     loginEmail?: string | null;
     passwordHash?: string;
     instagramHandle?: string | null;
+    workingHours?: Prisma.InputJsonValue;
   } = {};
 
   if (name !== undefined) {
@@ -51,6 +97,13 @@ export async function PATCH(
         : normalizeInstagramHandle(String(instagramHandle));
   }
   if (active !== undefined) data.active = Boolean(active);
+  if (workingHours !== undefined) {
+    const validated = validateWorkingHoursPayload(workingHours);
+    if (!validated.ok) {
+      return NextResponse.json({ error: validated.error }, { status: 400 });
+    }
+    data.workingHours = validated.hours;
+  }
   // The master (owner) signs in with the business-owner login managed in
   // Business settings, not with a technician login. Ignore credential edits
   // on her profile so there is only ever one set of master credentials.
@@ -71,20 +124,10 @@ export async function PATCH(
     data.passwordHash = await hashPassword(String(password));
   }
 
+  const salon = await salonDefaults();
+
   if (Object.keys(data).length === 0) {
-    return NextResponse.json({
-      id: current.id,
-      name: current.name,
-      bio: current.bio,
-      skillLevel: current.skillLevel,
-      instagramHandle: current.instagramHandle,
-      role: current.role,
-      loginEmail: current.loginEmail,
-      position: current.position,
-      active: current.active,
-      createdAt: current.createdAt,
-      updatedAt: current.updatedAt,
-    });
+    return NextResponse.json(serializeTech(current, salon.openTime, salon.closeTime));
   }
 
   const technician = await prisma.technician.update({
@@ -100,11 +143,12 @@ export async function PATCH(
       loginEmail: true,
       position: true,
       active: true,
+      workingHours: true,
       createdAt: true,
       updatedAt: true,
     },
   });
-  return NextResponse.json(technician);
+  return NextResponse.json(serializeTech(technician, salon.openTime, salon.closeTime));
 }
 
 export async function DELETE(

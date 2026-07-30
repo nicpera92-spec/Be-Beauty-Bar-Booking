@@ -3,6 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import WorkingHoursEditor from "@/components/WorkingHoursEditor";
+import {
+  defaultWeeklyHours,
+  type WeeklyWorkingHours,
+} from "@/lib/workingHours";
 
 const ADMIN_TOKEN_KEY = "admin-token";
 
@@ -23,6 +28,7 @@ type Technician = {
   role: string;
   loginEmail: string | null;
   active: boolean;
+  workingHours?: WeeklyWorkingHours;
 };
 
 export default function AdminTechniciansPage() {
@@ -143,9 +149,9 @@ export default function AdminTechniciansPage() {
       </h1>
       <p className="text-slate-500 text-sm mb-8">
         Only <strong>Sveta&apos;s master login</strong> (business owner account) can add or remove
-        technicians here. Technicians get their own login to manage their services and bookings.
-        All customer deposits and card payments go to the <strong>same business Stripe account</strong>{" "}
-        (set in Business settings).
+        technicians here. Technicians get their own login to manage their services, hours, and
+        bookings. All customer deposits and card payments go to the{" "}
+        <strong>same business Stripe account</strong> (set in Business settings).
       </p>
 
       <form
@@ -284,16 +290,26 @@ function AdminTechnicianRow({
   onUpdate: () => void;
 }) {
   const [editing, setEditing] = useState(false);
+  const [hoursOpen, setHoursOpen] = useState(false);
   const [name, setName] = useState(technician.name);
   const [skillLevel, setSkillLevel] = useState(technician.skillLevel ?? "");
   const [bio, setBio] = useState(technician.bio ?? "");
   const [instagramHandle, setInstagramHandle] = useState(technician.instagramHandle ?? "");
   const [loginEmail, setLoginEmail] = useState(technician.loginEmail ?? "");
   const [password, setPassword] = useState("");
+  const [hours, setHours] = useState<WeeklyWorkingHours>(
+    () => technician.workingHours ?? defaultWeeklyHours()
+  );
   const [busy, setBusy] = useState(false);
+  const [hoursBusy, setHoursBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hoursMsg, setHoursMsg] = useState<string | null>(null);
 
   const isMaster = technician.role === "master";
+
+  useEffect(() => {
+    setHours(technician.workingHours ?? defaultWeeklyHours());
+  }, [technician.workingHours]);
 
   const patch = (data: Record<string, unknown>, after?: () => void) => {
     setBusy(true);
@@ -311,6 +327,26 @@ function AdminTechnicianRow({
       })
       .catch((err) => setError(err?.message ?? "Update failed"))
       .finally(() => setBusy(false));
+  };
+
+  const saveHours = () => {
+    setHoursBusy(true);
+    setHoursMsg(null);
+    setError(null);
+    fetch(`/api/admin/technicians/${technician.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify({ workingHours: hours }),
+    })
+      .then((r) => r.json())
+      .then((res) => {
+        if (res?.error) throw new Error(res.error);
+        if (res.workingHours) setHours(res.workingHours);
+        setHoursMsg("Hours saved");
+        onUpdate();
+      })
+      .catch((err) => setError(err?.message ?? "Could not save hours"))
+      .finally(() => setHoursBusy(false));
   };
 
   const save = () => {
@@ -332,7 +368,11 @@ function AdminTechnicianRow({
   };
 
   const remove = () => {
-    if (!confirm(`Remove ${technician.name}? Existing bookings will be kept but no longer linked to this technician.`)) {
+    if (
+      !confirm(
+        `Remove ${technician.name}? Existing bookings will be kept but no longer linked to this technician.`
+      )
+    ) {
       return;
     }
     setBusy(true);
@@ -469,6 +509,17 @@ function AdminTechnicianRow({
         <div className="flex flex-wrap gap-2 items-center shrink-0">
           <button
             type="button"
+            onClick={() => {
+              setHoursOpen((o) => !o);
+              setHoursMsg(null);
+            }}
+            disabled={busy}
+            className="px-3 py-1.5 rounded-lg border border-slate-200 text-charcoal text-sm hover:bg-slate-50 disabled:opacity-50"
+          >
+            {hoursOpen ? "Hide hours" : "Hours"}
+          </button>
+          <button
+            type="button"
             onClick={() => patch({ active: !technician.active })}
             disabled={busy}
             className="px-3 py-1.5 rounded-lg border border-slate-200 text-charcoal text-sm hover:bg-slate-50 disabled:opacity-50"
@@ -495,6 +546,28 @@ function AdminTechnicianRow({
           )}
         </div>
       </div>
+
+      {hoursOpen && (
+        <div className="mt-4 pt-4 border-t border-slate-100">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <h3 className="text-sm font-medium text-charcoal">Working hours</h3>
+            <button
+              type="button"
+              onClick={saveHours}
+              disabled={hoursBusy}
+              className="bg-navy text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-navy-light disabled:opacity-50"
+            >
+              {hoursBusy ? "Saving…" : "Save hours"}
+            </button>
+          </div>
+          <p className="text-[11px] text-slate-500 mb-2">
+            Toggle Off for days they do not work. Open/Close set their bookable times that day.
+          </p>
+          <WorkingHoursEditor value={hours} onChange={setHours} disabled={hoursBusy} />
+          {hoursMsg && <p className="text-xs text-emerald-700 mt-2">{hoursMsg}</p>}
+        </div>
+      )}
+
       {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
     </div>
   );

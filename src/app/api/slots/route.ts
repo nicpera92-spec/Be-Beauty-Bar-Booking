@@ -5,6 +5,7 @@ import { getSlotsForDay } from "@/lib/slotUtils";
 import { getMaxConcurrentForCategory } from "@/lib/bookingAvailability";
 import { hasWaitlistSameDayBookingAccess } from "@/lib/waitlist-booking-token";
 import { isBeforeMinBookableDate } from "@/lib/business-time";
+import { resolveHoursForDate } from "@/lib/workingHours";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest) {
   try {
     const service = await prisma.service.findUnique({
       where: { id: serviceId },
-      include: { technician: { select: { id: true, active: true } } },
+      include: { technician: { select: { id: true, active: true, workingHours: true } } },
     });
 
     if (!service) {
@@ -71,6 +72,16 @@ export async function GET(req: NextRequest) {
     ]);
 
     const s = settings ?? { openTime: "09:00", closeTime: "17:00", slotInterval: 30 };
+    const dayHours = resolveHoursForDate(
+      date,
+      service.technician.workingHours,
+      s.openTime,
+      s.closeTime
+    );
+    if (dayHours.isOff) {
+      return NextResponse.json({ slots: [] });
+    }
+
     const now = new Date();
 
     const technicianBookings = dayBookings
@@ -86,8 +97,8 @@ export async function GET(req: NextRequest) {
     const slots = getSlotsForDay(
       date,
       day,
-      s.openTime,
-      s.closeTime,
+      dayHours.openTime,
+      dayHours.closeTime,
       s.slotInterval,
       service.durationMin,
       [],

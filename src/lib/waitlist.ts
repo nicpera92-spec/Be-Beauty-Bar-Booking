@@ -4,6 +4,7 @@ import { formatBookingDate } from "@/lib/format";
 import { businessDateStr } from "@/lib/business-time";
 import { getSlotsForDay } from "@/lib/slotUtils";
 import { getMaxConcurrentForCategory } from "@/lib/bookingAvailability";
+import { resolveHoursForDate } from "@/lib/workingHours";
 
 export type OpenSlot = {
   date: string;
@@ -192,7 +193,7 @@ async function loadDayContext(
 ) {
   const service = await prisma.service.findUnique({
     where: { id: serviceId },
-    include: { technician: { select: { active: true, name: true } } },
+    include: { technician: { select: { active: true, name: true, workingHours: true } } },
   });
   if (!service || !service.technician?.active) return null;
 
@@ -218,6 +219,16 @@ async function loadDayContext(
   ]);
 
   const s = settings ?? { openTime: "09:00", closeTime: "17:00", slotInterval: 30 };
+  const dayHours = resolveHoursForDate(
+    dateStr,
+    service.technician.workingHours,
+    s.openTime,
+    s.closeTime
+  );
+  if (dayHours.isOff) {
+    return { service, slots: [] };
+  }
+
   const day = parse(dateStr, "yyyy-MM-dd", new Date());
   const technicianBookings = dayBookings
     .filter((b) => b.technicianId === technicianId)
@@ -231,8 +242,8 @@ async function loadDayContext(
   const slots = getSlotsForDay(
     dateStr,
     day,
-    s.openTime,
-    s.closeTime,
+    dayHours.openTime,
+    dayHours.closeTime,
     s.slotInterval,
     service.durationMin,
     [],

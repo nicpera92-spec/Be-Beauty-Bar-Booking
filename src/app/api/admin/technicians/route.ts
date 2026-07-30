@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireMaster, hashPassword } from "@/lib/auth";
 import { normalizeInstagramHandle } from "@/lib/instagram";
+import { parseWorkingHours } from "@/lib/workingHours";
 
 export const dynamic = "force-dynamic";
 
@@ -13,24 +14,34 @@ export async function GET(req: NextRequest) {
       { status: 403 }
     );
   }
-  const technicians = await prisma.technician.findMany({
-    orderBy: [{ position: "asc" }, { name: "asc" }],
-    select: {
-      id: true,
-      name: true,
-      bio: true,
-      skillLevel: true,
-      instagramHandle: true,
-      role: true,
-      loginEmail: true,
-      position: true,
-      active: true,
-      categoryOrder: true,
-      createdAt: true,
-      updatedAt: true,
-    },
-  });
-  const res = NextResponse.json(technicians);
+  const [technicians, settings] = await Promise.all([
+    prisma.technician.findMany({
+      orderBy: [{ position: "asc" }, { name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        bio: true,
+        skillLevel: true,
+        instagramHandle: true,
+        role: true,
+        loginEmail: true,
+        position: true,
+        active: true,
+        categoryOrder: true,
+        workingHours: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    }),
+    prisma.businessSettings.findUnique({ where: { id: "default" } }),
+  ]);
+  const salonOpen = settings?.openTime ?? "09:00";
+  const salonClose = settings?.closeTime ?? "17:00";
+  const withHours = technicians.map((t) => ({
+    ...t,
+    workingHours: parseWorkingHours(t.workingHours, salonOpen, salonClose),
+  }));
+  const res = NextResponse.json(withHours);
   res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
   return res;
 }
