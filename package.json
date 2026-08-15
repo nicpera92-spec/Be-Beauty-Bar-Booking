@@ -14,6 +14,8 @@
     "test:working-hours": "tsx src/lib/workingHours.test.ts && tsx src/lib/workingHours.slots.test.ts && tsx src/lib/workingHours.edge.test.ts",
     "test:exclusions": "tsx src/lib/categoryCapacity.exclusion.test.ts",
     "test:db-url": "tsx src/lib/databaseUrl.test.ts",
+    "test:settings": "tsx src/lib/publicSettings.test.ts",
+    "test:outage-alert": "tsx src/lib/outageAlert.test.ts",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",

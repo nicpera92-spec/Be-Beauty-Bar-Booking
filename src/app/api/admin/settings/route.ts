@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { verifyAdminRequest, requireMaster } from "@/lib/auth";
+import { toAdminClientSettings } from "@/lib/publicSettings";
 
 export async function GET(req: NextRequest) {
   const staff = await verifyAdminRequest(req);
@@ -14,7 +15,7 @@ export async function GET(req: NextRequest) {
   if (!settings) {
     return NextResponse.json({ error: "Settings not found" }, { status: 404 });
   }
-  return NextResponse.json(settings);
+  return NextResponse.json(toAdminClientSettings(settings as unknown as Record<string, unknown>));
 }
 
 export async function PATCH(req: NextRequest) {
@@ -136,7 +137,7 @@ export async function PATCH(req: NextRequest) {
       update: data,
     });
     revalidatePath("/", "layout");
-    return NextResponse.json(settings);
+    return NextResponse.json(toAdminClientSettings(settings as unknown as Record<string, unknown>));
   } catch (e) {
     console.error("Failed to save business settings:", e);
     return NextResponse.json({ error: "Failed to save settings" }, { status: 500 });

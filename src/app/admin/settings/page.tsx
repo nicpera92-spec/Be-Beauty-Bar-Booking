@@ -145,6 +145,8 @@ type Settings = {
   slotInterval: number;
   stripeSecretKey?: string | null;
   stripeWebhookSecret?: string | null;
+  stripeSecretKeySet?: boolean;
+  stripeWebhookSecretSet?: boolean;
   smsNotificationFee?: number | null;
   primaryColor?: string | null;
   secondaryColor?: string | null;
@@ -1046,7 +1048,7 @@ function AdminSettingsPageInner() {
                   Connect Stripe during setup, or add keys below for manual integration.
                 </p>
               </div>
-              {settings?.stripeSecretKey && (
+              {(settings?.stripeSecretKeySet || settings?.stripeSecretKey) && (
                 <span className="text-xs font-medium text-green-700 bg-green-50 rounded-full px-2.5 py-1 shrink-0">
                   ✓ Connected
                 </span>
@@ -1079,13 +1081,17 @@ function AdminSettingsPageInner() {
                       setStripeKeysChanged((prev) => ({ ...prev, secret: true }));
                     }}
                     className={`${inputClass} font-mono text-sm`}
-                    placeholder={settings?.stripeSecretKey ? "Leave empty to keep current" : "sk_..."}
+                    placeholder={
+                      settings?.stripeSecretKeySet || settings?.stripeSecretKey
+                        ? "Leave empty to keep current"
+                        : "sk_..."
+                    }
                   />
                 </div>
                 <div>
                   <label className={labelClass}>
                     Webhook secret
-                    {settings?.stripeWebhookSecret && (
+                    {(settings?.stripeWebhookSecretSet || settings?.stripeWebhookSecret) && (
                       <span className="ml-2 text-green-600 text-xs font-medium">✓ Set</span>
                     )}
                   </label>
@@ -1097,7 +1103,11 @@ function AdminSettingsPageInner() {
                       setStripeKeysChanged((prev) => ({ ...prev, webhook: true }));
                     }}
                     className={`${inputClass} font-mono text-sm`}
-                    placeholder={settings?.stripeWebhookSecret ? "Leave empty to keep current" : "whsec_… (optional)"}
+                    placeholder={
+                      settings?.stripeWebhookSecretSet || settings?.stripeWebhookSecret
+                        ? "Leave empty to keep current"
+                        : "whsec_… (optional)"
+                    }
                   />
                 </div>
               </div>

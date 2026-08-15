@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { toPublicSettings } from "@/lib/publicSettings";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -20,7 +21,7 @@ export async function GET() {
         },
       });
     }
-    return NextResponse.json(settings, {
+    return NextResponse.json(toPublicSettings(settings as unknown as Record<string, unknown>), {
       headers: { "Cache-Control": "no-store, max-age=0" },
     });
   } catch (e) {

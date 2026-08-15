@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { notifyDatabaseRecovered, notifyDatabaseUnreachable } from "@/lib/outageAlert";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
  * Lightweight ping so Prisma Postgres does not go unreachable after idle.
- * Does not read or write bookings, staff, or settings rows.
+ * On failure, emails ALERT_EMAIL (at most every 2 hours). Does not change bookings.
  */
 async function run(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
@@ -23,9 +24,25 @@ async function run(req: NextRequest) {
 
   try {
     await prisma.$queryRaw`SELECT 1`;
+    let businessEmail: string | null = null;
+    try {
+      const settings = await prisma.businessSettings.findUnique({
+        where: { id: "default" },
+        select: { businessEmail: true },
+      });
+      businessEmail = settings?.businessEmail ?? null;
+    } catch {
+      // Ping succeeded; still record recovery even if settings cannot be read.
+    }
+    await notifyDatabaseRecovered(businessEmail).catch((err) => {
+      console.error("keep-db-awake recovery notify:", err);
+    });
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("keep-db-awake:", e);
+    await notifyDatabaseUnreachable().catch((err) => {
+      console.error("keep-db-awake down notify:", err);
+    });
     return NextResponse.json({ error: "Database ping failed" }, { status: 500 });
   }
 }
