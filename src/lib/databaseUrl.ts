@@ -80,7 +80,13 @@ export function getPrismaMigrateDatabaseUrl(
 }
 
 export function isUnreachableDatabaseOutput(output: string): boolean {
-  return /P1001/i.test(output) || /Can't reach database server/i.test(output);
+  return (
+    /P1001/i.test(output) ||
+    /P1002/i.test(output) ||
+    /Can't reach database server/i.test(output) ||
+    /timed out/i.test(output) ||
+    /advisory lock/i.test(output)
+  );
 }
 
 export function isPrismaPostgresUrl(raw: string): boolean {

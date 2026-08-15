@@ -11,7 +11,7 @@ import {
   isUnreachableDatabaseOutput,
 } from "../src/lib/databaseUrl";
 
-const ATTEMPTS = 1;
+const ATTEMPTS = 2;
 
 function sleep(ms: number) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
@@ -46,7 +46,7 @@ for (let i = 1; i <= ATTEMPTS; i++) {
   if (!unreachable || i === ATTEMPTS) {
     if (unreachable) {
       console.warn(
-        "Could not reach the database to apply migrations. Continuing the build so the site can deploy. Pending migrations will apply on a later successful connection. No data was changed."
+        "Could not reach the database to apply migrations (timeout or lock). Continuing the build so the site can deploy. Pending migrations will apply on a later successful connection. No data was changed."
       );
       process.exit(0);
     }
@@ -54,8 +54,8 @@ for (let i = 1; i <= ATTEMPTS; i++) {
     process.exit(result.status ?? 1);
   }
 
-  const waitMs = 2000 * 2 ** (i - 1);
-  console.warn(`Database unreachable (P1001). Retrying in ${waitMs}ms…`);
+  const waitMs = 12000 * 2 ** (i - 1);
+  console.warn(`Database timed out or unreachable. Retrying in ${waitMs}ms…`);
   sleep(waitMs);
 }
 

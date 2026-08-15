@@ -115,6 +115,12 @@ async function run() {
       isUnreachableDatabaseOutput("Error: P1001: Can't reach database server at `db.prisma.io:5432`"),
       true
     );
+    assert.equal(
+      isUnreachableDatabaseOutput(
+        "Error: P1002: Timed out trying to acquire a postgres advisory lock"
+      ),
+      true
+    );
     assert.equal(isUnreachableDatabaseOutput("Migration 20260730100000 applied"), false);
   });
 
