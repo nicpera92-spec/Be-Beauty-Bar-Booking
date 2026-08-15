@@ -11,7 +11,7 @@ import {
   isUnreachableDatabaseOutput,
 } from "../src/lib/databaseUrl";
 
-const ATTEMPTS = 4;
+const ATTEMPTS = 1;
 
 function sleep(ms: number) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);

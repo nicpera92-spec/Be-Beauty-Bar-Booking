@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateStaffCredentials, createStaffToken } from "@/lib/auth";
+import { isRetryableDbError } from "@/lib/databaseUrl";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
@@ -28,6 +32,12 @@ export async function POST(req: NextRequest) {
     });
   } catch (e) {
     console.error("admin login:", e);
+    if (isRetryableDbError(e)) {
+      return NextResponse.json(
+        { error: "Login is temporarily unavailable. Please try again in a moment." },
+        { status: 503 }
+      );
+    }
     return NextResponse.json({ error: "Login failed" }, { status: 500 });
   }
 }

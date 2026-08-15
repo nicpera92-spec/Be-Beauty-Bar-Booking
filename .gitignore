@@ -36,8 +36,8 @@ Thumbs.db
 # Vercel
 .vercel
 
-# TypeScript
-next-env.d.ts
+# Generated Prisma Client (Prisma 7)
+src/generated/prisma/
 *.tsbuildinfo
 
 # Internal docs and helper scripts (not needed in public repo)

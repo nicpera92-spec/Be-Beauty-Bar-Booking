@@ -4,6 +4,7 @@ import { orderCategories } from "@/lib/categoryOrder";
 import { instagramDisplayLabel, instagramProfileUrl } from "@/lib/instagram";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export async function GET() {
   try {
@@ -41,6 +42,6 @@ export async function GET() {
     return res;
   } catch (e) {
     console.error(e);
-    return NextResponse.json({ error: "Failed to fetch technicians" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to fetch technicians" }, { status: 503 });
   }
 }

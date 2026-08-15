@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 /**
  * Lightweight ping so Prisma Postgres does not go unreachable after idle.
  * Does not read or write bookings, staff, or settings rows.

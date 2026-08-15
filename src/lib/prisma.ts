@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPostgresAdapter } from "@prisma/adapter-ppg";
 import {
   getPrismaPostgresDirectUrl,
@@ -7,40 +7,38 @@ import {
 } from "@/lib/databaseUrl";
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined };
+let loggedAdapterHost = false;
 
 function withRetry(client: PrismaClient): PrismaClient {
   return client.$extends({
     query: {
       $allOperations({ query, args }) {
-        return withDbRetry(
-          () => query(args),
-          4,
-          async () => {
-            await client.$disconnect().catch(() => {});
-          }
-        );
+        return withDbRetry(() => query(args), 4);
       },
     },
   }) as unknown as PrismaClient;
 }
 
 function createPrismaClient(): PrismaClient {
-  const raw =
-    process.env.DATABASE_URL ||
-    process.env.PRISMA_DIRECT_TCP_URL ||
-    process.env.DIRECT_URL ||
-    "";
+  const connectionString = getPrismaPostgresDirectUrl();
 
-  if (!isPrismaPostgresUrl(raw)) {
+  if (!isPrismaPostgresUrl(connectionString)) {
     throw new Error(
       "DATABASE_URL must be a Prisma Postgres connection string (db.prisma.io)."
     );
   }
 
-  // HTTPS/WebSocket driver — does not use TCP port 5432, which Vercel cannot reach.
-  const adapter = new PrismaPostgresAdapter({
-    connectionString: getPrismaPostgresDirectUrl(raw),
-  });
+  if (!loggedAdapterHost) {
+    loggedAdapterHost = true;
+    try {
+      const host = new URL(connectionString).hostname;
+      console.log(`[prisma] using HTTPS Prisma Postgres adapter host=${host}`);
+    } catch {
+      console.log("[prisma] using HTTPS Prisma Postgres adapter");
+    }
+  }
+
+  const adapter = new PrismaPostgresAdapter({ connectionString });
   const client = new PrismaClient({ adapter, log: ["error"] });
   return withRetry(client);
 }

@@ -90,16 +90,26 @@ export function isPrismaPostgresUrl(raw: string): boolean {
   return Boolean(url?.hostname.endsWith("prisma.io"));
 }
 
-/**
- * Direct Prisma Postgres URL for the HTTPS serverless driver.
- * Hostname is routing only — the driver does not open TCP port 5432.
- */
-export function getPrismaPostgresDirectUrl(
-  raw = process.env.PRISMA_DIRECT_TCP_URL ||
-    process.env.DIRECT_URL ||
-    process.env.DATABASE_URL ||
-    ""
-): string {
+/** Env vars Vercel / Prisma Postgres may set. Direct TCP strings first. */
+const ADAPTER_URL_ENV_KEYS = [
+  "PRISMA_DIRECT_TCP_URL",
+  "DIRECT_URL",
+  "DATABASE_URL_UNPOOLED",
+  "POSTGRES_URL_NON_POOLING",
+  "POSTGRES_PRISMA_URL",
+  "DATABASE_URL",
+  "POSTGRES_URL",
+  "PRISMA_DATABASE_URL",
+] as const;
+
+function isTcpPostgresUrl(raw: string): boolean {
+  if (!raw || isFileUrl(raw) || isAccelerateUrl(raw)) return false;
+  const url = parseDatabaseUrl(raw);
+  if (!url) return false;
+  return url.protocol === "postgres:" || url.protocol === "postgresql:";
+}
+
+function toPrismaPostgresDirectUrl(raw: string): string {
   if (!raw || isFileUrl(raw) || isAccelerateUrl(raw)) return raw;
 
   const url = parseDatabaseUrl(raw);
@@ -112,6 +122,35 @@ export function getPrismaPostgresDirectUrl(
     withParam(url, "sslmode", "require");
   }
   return url.toString();
+}
+
+/**
+ * Direct Prisma Postgres URL for the HTTPS serverless driver.
+ * Hostname is routing only — the driver does not open TCP port 5432.
+ * Skips prisma:// Accelerate URLs and prefers a postgres:// db.prisma.io string.
+ */
+export function getPrismaPostgresDirectUrl(
+  raw?: string,
+  env: { [key: string]: string | undefined } = process.env
+): string {
+  const candidates: string[] = [];
+  if (raw) candidates.push(raw);
+  for (const key of ADAPTER_URL_ENV_KEYS) {
+    const value = env[key];
+    if (value) candidates.push(value);
+  }
+
+  const tcp = candidates.filter(isTcpPostgresUrl);
+  if (tcp.length === 0) {
+    return raw || env.DATABASE_URL || "";
+  }
+
+  const preferred =
+    tcp.find((value) => parseDatabaseUrl(value)?.hostname === PRISMA_DIRECT_HOST) ||
+    tcp.find((value) => parseDatabaseUrl(value)?.hostname === PRISMA_POOLED_HOST) ||
+    tcp[0];
+
+  return toPrismaPostgresDirectUrl(preferred);
 }
 
 export function isRetryableDbError(error: unknown): boolean {
@@ -128,12 +167,19 @@ export function isRetryableDbError(error: unknown): boolean {
     code === "P1017" ||
     code === "P2024" ||
     name === "PrismaClientInitializationError" ||
+    name === "HttpResponseError" ||
+    name === "WebSocketError" ||
     /Can't reach database server/i.test(msg) ||
     /Timed out fetching a new connection/i.test(msg) ||
     /Server has closed the connection/i.test(msg) ||
     /Connection terminated/i.test(msg) ||
     /Connection reset/i.test(msg) ||
-    /the database system is starting up/i.test(msg)
+    /the database system is starting up/i.test(msg) ||
+    /fetch failed/i.test(msg) ||
+    /ECONNRESET/i.test(msg) ||
+    /ETIMEDOUT/i.test(msg) ||
+    /socket hang up/i.test(msg) ||
+    /database is paused/i.test(msg)
   );
 }
 

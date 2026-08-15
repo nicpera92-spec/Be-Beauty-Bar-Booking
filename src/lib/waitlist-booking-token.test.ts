@@ -57,16 +57,18 @@ async function runOnce(run: number) {
   );
 
   // --- token roundtrip ---
+  // Use a date whose UK end-of-day is still in the future so the JWT is not expired on verify.
+  const tokenDate = businessDateStr(new Date(Date.now() + 48 * 60 * 60 * 1000));
   const token = await createWaitlistBookingToken({
     entryId,
-    date: today,
+    date: tokenDate,
     serviceId,
     technicianId,
   });
   assert(token.includes("."), `[${run}] token looks like JWT`);
   const claims = await verifyWaitlistBookingToken(token);
   assert(claims?.entryId === entryId, `[${run}] token entryId`);
-  assert(claims?.date === today, `[${run}] token date`);
+  assert(claims?.date === tokenDate, `[${run}] token date`);
   assert(claims?.serviceId === serviceId, `[${run}] token serviceId`);
 
   const badClaims = await verifyWaitlistBookingToken(token + "x");

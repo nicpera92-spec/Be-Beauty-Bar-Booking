@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export async function GET() {
   try {
@@ -24,6 +25,6 @@ export async function GET() {
     });
   } catch (e) {
     console.error(e);
-    return NextResponse.json({ error: "Failed to fetch settings" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to fetch settings" }, { status: 503 });
   }
 }

@@ -140,6 +140,22 @@ async function run() {
     assert.equal(url.searchParams.has("connection_limit"), false);
   });
 
+  await test("getPrismaPostgresDirectUrl skips Accelerate DATABASE_URL and uses DIRECT_URL", () => {
+    const out = getPrismaPostgresDirectUrl(undefined, {
+      DATABASE_URL: "prisma+postgres://accelerate.prisma-data.net/?api_key=abc",
+      DIRECT_URL: "postgres://user:pass@db.prisma.io:5432/postgres?sslmode=require",
+    });
+    const url = new URL(out);
+    assert.equal(url.hostname, "db.prisma.io");
+    assert.equal(url.username, "user");
+  });
+
+  await test("isRetryableDbError detects HTTPS driver network failures", () => {
+    const err = new Error("fetch failed");
+    err.name = "HttpResponseError";
+    assert.equal(isRetryableDbError(err), true);
+  });
+
   console.log("All databaseUrl tests passed.");
 }
 

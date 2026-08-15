@@ -1,6 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   serverExternalPackages: ["@prisma/client", "@prisma/adapter-ppg", "@prisma/ppg"],
+  outputFileTracingIncludes: {
+    "/*": [
+      "./src/generated/prisma/**/*",
+      "./node_modules/@prisma/client/runtime/**/*",
+      "./node_modules/@prisma/adapter-ppg/**/*",
+      "./node_modules/@prisma/ppg/**/*",
+    ],
+  },
   async headers() {
     return [
       {
