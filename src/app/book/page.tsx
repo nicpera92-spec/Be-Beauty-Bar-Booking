@@ -20,6 +20,7 @@ export default function BookPage() {
   const router = useRouter();
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -32,6 +33,7 @@ export default function BookPage() {
       .then((data) => {
         if (!active) return;
         const techs = Array.isArray(data) ? data : [];
+        setLoadError(false);
         if (techs.length === 1) {
           router.replace(`/book/tech/${techs[0].id}`);
           return;
@@ -39,7 +41,9 @@ export default function BookPage() {
         setTechnicians(techs);
       })
       .catch(() => {
-        if (active) setTechnicians([]);
+        if (!active) return;
+        setLoadError(true);
+        setTechnicians([]);
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -57,6 +61,26 @@ export default function BookPage() {
           Home
         </Link>
         <p className="text-slate-500">Loading…</p>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="max-w-2xl mx-auto px-6 py-24 text-center">
+        <Link href="/" className="text-sm text-navy hover:underline mb-6 inline-block">
+          Home
+        </Link>
+        <p className="text-slate-600 mb-4">
+          Booking is temporarily unavailable. Please try again in a moment.
+        </p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="inline-flex items-center min-h-[44px] px-4 py-2 rounded-lg bg-navy text-white text-sm font-medium"
+        >
+          Try again
+        </button>
       </div>
     );
   }

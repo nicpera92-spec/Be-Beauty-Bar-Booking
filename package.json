@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3001",
-    "build": "prisma generate && prisma migrate deploy && next build",
+    "build": "prisma generate && npx tsx scripts/migrate-deploy.ts && next build",
     "start": "next start -p 3001",
     "lint": "next lint",
     "test:messages": "tsx src/lib/messageEditorDom.test.ts",
@@ -12,6 +12,7 @@
     "test:waitlist-token": "tsx src/lib/waitlist-booking-token.test.ts",
     "test:working-hours": "tsx src/lib/workingHours.test.ts && tsx src/lib/workingHours.slots.test.ts && tsx src/lib/workingHours.edge.test.ts",
     "test:exclusions": "tsx src/lib/categoryCapacity.exclusion.test.ts",
+    "test:db-url": "tsx src/lib/databaseUrl.test.ts",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
