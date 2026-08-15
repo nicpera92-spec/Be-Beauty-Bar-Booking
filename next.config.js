@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  serverExternalPackages: ["@prisma/client", "@prisma/adapter-ppg", "@prisma/ppg"],
   async headers() {
     return [
       {

@@ -83,6 +83,37 @@ export function isUnreachableDatabaseOutput(output: string): boolean {
   return /P1001/i.test(output) || /Can't reach database server/i.test(output);
 }
 
+export function isPrismaPostgresUrl(raw: string): boolean {
+  if (!raw || isFileUrl(raw)) return false;
+  if (isAccelerateUrl(raw)) return true;
+  const url = parseDatabaseUrl(raw);
+  return Boolean(url?.hostname.endsWith("prisma.io"));
+}
+
+/**
+ * Direct Prisma Postgres URL for the HTTPS serverless driver.
+ * Hostname is routing only — the driver does not open TCP port 5432.
+ */
+export function getPrismaPostgresDirectUrl(
+  raw = process.env.PRISMA_DIRECT_TCP_URL ||
+    process.env.DIRECT_URL ||
+    process.env.DATABASE_URL ||
+    ""
+): string {
+  if (!raw || isFileUrl(raw) || isAccelerateUrl(raw)) return raw;
+
+  const url = parseDatabaseUrl(raw);
+  if (!url) return raw;
+
+  if (url.hostname === PRISMA_POOLED_HOST) {
+    url.hostname = PRISMA_DIRECT_HOST;
+  }
+  if (url.hostname.endsWith("prisma.io")) {
+    withParam(url, "sslmode", "require");
+  }
+  return url.toString();
+}
+
 export function isRetryableDbError(error: unknown): boolean {
   const msg = error instanceof Error ? error.message : String(error);
   const name = error instanceof Error ? error.name : "";

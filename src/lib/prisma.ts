@@ -1,17 +1,14 @@
 import { PrismaClient } from "@prisma/client";
-import { getPrismaClientDatabaseUrl, withDbRetry } from "@/lib/databaseUrl";
+import { PrismaPostgresAdapter } from "@prisma/adapter-ppg";
+import {
+  getPrismaPostgresDirectUrl,
+  isPrismaPostgresUrl,
+  withDbRetry,
+} from "@/lib/databaseUrl";
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined };
 
-function createPrismaClient(): PrismaClient {
-  const url = getPrismaClientDatabaseUrl();
-  const client = url
-    ? new PrismaClient({
-        datasources: { db: { url } },
-        log: ["error"],
-      })
-    : new PrismaClient({ log: ["error"] });
-
+function withRetry(client: PrismaClient): PrismaClient {
   return client.$extends({
     query: {
       $allOperations({ query, args }) {
@@ -27,6 +24,42 @@ function createPrismaClient(): PrismaClient {
   }) as unknown as PrismaClient;
 }
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient();
+function createPrismaClient(): PrismaClient {
+  const raw =
+    process.env.DATABASE_URL ||
+    process.env.PRISMA_DIRECT_TCP_URL ||
+    process.env.DIRECT_URL ||
+    "";
 
-globalForPrisma.prisma = prisma;
+  if (!isPrismaPostgresUrl(raw)) {
+    throw new Error(
+      "DATABASE_URL must be a Prisma Postgres connection string (db.prisma.io)."
+    );
+  }
+
+  // HTTPS/WebSocket driver — does not use TCP port 5432, which Vercel cannot reach.
+  const adapter = new PrismaPostgresAdapter({
+    connectionString: getPrismaPostgresDirectUrl(raw),
+  });
+  const client = new PrismaClient({ adapter, log: ["error"] });
+  return withRetry(client);
+}
+
+function getClient(): PrismaClient {
+  if (!globalForPrisma.prisma) {
+    globalForPrisma.prisma = createPrismaClient();
+  }
+  return globalForPrisma.prisma;
+}
+
+/** Lazy so unit tests can import modules that reference prisma without a live database. */
+export const prisma = new Proxy({} as PrismaClient, {
+  get(_target, prop, receiver) {
+    const client = getClient();
+    const value = Reflect.get(client, prop, receiver);
+    if (typeof value === "function") {
+      return value.bind(client);
+    }
+    return value;
+  },
+});

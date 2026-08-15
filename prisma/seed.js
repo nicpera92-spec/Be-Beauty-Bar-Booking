@@ -1,6 +1,13 @@
 const { PrismaClient } = require("@prisma/client");
+const { PrismaPostgresAdapter } = require("@prisma/adapter-ppg");
 const bcrypt = require("bcryptjs");
-const prisma = new PrismaClient();
+
+const connectionString = process.env.DATABASE_URL;
+const prisma = connectionString
+  ? new PrismaClient({
+      adapter: new PrismaPostgresAdapter({ connectionString }),
+    })
+  : new PrismaClient();
 
 // Idempotent + non-destructive seed.
 // - Ensures the business owner login exists.

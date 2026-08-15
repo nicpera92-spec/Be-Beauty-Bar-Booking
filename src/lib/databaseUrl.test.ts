@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import {
   getPrismaClientDatabaseUrl,
   getPrismaMigrateDatabaseUrl,
+  getPrismaPostgresDirectUrl,
+  isPrismaPostgresUrl,
   isRetryableDbError,
   isUnreachableDatabaseOutput,
   withDbRetry,
@@ -114,6 +116,28 @@ async function run() {
       true
     );
     assert.equal(isUnreachableDatabaseOutput("Migration 20260730100000 applied"), false);
+  });
+
+  await test("isPrismaPostgresUrl detects prisma.io hosts", () => {
+    assert.equal(
+      isPrismaPostgresUrl("postgres://u:p@db.prisma.io:5432/postgres"),
+      true
+    );
+    assert.equal(
+      isPrismaPostgresUrl("postgres://u:p@pooled.db.prisma.io:5432/postgres"),
+      true
+    );
+    assert.equal(isPrismaPostgresUrl("file:./dev.db"), false);
+  });
+
+  await test("getPrismaPostgresDirectUrl uses direct host for HTTPS driver routing", () => {
+    const out = getPrismaPostgresDirectUrl(
+      "postgres://user:pass@pooled.db.prisma.io:5432/postgres"
+    );
+    const url = new URL(out);
+    assert.equal(url.hostname, "db.prisma.io");
+    assert.equal(url.searchParams.get("sslmode"), "require");
+    assert.equal(url.searchParams.has("connection_limit"), false);
   });
 
   console.log("All databaseUrl tests passed.");
