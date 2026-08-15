@@ -1,13 +1,49 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ["@prisma/client", "@prisma/adapter-ppg", "@prisma/ppg"],
-  outputFileTracingIncludes: {
-    "/*": [
-      "./src/generated/prisma/**/*",
-      "./node_modules/@prisma/client/runtime/**/*",
-      "./node_modules/@prisma/adapter-ppg/**/*",
-      "./node_modules/@prisma/ppg/**/*",
+  // Next 14.2 only honours these under `experimental`. Top-level names are Next 15+.
+  experimental: {
+    serverComponentsExternalPackages: [
+      "@prisma/client",
+      "@prisma/adapter-ppg",
+      "@prisma/ppg",
     ],
+    outputFileTracingIncludes: {
+      "/api/**/*": [
+        "./node_modules/.prisma/client/**/*",
+        "./node_modules/@prisma/client/**/*",
+        "./node_modules/@prisma/adapter-ppg/**/*",
+        "./node_modules/@prisma/ppg/**/*",
+      ],
+      "/admin/**/*": [
+        "./node_modules/.prisma/client/**/*",
+        "./node_modules/@prisma/client/**/*",
+        "./node_modules/@prisma/adapter-ppg/**/*",
+        "./node_modules/@prisma/ppg/**/*",
+      ],
+      "/book/**/*": [
+        "./node_modules/.prisma/client/**/*",
+        "./node_modules/@prisma/client/**/*",
+        "./node_modules/@prisma/adapter-ppg/**/*",
+        "./node_modules/@prisma/ppg/**/*",
+      ],
+    },
+  },
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.externals.push(({ request }, callback) => {
+        if (
+          request &&
+          (request === "@prisma/client" ||
+            request.startsWith("@prisma/client/") ||
+            request.startsWith("@prisma/adapter-ppg") ||
+            request.startsWith("@prisma/ppg"))
+        ) {
+          return callback(null, "commonjs " + request);
+        }
+        callback();
+      });
+    }
+    return config;
   },
   async headers() {
     return [

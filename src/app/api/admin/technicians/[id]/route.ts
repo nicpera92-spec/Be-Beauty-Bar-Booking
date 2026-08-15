@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@/generated/prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireMaster, hashPassword } from "@/lib/auth";
 import { normalizeInstagramHandle } from "@/lib/instagram";
