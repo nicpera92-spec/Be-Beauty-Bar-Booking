@@ -52,10 +52,18 @@ export function getPrismaClientDatabaseUrl(
   return url.toString();
 }
 
-/** Connection string for `prisma migrate deploy` (direct TCP). */
+/** Connection string for `prisma migrate deploy`. */
 export function getPrismaMigrateDatabaseUrl(
-  raw = process.env.DIRECT_URL || process.env.DATABASE_URL || ""
+  raw = process.env.DIRECT_URL || process.env.DATABASE_URL || "",
+  opts: { vercel?: boolean } = {}
 ): string {
+  const onVercel = opts.vercel ?? Boolean(process.env.VERCEL);
+  // Vercel build machines cannot reach Prisma's direct host (P1001).
+  // Use the pooled host there — same database, reachable over serverless.
+  if (onVercel) {
+    return getPrismaClientDatabaseUrl(raw);
+  }
+
   if (!raw || isFileUrl(raw) || isAccelerateUrl(raw)) return raw;
 
   const url = parseDatabaseUrl(raw);
@@ -67,7 +75,12 @@ export function getPrismaMigrateDatabaseUrl(
   if (url.hostname.endsWith("prisma.io")) {
     withParam(url, "sslmode", "require");
   }
+  withParam(url, "connect_timeout", "30");
   return url.toString();
+}
+
+export function isUnreachableDatabaseOutput(output: string): boolean {
+  return /P1001/i.test(output) || /Can't reach database server/i.test(output);
 }
 
 export function isRetryableDbError(error: unknown): boolean {

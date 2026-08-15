@@ -3,6 +3,7 @@ import {
   getPrismaClientDatabaseUrl,
   getPrismaMigrateDatabaseUrl,
   isRetryableDbError,
+  isUnreachableDatabaseOutput,
   withDbRetry,
 } from "./databaseUrl";
 
@@ -47,16 +48,18 @@ async function run() {
     assert.equal(getPrismaClientDatabaseUrl(raw), raw);
   });
 
-  await test("migrate URL uses direct Prisma host", () => {
+  await test("migrate URL uses pooled Prisma host on Vercel", () => {
     const out = getPrismaMigrateDatabaseUrl(
-      "postgres://user:pass@pooled.db.prisma.io:5432/postgres?sslmode=require"
+      "postgres://user:pass@db.prisma.io:5432/postgres?sslmode=require",
+      { vercel: true }
     );
-    assert.equal(new URL(out).hostname, "db.prisma.io");
+    assert.equal(new URL(out).hostname, "pooled.db.prisma.io");
   });
 
-  await test("migrate URL keeps direct host", () => {
+  await test("migrate URL uses direct Prisma host off Vercel", () => {
     const out = getPrismaMigrateDatabaseUrl(
-      "postgres://user:pass@db.prisma.io:5432/postgres?sslmode=require"
+      "postgres://user:pass@pooled.db.prisma.io:5432/postgres?sslmode=require",
+      { vercel: false }
     );
     assert.equal(new URL(out).hostname, "db.prisma.io");
   });
@@ -103,6 +106,14 @@ async function run() {
       /Technician name cannot be empty/
     );
     assert.equal(calls, 1);
+  });
+
+  await test("isUnreachableDatabaseOutput matches Prisma P1001 logs", () => {
+    assert.equal(
+      isUnreachableDatabaseOutput("Error: P1001: Can't reach database server at `db.prisma.io:5432`"),
+      true
+    );
+    assert.equal(isUnreachableDatabaseOutput("Migration 20260730100000 applied"), false);
   });
 
   console.log("All databaseUrl tests passed.");
