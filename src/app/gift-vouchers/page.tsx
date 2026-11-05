@@ -59,7 +59,7 @@ export default function GiftVouchersPage() {
       <Link href="/" className="text-sm text-navy hover:underline mb-8 inline-block">
         Home
       </Link>
-      <h1 className="font-serif text-2xl md:text-3xl font-light text-slate-800 mb-3">Gift vouchers</h1>
+      <h1 className="font-serif text-2xl md:text-3xl font-light text-slate-800 mb-3">Gift Vouchers</h1>
       <p className="text-sm text-slate-600 leading-relaxed mb-8">
         Treat someone to nails, lashes or permanent makeup. The voucher code is emailed straight away
         and is valid for {VOUCHER_VALID_MONTHS} months — it pays the deposit when booking online, and any

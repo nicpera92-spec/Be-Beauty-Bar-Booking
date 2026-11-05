@@ -3,6 +3,7 @@ import { Playfair_Display, DM_Sans } from "next/font/google";
 import "./globals.css";
 import ColorThemeProvider from "@/components/ColorThemeProvider";
 import Footer from "@/components/Footer";
+import SiteTopLinks from "@/components/SiteTopLinks";
 import { getSavedTheme } from "@/lib/getSavedTheme";
 
 const playfair = Playfair_Display({
@@ -63,8 +64,9 @@ export default async function RootLayout({
       style={themeStyle}
       data-theme-surface={themeSurface}
     >
-      <body className="font-sans min-h-screen flex flex-col antialiased">
+      <body className="relative font-sans min-h-screen flex flex-col antialiased">
         <ColorThemeProvider />
+        <SiteTopLinks />
         <main className="flex flex-1 flex-col">{children}</main>
         <Footer />
       </body>
