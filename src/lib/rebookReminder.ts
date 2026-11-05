@@ -150,25 +150,6 @@ export async function buildRebookOptOutLink(
   return `${baseUrl}/rebook-reminder/opt-out?token=${encodeURIComponent(token)}`;
 }
 
-type BookingWithRelations = Awaited<
-  ReturnType<typeof prisma.booking.findMany<{ include: { service: true; technician: true } }>>
->[number];
-
-/** Most recent confirmed visit per customer (by email or phone). Rebooking resets the timer. */
-export function latestVisitPerContact(
-  bookings: BookingWithRelations[]
-): BookingWithRelations[] {
-  const latest = new Map<string, BookingWithRelations>();
-
-  for (const booking of bookings) {
-    const key = contactKeyForBooking(booking);
-    if (!key || latest.has(key)) continue;
-    latest.set(key, booking);
-  }
-
-  return [...latest.values()];
-}
-
 type ContactBooking = { date: string; customerEmail: string | null; customerPhone: string | null };
 
 export type LatestBookingIndex = { byEmail: Map<string, string>; byPhone: Map<string, string> };
@@ -189,13 +170,127 @@ export function indexLatestBookingDates(bookings: ContactBooking[]): LatestBooki
   return { byEmail, byPhone };
 }
 
-/** True when this customer (same email or same phone) has a booking dated after this visit. */
-export function hasLaterBooking(visit: ContactBooking, index: LatestBookingIndex): boolean {
+/** Latest booking date for this customer (same email or same phone) after this visit, if any. */
+export function laterBookingDate(visit: ContactBooking, index: LatestBookingIndex): string | null {
   const email = normalizeContactEmail(visit.customerEmail);
   const phone = normalizeContactPhone(visit.customerPhone);
-  const laterByEmail = email ? (index.byEmail.get(email) ?? "") > visit.date : false;
-  const laterByPhone = phone ? (index.byPhone.get(phone) ?? "") > visit.date : false;
-  return laterByEmail || laterByPhone;
+  const dates = [email ? index.byEmail.get(email) : undefined, phone ? index.byPhone.get(phone) : undefined]
+    .filter((d): d is string => Boolean(d) && (d as string) > visit.date)
+    .sort();
+  return dates.length ? dates[dates.length - 1] : null;
+}
+
+/** True when this customer (same email or same phone) has a booking dated after this visit. */
+export function hasLaterBooking(visit: ContactBooking, index: LatestBookingIndex): boolean {
+  return laterBookingDate(visit, index) !== null;
+}
+
+/** Missed days (e.g. the 9am run couldn't reach the database) are caught up within this many days. */
+export const REBOOK_CATCH_UP_DAYS = 2;
+
+export type RebookVisit = ContactBooking & {
+  id: string;
+  startTime: string;
+  customerName: string;
+  notifyByEmail: boolean;
+  notifyBySMS: boolean;
+  rebookReminderSentAt: Date | string | null;
+};
+
+export type RebookSkipReason = "already_booked" | "already_sent" | "no_contact" | "opted_out";
+
+export type RebookDecision<V extends RebookVisit = RebookVisit> = {
+  visit: V;
+  dueDate: string;
+  send: boolean;
+  reason?: RebookSkipReason;
+  /** When skipped as already booked: the date of their next booking. */
+  nextBookingDate?: string;
+};
+
+/**
+ * Who gets a rebook reminder with a due date between `from` and `to`. Only each customer's most
+ * recent visit counts (matched by email or phone), and anyone with a later live booking is skipped.
+ */
+export function planRebookReminders<V extends RebookVisit>(input: {
+  visits: V[];
+  liveBookings: ContactBooking[];
+  daysAfter: number;
+  from: string;
+  to: string;
+  isOptedOut: (visit: V) => boolean;
+}): RebookDecision<V>[] {
+  const index = indexLatestBookingDates(input.liveBookings);
+  const sorted = [...input.visits].sort((a, b) =>
+    a.date === b.date ? b.startTime.localeCompare(a.startTime) : b.date.localeCompare(a.date)
+  );
+  const seenEmails = new Set<string>();
+  const seenPhones = new Set<string>();
+  const decisions: RebookDecision<V>[] = [];
+
+  for (const visit of sorted) {
+    const email = normalizeContactEmail(visit.customerEmail);
+    const phone = normalizeContactPhone(visit.customerPhone);
+    if (!email && !phone) continue;
+    const seenBefore = (email && seenEmails.has(email)) || (phone && seenPhones.has(phone));
+    if (email) seenEmails.add(email);
+    if (phone) seenPhones.add(phone);
+    // A more recent (or same-day) visit by the same person already speaks for them.
+    if (seenBefore) continue;
+
+    const dueDate = rebookReminderDueDate(visit.date, input.daysAfter);
+    if (dueDate < input.from || dueDate > input.to) continue;
+
+    const decision: RebookDecision<V> = { visit, dueDate, send: false };
+    const next = laterBookingDate(visit, index);
+    if (next) {
+      decision.reason = "already_booked";
+      decision.nextBookingDate = next;
+    } else if (visit.rebookReminderSentAt) {
+      decision.reason = "already_sent";
+    } else if (!(visit.notifyByEmail && visit.customerEmail) && !(visit.notifyBySMS && visit.customerPhone)) {
+      decision.reason = "no_contact";
+    } else if (input.isOptedOut(visit)) {
+      decision.reason = "opted_out";
+    } else {
+      decision.send = true;
+    }
+    decisions.push(decision);
+  }
+  return decisions.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+}
+
+/** Opted-out customers, as normalised emails and phones. */
+async function loadOptOuts(): Promise<(visit: ContactBooking) => boolean> {
+  const prefs = await prisma.customerNotificationPreference.findMany({
+    where: { rebookReminderOptOut: true },
+    select: { email: true, phone: true },
+  });
+  const emails = new Set(prefs.map((p) => p.email).filter(Boolean));
+  const phones = new Set(prefs.map((p) => p.phone).filter(Boolean));
+  return (visit) => {
+    const email = normalizeContactEmail(visit.customerEmail);
+    const phone = normalizeContactPhone(visit.customerPhone);
+    return Boolean((email && emails.has(email)) || (phone && phones.has(phone)));
+  };
+}
+
+/** Same decisions the daily run makes, for any due-date window (used by the run and the admin preview). */
+export async function getRebookReminderPlan(from: string, to: string, daysAfter: number) {
+  const latestVisitDate = format(addDays(parse(to, "yyyy-MM-dd", new Date()), -daysAfter), "yyyy-MM-dd");
+  const [visits, liveBookings, isOptedOut] = await Promise.all([
+    prisma.booking.findMany({
+      where: { status: "confirmed", date: { lte: latestVisitDate } },
+      include: { service: true, technician: true },
+    }),
+    // Every live booking, including upcoming ones — anyone who has already rebooked must be skipped.
+    prisma.booking.findMany({
+      where: { status: { in: ["confirmed", "pending_deposit"] } },
+      select: { date: true, customerEmail: true, customerPhone: true },
+    }),
+    loadOptOuts(),
+  ]);
+  return planRebookReminders({ visits, liveBookings, daysAfter, from, to, isOptedOut });
 }
 
 export async function processRebookReminders(): Promise<{
@@ -210,61 +305,133 @@ export async function processRebookReminders(): Promise<{
   }
 
   const daysAfter = await getRebookReminderDaysAfter();
-  const today = format(startOfDay(new Date()), "yyyy-MM-dd");
-
-  const [confirmedVisits, liveBookings] = await Promise.all([
-    prisma.booking.findMany({
-      where: {
-        status: "confirmed",
-        date: { lte: today },
-      },
-      include: { service: true, technician: true },
-      orderBy: [{ date: "desc" }, { startTime: "desc" }],
-    }),
-    // Every live booking, including upcoming ones — anyone who has already rebooked must be skipped.
-    prisma.booking.findMany({
-      where: { status: { in: ["confirmed", "pending_deposit"] } },
-      select: { date: true, customerEmail: true, customerPhone: true },
-    }),
-  ]);
-  const latestByContact = indexLatestBookingDates(liveBookings);
-
-  const candidates = latestVisitPerContact(confirmedVisits).filter(
-    (booking) =>
-      rebookReminderDueDate(booking.date, daysAfter) === today &&
-      booking.rebookReminderSentAt === null &&
-      !hasLaterBooking(booking, latestByContact)
-  );
+  const todayDate = startOfDay(new Date());
+  const today = format(todayDate, "yyyy-MM-dd");
+  const from = format(addDays(todayDate, -REBOOK_CATCH_UP_DAYS), "yyyy-MM-dd");
+  const plan = await getRebookReminderPlan(from, today, daysAfter);
 
   let sent = 0;
   let failed = 0;
   let skipped = 0;
+  const { sendRebookReminderEmails } = await import("@/lib/email");
 
-  for (const booking of candidates) {
-    const canEmail = Boolean(booking.notifyByEmail && booking.customerEmail);
-    const canSms = Boolean(booking.notifyBySMS && booking.customerPhone);
-    if (!canEmail && !canSms) {
-      skipped++;
+  for (const decision of plan) {
+    if (!decision.send) {
+      if (decision.reason !== "already_sent") skipped++;
       continue;
     }
+    // Claim first so two overlapping runs can never both send to the same visit.
+    const claimed = await prisma.booking.updateMany({
+      where: { id: decision.visit.id, rebookReminderSentAt: null },
+      data: { rebookReminderSentAt: new Date() },
+    });
+    if (claimed.count === 0) continue;
 
-    if (await isRebookReminderOptedOut(booking.customerEmail, booking.customerPhone)) {
-      skipped++;
-      continue;
-    }
-
-    const { sendRebookReminderEmails } = await import("@/lib/email");
-    const result = await sendRebookReminderEmails(booking.id);
+    const result = await sendRebookReminderEmails(decision.visit.id);
     if (result.ok) {
-      await prisma.booking.update({
-        where: { id: booking.id },
-        data: { rebookReminderSentAt: new Date() },
-      });
       sent++;
     } else {
+      await prisma.booking.update({
+        where: { id: decision.visit.id },
+        data: { rebookReminderSentAt: null },
+      });
       failed++;
     }
   }
 
   return { sent, failed, skipped, daysAfter, today };
+}
+
+export type SentReminderCheck = {
+  bookingId: string;
+  customerName: string;
+  contact: string;
+  serviceName: string;
+  visitDate: string;
+  sentAt: string;
+  /** A live booking after the visit already existed when the reminder went out — it shouldn't have been sent. */
+  alreadyBookedDate: string | null;
+  alreadyBookedMadeOn: string | null;
+  /** First booking made after the reminder (the reminder worked). */
+  bookedAfterDate: string | null;
+};
+
+type HistoryBooking = ContactBooking & {
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+  customerCancelledAt: Date | null;
+};
+
+/** Was this booking live (made, and not yet cancelled) at `at`? */
+function wasLiveAt(b: HistoryBooking, at: Date): boolean {
+  if (b.createdAt > at) return false;
+  if (b.status !== "cancelled") return true;
+  const cancelledAt = b.customerCancelledAt ?? b.updatedAt;
+  return cancelledAt > at;
+}
+
+/** Checks each reminder that was sent against the bookings the customer had at that moment. */
+export function checkSentReminders(
+  sent: (RebookVisit & { serviceName: string; rebookReminderSentAt: Date })[],
+  history: HistoryBooking[]
+): SentReminderCheck[] {
+  const sameCustomer = (a: ContactBooking, b: ContactBooking) => {
+    const ea = normalizeContactEmail(a.customerEmail);
+    const pa = normalizeContactPhone(a.customerPhone);
+    return (
+      (ea !== null && ea === normalizeContactEmail(b.customerEmail)) ||
+      (pa !== null && pa === normalizeContactPhone(b.customerPhone))
+    );
+  };
+  return sent
+    .map((visit) => {
+      const sentAt = visit.rebookReminderSentAt;
+      const theirs = history.filter((b) => sameCustomer(visit, b));
+      const existing = theirs
+        .filter((b) => b.date > visit.date && wasLiveAt(b, sentAt))
+        .sort((a, b) => a.date.localeCompare(b.date))[0];
+      const after = theirs
+        .filter((b) => b.date > visit.date && b.createdAt > sentAt && b.status !== "cancelled")
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())[0];
+      return {
+        bookingId: visit.id,
+        customerName: visit.customerName,
+        contact: visit.customerEmail || visit.customerPhone || "",
+        serviceName: visit.serviceName,
+        visitDate: visit.date,
+        sentAt: sentAt.toISOString(),
+        alreadyBookedDate: existing?.date ?? null,
+        alreadyBookedMadeOn: existing ? existing.createdAt.toISOString() : null,
+        bookedAfterDate: after?.date ?? null,
+      };
+    })
+    .sort((a, b) => b.sentAt.localeCompare(a.sentAt));
+}
+
+export async function getSentReminderChecks(sinceDays = 180): Promise<SentReminderCheck[]> {
+  const since = addDays(new Date(), -sinceDays);
+  const sent = await prisma.booking.findMany({
+    where: { rebookReminderSentAt: { gte: since } },
+    include: { service: { select: { name: true } } },
+  });
+  if (sent.length === 0) return [];
+  const earliestVisit = sent.map((b) => b.date).sort()[0];
+  // Phones are stored as typed ("07…", "+44 7…"), so match customers in code rather than in the query.
+  const history = await prisma.booking.findMany({
+    where: { OR: [{ date: { gt: earliestVisit } }, { createdAt: { gte: since } }] },
+    select: {
+      date: true,
+      customerEmail: true,
+      customerPhone: true,
+      status: true,
+      createdAt: true,
+      updatedAt: true,
+      customerCancelledAt: true,
+    },
+  });
+  return checkSentReminders(
+    sent.map((b) => ({ ...b, serviceName: b.service.name, rebookReminderSentAt: b.rebookReminderSentAt! })),
+    history
+  );
 }

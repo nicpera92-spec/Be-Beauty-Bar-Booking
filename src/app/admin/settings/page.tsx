@@ -805,6 +805,9 @@ function AdminSettingsPageInner() {
                     className="w-16 rounded-lg border border-slate-200 px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-navy/10"
                   />
                   <span className="text-xs text-charcoal/45">days (7–365)</span>
+                  <Link href="/admin/rebook-reminders" className="text-xs text-navy hover:underline ml-auto">
+                    Check who&apos;s been reminded →
+                  </Link>
                 </div>
               </SettingsFeatureRow>
 

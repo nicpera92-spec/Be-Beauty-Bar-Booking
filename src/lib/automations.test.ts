@@ -12,7 +12,14 @@ import {
 } from "@/lib/notificationTemplates";
 import { computeDashboardStats, type StatsBooking } from "@/lib/dashboardStats";
 import { bookingMatchesContact, normalizeCustomerContact } from "@/lib/customerPortal";
-import { contactKeyForBooking, hasLaterBooking, indexLatestBookingDates } from "@/lib/rebookReminder";
+import {
+  type RebookVisit,
+  checkSentReminders,
+  contactKeyForBooking,
+  hasLaterBooking,
+  indexLatestBookingDates,
+  planRebookReminders,
+} from "@/lib/rebookReminder";
 
 function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(message);
@@ -188,5 +195,114 @@ assert(
   !hasLaterBooking(lastVisit, indexLatestBookingDates([lastVisit])),
   "the visit itself doesn't count as a later booking"
 );
+
+// --- rebook reminder plan: exactly who the 9am run sends to ---
+let visitSeq = 0;
+const rv = (over: Partial<RebookVisit>): RebookVisit => ({
+  id: `v${++visitSeq}`,
+  date: "2026-10-15",
+  startTime: "10:00",
+  customerName: "Someone",
+  customerEmail: null,
+  customerPhone: null,
+  notifyByEmail: true,
+  notifyBySMS: true,
+  rebookReminderSentAt: null,
+  ...over,
+});
+const planDay = "2026-11-05"; // 21 days after 15 Oct
+const visits = [
+  rv({ id: "due", customerEmail: "due@example.com" }),
+  rv({ id: "rebooked-upcoming", customerEmail: "up@example.com" }),
+  rv({ id: "rebooked-pending", customerPhone: "07700 900222", notifyByEmail: false }),
+  rv({ id: "older-visit", date: "2026-09-01", customerEmail: "back@example.com" }),
+  rv({ id: "came-back", date: "2026-10-15", customerEmail: "BACK@example.com", customerPhone: "07700 900333" }),
+  rv({ id: "phone-old", date: "2026-10-15", customerPhone: "07700 900333", customerEmail: null, startTime: "09:00" }),
+  rv({ id: "sent", customerEmail: "sent@example.com", rebookReminderSentAt: new Date("2026-11-05T09:00:00Z") }),
+  rv({ id: "no-channel", customerEmail: "quiet@example.com", notifyByEmail: false, notifyBySMS: false }),
+  rv({ id: "opted-out", customerEmail: "stop@example.com" }),
+  rv({ id: "not-yet", date: "2026-10-20", customerEmail: "later@example.com" }),
+  rv({ id: "cancelled-rebook", customerEmail: "cancel@example.com" }),
+];
+const live = [
+  ...visits,
+  { date: "2026-11-20", customerEmail: "up@example.com", customerPhone: null },
+  { date: "2026-11-12", customerEmail: null, customerPhone: "+447700900222" }, // awaiting deposit
+  // cancel@example.com's cancelled rebooking is not a live booking, so it isn't listed here
+];
+const plan = planRebookReminders({
+  visits,
+  liveBookings: live,
+  daysAfter: 21,
+  from: planDay,
+  to: planDay,
+  isOptedOut: (v) => v.customerEmail === "stop@example.com",
+});
+const decision = (id: string) => plan.find((d) => d.visit.id === id);
+assert(decision("due")?.send === true, "customer with no later booking is reminded on day 21");
+assert(
+  decision("rebooked-upcoming")?.send === false && decision("rebooked-upcoming")?.reason === "already_booked",
+  "customer with an upcoming booking is not reminded"
+);
+assert(decision("rebooked-upcoming")?.nextBookingDate === "2026-11-20", "shows which booking stopped it");
+assert(decision("rebooked-pending")?.reason === "already_booked", "booking awaiting deposit also counts as rebooked");
+assert(!decision("older-visit"), "an older visit never triggers a reminder once they've been back");
+assert(decision("came-back")?.send === true, "their most recent visit is the one that counts");
+assert(
+  !decision("phone-old"),
+  "same person's other same-day booking (phone only) doesn't get a second reminder"
+);
+assert(decision("sent")?.reason === "already_sent", "never sent twice for the same visit");
+assert(decision("no-channel")?.reason === "no_contact", "respects their email/SMS choice");
+assert(decision("opted-out")?.reason === "opted_out", "respects opt-out");
+assert(!decision("not-yet"), "not due yet (only 16 days)");
+assert(decision("cancelled-rebook")?.send === true, "a rebooking they cancelled doesn't block the reminder");
+assert(plan.filter((d) => d.send).length === 3, "exactly 3 reminders go out");
+const catchUp = planRebookReminders({
+  visits: [rv({ id: "missed", date: "2026-10-13", customerEmail: "missed@example.com" })],
+  liveBookings: [],
+  daysAfter: 21,
+  from: "2026-11-03",
+  to: planDay,
+  isOptedOut: () => false,
+});
+assert(catchUp[0]?.send === true && catchUp[0].dueDate === "2026-11-03", "a missed day is caught up");
+
+// --- checking reminders already sent ---
+const sentAt = new Date("2026-11-05T09:00:00Z");
+const hb = (date: string, createdAt: string, over: Partial<{ status: string; customerEmail: string | null; customerPhone: string | null; customerCancelledAt: Date | null; updatedAt: Date }> = {}) => ({
+  date,
+  customerEmail: "amy@example.com",
+  customerPhone: null,
+  status: "confirmed",
+  createdAt: new Date(createdAt),
+  updatedAt: new Date(createdAt),
+  customerCancelledAt: null,
+  ...over,
+});
+const sentVisit = (id: string, email: string) => ({
+  ...rv({ id, customerEmail: email, date: "2026-10-15" }),
+  serviceName: "Gel",
+  rebookReminderSentAt: sentAt,
+});
+const checks = checkSentReminders(
+  [sentVisit("mistake", "amy@example.com"), sentVisit("fine", "bea@example.com"), sentVisit("cancelled-first", "cat@example.com")],
+  [
+    hb("2026-11-20", "2026-10-30T12:00:00Z"),
+    hb("2026-11-25", "2026-11-06T12:00:00Z", { customerEmail: "BEA@example.com" }),
+    hb("2026-11-18", "2026-10-20T12:00:00Z", {
+      customerEmail: "cat@example.com",
+      status: "cancelled",
+      customerCancelledAt: new Date("2026-10-25T12:00:00Z"),
+    }),
+  ]
+);
+const check = (id: string) => checks.find((c) => c.bookingId === id)!;
+assert(check("mistake").alreadyBookedDate === "2026-11-20", "flags a reminder sent to someone already booked");
+assert(
+  check("fine").alreadyBookedDate === null && check("fine").bookedAfterDate === "2026-11-25",
+  "booking made after the reminder counts as it working, not a mistake"
+);
+assert(check("cancelled-first").alreadyBookedDate === null, "a booking cancelled before the reminder isn't a mistake");
 
 console.log("automations: all checks passed");

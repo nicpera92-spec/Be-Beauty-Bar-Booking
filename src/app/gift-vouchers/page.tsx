@@ -52,18 +52,25 @@ export default function GiftCertificatesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const [loadFailed, setLoadFailed] = useState(false);
+
+  const loadOptions = () => {
+    setLoading(true);
+    setLoadFailed(false);
     fetch("/api/gift-certificates/options", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((data) => {
-        const list: GiftService[] = Array.isArray(data?.services) ? data.services : [];
+      .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
+      .then(({ ok, data }) => {
+        if (!ok || !Array.isArray(data?.services)) throw new Error("load failed");
+        const list: GiftService[] = data.services;
         setServices(list);
-        setPackages(Array.isArray(data?.packages) ? data.packages : []);
+        setPackages(Array.isArray(data.packages) ? data.packages : []);
         setTechnicianId(list[0]?.technicianId ?? null);
       })
-      .catch(() => setError("Could not load treatments. Please refresh the page."))
+      .catch(() => setLoadFailed(true))
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(loadOptions, []);
 
   const byId = useMemo(() => new Map(services.map((s) => [s.id, s])), [services]);
   const technicians = useMemo(() => {
@@ -143,6 +150,13 @@ export default function GiftCertificatesPage() {
 
       {loading ? (
         <p className="text-sm text-slate-500">Loading treatments…</p>
+      ) : loadFailed ? (
+        <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700">
+          We couldn&apos;t load the treatments just now.{" "}
+          <button type="button" onClick={loadOptions} className="text-navy font-medium hover:underline">
+            Try again
+          </button>
+        </div>
       ) : (
         <form onSubmit={submit} className="space-y-8">
           {packages.length > 0 && (
