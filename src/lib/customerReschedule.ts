@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getCustomerBookableRange } from "@/lib/booking-calendar-range";
 import { getCustomerCancelState } from "@/lib/customerCancellation";
 import { DEFAULT_CANCELLATION_REFUND_HOURS, normalizeRefundHours } from "@/lib/cancellationPolicy";
-import { getAvailableSlotsForDay } from "@/lib/slotAvailability";
+import { getAvailabilityForRange, getAvailableSlotsForDay } from "@/lib/slotAvailability";
 
 /** A customer can move a booking themselves this many times. */
 export const MAX_CUSTOMER_RESCHEDULES = 1;
@@ -35,6 +35,34 @@ async function loadRefundHours(): Promise<number> {
     select: { cancellationRefundHours: true },
   });
   return normalizeRefundHours(settings?.cancellationRefundHours ?? DEFAULT_CANCELLATION_REFUND_HOURS);
+}
+
+/** Days in the booking window with a free time for moving this booking (for the calendar). */
+export async function getRescheduleAvailability(
+  bookingId: string
+): Promise<
+  | { ok: true; availability: Record<string, boolean>; minDate: string; maxDate: string }
+  | { ok: false; error: string }
+> {
+  const [booking, refundHours] = await Promise.all([
+    prisma.booking.findUnique({ where: { id: bookingId } }),
+    loadRefundHours(),
+  ]);
+  if (!booking) return { ok: false, error: "Booking not found" };
+  const eligibility = getRescheduleEligibility(booking, new Date(), refundHours);
+  if (!eligibility.allowed) return { ok: false, error: eligibility.reason };
+
+  const { minDate, maxDate } = rescheduleDateRange();
+  const result = await getAvailabilityForRange({
+    serviceId: booking.serviceId,
+    technicianId: booking.technicianId,
+    from: minDate,
+    to: maxDate,
+    excludeBookingId: booking.id,
+    skipSlot: { date: booking.date, startTime: booking.startTime },
+  });
+  if (!result.ok) return { ok: false, error: result.error };
+  return { ok: true, availability: result.availability, minDate, maxDate };
 }
 
 export type RescheduleSlotsResult =

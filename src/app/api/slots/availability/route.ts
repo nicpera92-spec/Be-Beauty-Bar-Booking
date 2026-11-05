@@ -1,15 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { addDays, format, parse } from "date-fns";
-import { getSlotsForDay } from "@/lib/slotUtils";
-import {
-  getCategoryCapacityRules,
-  getCategoryExclusionPairs,
-  maxConcurrentFromRules,
-} from "@/lib/bookingAvailability";
-import { hasWaitlistSameDayBookingAccess } from "@/lib/waitlist-booking-token";
-import { businessDateStr, isBeforeMinBookableDate } from "@/lib/business-time";
-import { resolveHoursForDate } from "@/lib/workingHours";
+import { getAvailabilityForRange } from "@/lib/slotAvailability";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -17,7 +7,6 @@ export async function GET(req: NextRequest) {
   const technicianId = searchParams.get("technicianId");
   const from = searchParams.get("from");
   const to = searchParams.get("to");
-  const waitlistToken = searchParams.get("wl");
 
   if (!serviceId || !technicianId || !from || !to) {
     return NextResponse.json(
@@ -27,131 +16,15 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const now = new Date();
-    const businessToday = businessDateStr(now);
-    const [service, settings, bookings, blocks, capacityRules, exclusionPairs, sameDayWaitlistAccess] =
-      await Promise.all([
-        prisma.service.findUnique({
-          where: { id: serviceId },
-          include: { technician: { select: { active: true, workingHours: true } } },
-        }),
-        prisma.businessSettings.findUnique({
-          where: { id: "default" },
-          select: { openTime: true, closeTime: true, slotInterval: true },
-        }),
-        prisma.booking.findMany({
-          where: { date: { gte: from, lte: to }, status: { not: "cancelled" } },
-          select: {
-            date: true,
-            technicianId: true,
-            startTime: true,
-            endTime: true,
-            service: { select: { category: true } },
-          },
-        }),
-        prisma.availabilityBlock.findMany({
-          where: {
-            startDate: { lte: to },
-            endDate: { gte: from },
-            technicianId,
-          },
-        }),
-        getCategoryCapacityRules(),
-        getCategoryExclusionPairs(),
-        waitlistToken
-          ? hasWaitlistSameDayBookingAccess(waitlistToken, {
-              date: businessToday,
-              serviceId,
-              technicianId,
-            })
-          : Promise.resolve(false),
-      ]);
-    if (!service) {
-      return NextResponse.json({ error: "Service not found" }, { status: 404 });
-    }
-    if (service.technicianId !== technicianId) {
-      return NextResponse.json({ error: "Service does not match technician" }, { status: 400 });
-    }
-
-    // If the technician is not bookable, no day has availability. This mirrors
-    // /api/slots so the calendar can't show an open day with no times behind it.
-    if (!service.technician?.active) {
-      const fromDate = parse(from, "yyyy-MM-dd", new Date());
-      const toDate = parse(to, "yyyy-MM-dd", new Date());
-      const numDays =
-        Math.round((toDate.getTime() - fromDate.getTime()) / (24 * 60 * 60 * 1000)) + 1;
-      const availability: Record<string, boolean> = {};
-      for (let i = 0; i < numDays; i++) {
-        availability[format(addDays(fromDate, i), "yyyy-MM-dd")] = false;
-      }
-      return NextResponse.json({ availability });
-    }
-
-    const maxConcurrent = maxConcurrentFromRules(capacityRules, service.category);
-    const s = settings ?? { openTime: "09:00", closeTime: "17:00", slotInterval: 30 };
-    const fromDate = parse(from, "yyyy-MM-dd", new Date());
-    const toDate = parse(to, "yyyy-MM-dd", new Date());
-    const numDays = Math.round((toDate.getTime() - fromDate.getTime()) / (24 * 60 * 60 * 1000)) + 1;
-    const availability: Record<string, boolean> = {};
-
-    for (let i = 0; i < numDays; i++) {
-      const d = addDays(fromDate, i);
-      const dateStr = format(d, "yyyy-MM-dd");
-      const day = parse(dateStr, "yyyy-MM-dd", new Date());
-
-      const allowSameDayWaitlist = sameDayWaitlistAccess && dateStr === businessToday;
-      if (!allowSameDayWaitlist && isBeforeMinBookableDate(dateStr, now)) {
-        availability[dateStr] = false;
-        continue;
-      }
-
-      const dayHours = resolveHoursForDate(
-        dateStr,
-        service.technician.workingHours,
-        s.openTime,
-        s.closeTime
-      );
-      if (dayHours.isOff) {
-        availability[dateStr] = false;
-        continue;
-      }
-
-      const dayBookings = bookings.filter((b) => b.date === dateStr);
-      const dayBlocks = blocks.filter((b) => b.startDate <= dateStr && b.endDate >= dateStr);
-
-      const technicianBookings = dayBookings
-        .filter((b) => b.technicianId === technicianId)
-        .map((b) => ({ startTime: b.startTime, endTime: b.endTime }));
-
-      const categoryBookings = dayBookings.map((b) => ({
-        startTime: b.startTime,
-        endTime: b.endTime,
-        service: { category: b.service.category },
-      }));
-
-      const slots = getSlotsForDay(
-        dateStr,
-        day,
-        dayHours.openTime,
-        dayHours.closeTime,
-        s.slotInterval,
-        service.durationMin,
-        [],
-        dayBlocks,
-        now,
-        {
-          technicianBookings,
-          categoryBookings,
-          serviceCategory: service.category,
-          maxConcurrentInCategory: maxConcurrent,
-          exclusionPairs,
-        }
-      );
-
-      availability[dateStr] = slots.length > 0;
-    }
-
-    return NextResponse.json({ availability });
+    const result = await getAvailabilityForRange({
+      serviceId,
+      technicianId,
+      from,
+      to,
+      waitlistToken: searchParams.get("wl"),
+    });
+    if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+    return NextResponse.json({ availability: result.availability });
   } catch (e) {
     console.error(e);
     return NextResponse.json({ error: "Failed to fetch availability" }, { status: 500 });

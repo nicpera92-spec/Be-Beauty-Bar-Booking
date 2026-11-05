@@ -1,13 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyCancelSignature } from "@/lib/customerCancellation";
-import { getRescheduleSlots, rescheduleBookingByCustomer } from "@/lib/customerReschedule";
+import {
+  getRescheduleAvailability,
+  getRescheduleSlots,
+  rescheduleBookingByCustomer,
+} from "@/lib/customerReschedule";
 
-/** Free slots on ?date= for moving this booking. Uses the same signed link as cancellation. */
+/**
+ * Without ?date=: which days have free times (calendar). With ?date=: the free times that day.
+ * Uses the same signed link as cancellation.
+ */
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const signature = req.nextUrl.searchParams.get("s");
   const date = req.nextUrl.searchParams.get("date") ?? "";
   if (!verifyCancelSignature(params.id, signature)) {
     return NextResponse.json({ error: "Invalid link" }, { status: 404 });
+  }
+  if (!date) {
+    const calendar = await getRescheduleAvailability(params.id);
+    if (!calendar.ok) return NextResponse.json({ error: calendar.error }, { status: 409 });
+    return NextResponse.json(calendar);
   }
   const result = await getRescheduleSlots(params.id, date);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 409 });
