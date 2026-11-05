@@ -1,5 +1,5 @@
 import { parse } from "date-fns";
-import { isWaitlistSlotStillBookable, slotsFreedByCancellation, waitlistEntryFulfilledByBooking, mergeWaitlistPreferences, waitlistEntryInterestedInDate } from "@/lib/waitlist";
+import { isWaitlistSlotStillBookable, slotsFreedByCancellation, waitlistEntryFulfilledByBooking, mergeWaitlistPreferences, waitlistEntryInterestedInDate, findWaitlistBooking, type WaitlistBookingCandidate } from "@/lib/waitlist";
 
 function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(message);
@@ -126,4 +126,50 @@ assert(
   "date after range does not match"
 );
 
-console.log("waitlist: 18 checks passed");
+const signup = {
+  preferredDate: "2026-12-02",
+  preferredDateEnd: "2026-12-10",
+  notifyEarliest: false,
+  technicianId: "tech_1",
+  customerEmail: null,
+  customerPhone: "+447718933160",
+  createdAt: new Date("2026-10-01T10:00:00Z"),
+};
+const booking = (over: Partial<WaitlistBookingCandidate>): WaitlistBookingCandidate => ({
+  id: "b",
+  serviceId: "svc_1",
+  technicianId: "tech_1",
+  customerEmail: null,
+  customerPhone: "07718 933160",
+  date: "2026-12-05",
+  startTime: "10:00",
+  status: "confirmed",
+  createdAt: new Date("2026-10-22T09:00:00Z"),
+  ...over,
+});
+
+assert(
+  findWaitlistBooking(signup, [booking({ id: "match" })])?.id === "match",
+  "booking with differently formatted phone matches waitlist entry"
+);
+assert(
+  findWaitlistBooking(signup, [booking({ date: "2026-12-12" })]) === null,
+  "booking outside wanted dates does not match"
+);
+assert(
+  findWaitlistBooking(signup, [booking({ technicianId: "tech_2" })]) === null,
+  "booking with another technician does not match"
+);
+assert(
+  findWaitlistBooking(signup, [booking({ createdAt: new Date("2026-09-01T09:00:00Z") })]) === null,
+  "booking made before joining the waiting list does not match"
+);
+assert(
+  findWaitlistBooking(signup, [
+    booking({ id: "cancelled", status: "cancelled", date: "2026-12-03" }),
+    booking({ id: "live", date: "2026-12-08" }),
+  ])?.id === "live",
+  "live booking preferred over cancelled one"
+);
+
+console.log("waitlist: 23 checks passed");

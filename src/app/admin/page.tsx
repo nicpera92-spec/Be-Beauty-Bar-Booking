@@ -58,7 +58,41 @@ type WaitlistEntry = {
   createdAt: string;
   service: { name: string };
   technician: { name: string };
+  matchedBooking: {
+    id: string;
+    date: string;
+    startTime: string;
+    status: string;
+    serviceName: string;
+    createdAt: string;
+  } | null;
 };
+
+function WaitlistBookingStatus({ entry }: { entry: WaitlistEntry }) {
+  const booking = entry.matchedBooking;
+  if (!booking) {
+    return entry.lastNotifiedAt ? (
+      <p className="text-xs font-medium text-amber-700 mt-1.5">Not booked yet</p>
+    ) : null;
+  }
+  const when = `${formatBookingDateFriendly(booking.date)} at ${booking.startTime}`;
+  if (booking.status === "cancelled") {
+    return (
+      <p className="text-xs font-medium text-charcoal/55 mt-1.5">
+        Booked {when}, then cancelled
+      </p>
+    );
+  }
+  const afterNotification =
+    entry.lastNotifiedAt && booking.createdAt >= entry.lastNotifiedAt;
+  return (
+    <p className="text-xs font-medium text-green-700 mt-1.5">
+      ✓ Booked {when} · {booking.serviceName}
+      {booking.status === "pending_deposit" && " · deposit pending"}
+      {afterNotification && " · after being notified"}
+    </p>
+  );
+}
 
 type StatusFilter = "confirmed" | "pending_deposit" | "cancelled" | "waitlist";
 
@@ -561,11 +595,14 @@ export default function AdminPage() {
                         key={entry.id}
                         className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-charcoal/70 flex justify-between gap-2"
                       >
-                        <span>
+                        <div>
                           {entry.customerName} · {entry.service.name} ·{" "}
                           {formatBookingDateFriendly(entry.preferredDate)}
+                          <WaitlistBookingStatus entry={entry} />
+                        </div>
+                        <span className="text-xs capitalize shrink-0">
+                          {entry.status === "fulfilled" ? "Booked" : entry.status}
                         </span>
-                        <span className="text-xs capitalize">{entry.status}</span>
                       </div>
                     ))}
                   </div>
@@ -714,6 +751,7 @@ function AdminWaitlistRow({
             <> · Notified {new Date(entry.lastNotifiedAt).toLocaleDateString("en-GB")}</>
           )}
         </p>
+        <WaitlistBookingStatus entry={entry} />
         {notifyMessage && (
           <p className="text-xs text-charcoal/70 mt-2 bg-slate-50 border border-slate-100 rounded px-2 py-1.5">
             {notifyMessage}

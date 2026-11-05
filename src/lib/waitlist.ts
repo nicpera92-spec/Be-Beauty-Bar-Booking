@@ -5,6 +5,7 @@ import { businessDateStr } from "@/lib/business-time";
 import { getSlotsForDay } from "@/lib/slotUtils";
 import { getMaxConcurrentForCategory, getCategoryExclusionPairs } from "@/lib/bookingAvailability";
 import { resolveHoursForDate } from "@/lib/workingHours";
+import { formatUKPhoneToE164 } from "@/lib/sms";
 import {
   formatWaitlistDateRange,
   waitlistHasExplicitRange,
@@ -121,7 +122,60 @@ export function mergeWaitlistPreferences(
   };
 }
 
-/** Human-readable waitlist date range for admin and confirmations. */
+export type WaitlistBookingCandidate = {
+  id: string;
+  serviceId: string;
+  technicianId: string;
+  customerEmail: string | null;
+  customerPhone: string | null;
+  date: string;
+  startTime: string;
+  status: string;
+  createdAt: Date;
+};
+
+function sameContact(
+  a: { customerEmail: string | null; customerPhone: string | null },
+  b: { customerEmail: string | null; customerPhone: string | null }
+): boolean {
+  const emailA = a.customerEmail?.trim().toLowerCase();
+  const emailB = b.customerEmail?.trim().toLowerCase();
+  if (emailA && emailB && emailA === emailB) return true;
+  const phoneA = a.customerPhone?.trim() ? formatUKPhoneToE164(a.customerPhone) : "";
+  const phoneB = b.customerPhone?.trim() ? formatUKPhoneToE164(b.customerPhone) : "";
+  return Boolean(phoneA && phoneB && phoneA === phoneB);
+}
+
+/**
+ * The booking a waitlisted customer made for one of their wanted dates (same technician,
+ * made after joining the list). Prefers a live booking over a cancelled one, then the earliest.
+ */
+export function findWaitlistBooking<T extends WaitlistBookingCandidate>(
+  entry: WaitlistDatePreference & {
+    technicianId: string;
+    customerEmail: string | null;
+    customerPhone: string | null;
+    createdAt: Date;
+  },
+  bookings: T[]
+): T | null {
+  const matches = bookings
+    .filter(
+      (b) =>
+        b.technicianId === entry.technicianId &&
+        b.createdAt.getTime() >= entry.createdAt.getTime() &&
+        waitlistEntryInterestedInDate(entry, b.date) &&
+        sameContact(entry, b)
+    )
+    .sort((a, b) => {
+      const liveA = a.status === "cancelled" ? 1 : 0;
+      const liveB = b.status === "cancelled" ? 1 : 0;
+      if (liveA !== liveB) return liveA - liveB;
+      return `${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`);
+    });
+  return matches[0] ?? null;
+}
+
 function waitlistContactOr(customerEmail: string | null, customerPhone: string | null) {
   const email = customerEmail?.trim() || "";
   const phone = customerPhone?.trim() || "";
@@ -144,19 +198,20 @@ export async function removeWaitlistEntriesAfterBooking(params: {
   const phone = customerPhone?.trim() || "";
   if (!email && !phone) return 0;
 
-  const contactOr = waitlistContactOr(customerEmail, customerPhone);
-
   const entries = await prisma.waitingListEntry.findMany({
     where: {
       status: "active",
       serviceId,
       technicianId,
-      OR: contactOr,
     },
   });
 
   const ids = entries
-    .filter((entry) => waitlistEntryFulfilledByBooking(entry, date))
+    .filter(
+      (entry) =>
+        sameContact(entry, { customerEmail, customerPhone }) &&
+        waitlistEntryFulfilledByBooking(entry, date)
+    )
     .map((entry) => entry.id);
 
   if (ids.length === 0) return 0;
