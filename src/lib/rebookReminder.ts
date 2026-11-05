@@ -169,6 +169,35 @@ export function latestVisitPerContact(
   return [...latest.values()];
 }
 
+type ContactBooking = { date: string; customerEmail: string | null; customerPhone: string | null };
+
+export type LatestBookingIndex = { byEmail: Map<string, string>; byPhone: Map<string, string> };
+
+/** Latest booking date for each email and each phone (normalised), across past and upcoming bookings. */
+export function indexLatestBookingDates(bookings: ContactBooking[]): LatestBookingIndex {
+  const byEmail = new Map<string, string>();
+  const byPhone = new Map<string, string>();
+  const keep = (map: Map<string, string>, key: string | null, date: string) => {
+    if (!key) return;
+    const current = map.get(key);
+    if (!current || date > current) map.set(key, date);
+  };
+  for (const b of bookings) {
+    keep(byEmail, normalizeContactEmail(b.customerEmail), b.date);
+    keep(byPhone, normalizeContactPhone(b.customerPhone), b.date);
+  }
+  return { byEmail, byPhone };
+}
+
+/** True when this customer (same email or same phone) has a booking dated after this visit. */
+export function hasLaterBooking(visit: ContactBooking, index: LatestBookingIndex): boolean {
+  const email = normalizeContactEmail(visit.customerEmail);
+  const phone = normalizeContactPhone(visit.customerPhone);
+  const laterByEmail = email ? (index.byEmail.get(email) ?? "") > visit.date : false;
+  const laterByPhone = phone ? (index.byPhone.get(phone) ?? "") > visit.date : false;
+  return laterByEmail || laterByPhone;
+}
+
 export async function processRebookReminders(): Promise<{
   sent: number;
   failed: number;
@@ -183,19 +212,28 @@ export async function processRebookReminders(): Promise<{
   const daysAfter = await getRebookReminderDaysAfter();
   const today = format(startOfDay(new Date()), "yyyy-MM-dd");
 
-  const confirmedVisits = await prisma.booking.findMany({
-    where: {
-      status: "confirmed",
-      date: { lte: today },
-    },
-    include: { service: true, technician: true },
-    orderBy: [{ date: "desc" }, { startTime: "desc" }],
-  });
+  const [confirmedVisits, liveBookings] = await Promise.all([
+    prisma.booking.findMany({
+      where: {
+        status: "confirmed",
+        date: { lte: today },
+      },
+      include: { service: true, technician: true },
+      orderBy: [{ date: "desc" }, { startTime: "desc" }],
+    }),
+    // Every live booking, including upcoming ones — anyone who has already rebooked must be skipped.
+    prisma.booking.findMany({
+      where: { status: { in: ["confirmed", "pending_deposit"] } },
+      select: { date: true, customerEmail: true, customerPhone: true },
+    }),
+  ]);
+  const latestByContact = indexLatestBookingDates(liveBookings);
 
   const candidates = latestVisitPerContact(confirmedVisits).filter(
     (booking) =>
       rebookReminderDueDate(booking.date, daysAfter) === today &&
-      booking.rebookReminderSentAt === null
+      booking.rebookReminderSentAt === null &&
+      !hasLaterBooking(booking, latestByContact)
   );
 
   let sent = 0;

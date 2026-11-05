@@ -8,7 +8,7 @@ import { DEFAULT_NOTIFICATION_MESSAGES } from "@/lib/notificationDefaults";
 import { renderEmailBody } from "@/lib/notificationTemplates";
 import { computeDashboardStats, type StatsBooking } from "@/lib/dashboardStats";
 import { bookingMatchesContact, normalizeCustomerContact } from "@/lib/customerPortal";
-import { contactKeyForBooking } from "@/lib/rebookReminder";
+import { contactKeyForBooking, hasLaterBooking, indexLatestBookingDates } from "@/lib/rebookReminder";
 
 function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(message);
@@ -134,5 +134,32 @@ assert(normalizeCustomerContact("hello") === null, "junk rejected");
 const phone = normalizeCustomerContact("+44 7718 933160")!;
 assert(bookingMatchesContact({ customerEmail: null, customerPhone: "07718933160" }, phone), "phone formats match");
 assert(!bookingMatchesContact({ customerEmail: null, customerPhone: "07718933161" }, phone), "different phone");
+
+// --- rebook reminders skip customers who already rebooked ---
+const lastVisit = { date: "2026-10-08", customerEmail: "Ann@Example.com", customerPhone: "07700 900111" };
+const rebookIndex = indexLatestBookingDates([
+  lastVisit,
+  { date: "2026-11-20", customerEmail: null, customerPhone: "+447700900111" }, // upcoming, phone only
+  { date: "2026-10-01", customerEmail: "old@example.com", customerPhone: null },
+]);
+assert(hasLaterBooking(lastVisit, rebookIndex), "upcoming booking under same phone (other format) blocks reminder");
+assert(
+  hasLaterBooking(
+    { date: "2026-10-08", customerEmail: "ann@example.com", customerPhone: null },
+    indexLatestBookingDates([{ date: "2026-12-01", customerEmail: "ANN@example.com", customerPhone: null }])
+  ),
+  "upcoming booking under same email (any case) blocks reminder"
+);
+assert(
+  !hasLaterBooking(
+    { date: "2026-10-01", customerEmail: "old@example.com", customerPhone: null },
+    rebookIndex
+  ),
+  "customer with no later booking still gets their reminder"
+);
+assert(
+  !hasLaterBooking(lastVisit, indexLatestBookingDates([lastVisit])),
+  "the visit itself doesn't count as a later booking"
+);
 
 console.log("automations: all checks passed");
