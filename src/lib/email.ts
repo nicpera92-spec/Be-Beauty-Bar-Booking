@@ -1,7 +1,8 @@
 import { Resend } from "resend";
 import { prisma } from "@/lib/prisma";
 import { sendSMS, formatUKPhoneToE164 } from "@/lib/sms";
-import { formatBookingDate } from "@/lib/format";
+import { formatBookingDate, formatCurrency } from "@/lib/format";
+import { certificateTreatmentsText } from "@/lib/giftVoucherRules";
 import {
   applyTemplate,
   buildBookLink,
@@ -10,6 +11,7 @@ import {
   bookingLinkEmailVars,
   bookingLinkMessageVars,
   bookingSiteUrl,
+  giftEmailBodyWithMessage,
   renderEmailBody,
   renderEmailSubject,
   resolveNotificationMessages,
@@ -646,50 +648,66 @@ export async function sendCustomerLoginCode(
   });
 }
 
+/**
+ * Gift certificate emails. The gift email (with the personal message) goes to the person it's for,
+ * or to the buyer when they chose to hand it over themselves; the buyer otherwise gets a receipt.
+ */
 export async function sendGiftVoucherEmails(voucherId: string): Promise<{ ok: boolean; error?: string }> {
   if (!resendClient) return { ok: false, error: "RESEND_API_KEY not set" };
-  const voucher = await prisma.giftVoucher.findUnique({ where: { id: voucherId } });
+  const voucher = await prisma.giftVoucher.findUnique({
+    where: { id: voucherId },
+    include: { items: { orderBy: { position: "asc" } } },
+  });
   if (!voucher || voucher.status !== "active") return { ok: false, error: "Voucher not active" };
 
   const { settings, messages, businessName } = await getMessages();
   const bookUrl = bookingSiteUrl("/book");
+  const recipientName = voucher.recipientName?.trim() || "someone special";
   const vars = {
     businessName,
     ...bookingLinkEmailVars(bookUrl),
     voucherCode: voucher.code,
-    voucherAmount: `£${voucher.initialAmount}`,
-    voucherMessage: voucher.message ?? "",
+    voucherAmount: formatCurrency(voucher.initialAmount),
+    voucherMessage: voucher.message?.trim() ? `“${voucher.message.trim()}”` : "",
     voucherExpiry: voucher.expiresAt
       ? formatBookingDate(voucher.expiresAt.toISOString().slice(0, 10), "d MMMM yyyy")
       : "",
+    voucherTreatments: certificateTreatmentsText(voucher.items, voucher.packageName),
     buyerName: voucher.soldInSalon ? businessName : voucher.purchaserName,
     buyerEmail: voucher.soldInSalon ? "" : voucher.purchaserEmail,
-    recipientName: voucher.recipientName?.trim() || "someone special",
+    recipientName,
   };
   const errors: string[] = [];
+  const giftBody = giftEmailBodyWithMessage(messages.giftCertificateRecipientBody, voucher.message);
 
   const recipientEmail = voucher.recipientEmail?.trim();
+  const purchaserEmail = voucher.soldInSalon ? "" : voucher.purchaserEmail?.trim();
   if (recipientEmail) {
     const r = await sendResendEmail({
       from,
       to: recipientEmail,
-      subject: renderEmailSubject(messages.giftVoucherRecipientSubject, vars),
-      html: renderEmailBody(messages.giftVoucherRecipientBody, {
-        ...vars,
-        recipientName: voucher.recipientName?.trim() || "there",
-      }),
+      subject: renderEmailSubject(messages.giftCertificateRecipientSubject, vars),
+      html: renderEmailBody(giftBody, { ...vars, recipientName: voucher.recipientName?.trim() || "there" }),
     });
     if (!r.ok) errors.push(r.error ?? "recipient email failed");
   }
 
-  const purchaserEmail = voucher.purchaserEmail?.trim();
-  if (!voucher.soldInSalon && purchaserEmail && purchaserEmail !== recipientEmail) {
-    const r = await sendResendEmail({
-      from,
-      to: purchaserEmail,
-      subject: renderEmailSubject(messages.giftVoucherBuyerSubject, vars),
-      html: renderEmailBody(messages.giftVoucherBuyerBody, vars),
-    });
+  if (purchaserEmail && purchaserEmail !== recipientEmail) {
+    const r = recipientEmail
+      ? await sendResendEmail({
+          from,
+          to: purchaserEmail,
+          subject: renderEmailSubject(messages.giftCertificateBuyerSubject, vars),
+          html: renderEmailBody(messages.giftCertificateBuyerBody, vars),
+        })
+      : await sendResendEmail({
+          from,
+          to: purchaserEmail,
+          subject: renderEmailSubject(messages.giftCertificateBuyerSubject, vars),
+          html:
+            `<p><em>Here's the gift certificate for ${escapeHtmlText(recipientName)} — print this email or forward it to them.</em></p>` +
+            renderEmailBody(giftBody, vars),
+        });
     if (!r.ok) errors.push(r.error ?? "purchaser email failed");
   }
 
@@ -697,8 +715,8 @@ export async function sendGiftVoucherEmails(voucherId: string): Promise<{ ok: bo
     await sendResendEmail({
       from,
       to: settings.businessEmail.trim(),
-      subject: renderEmailSubject(messages.giftVoucherOwnerSubject, vars),
-      html: renderEmailBody(messages.giftVoucherOwnerBody, vars),
+      subject: renderEmailSubject(messages.giftCertificateOwnerSubject, vars),
+      html: renderEmailBody(messages.giftCertificateOwnerBody, vars),
     });
   }
 

@@ -30,6 +30,7 @@ type Booking = {
   startTime: string;
   endTime: string;
   depositAmount: number;
+  certificateItemId?: string | null;
   balancePaidOnline: boolean;
   status: string;
   notifyByEmail: boolean;
@@ -869,7 +870,10 @@ function AdminBookingRow({
           ) : (
             booking.customerEmail || "No contact"
           )}{" "}
-          · {formatCurrency(booking.depositAmount)} deposit
+          ·{" "}
+          {booking.certificateItemId
+            ? "paid in full by gift certificate"
+            : `${formatCurrency(booking.depositAmount)} deposit`}
           {booking.balancePaidOnline && " · balance paid online"}
           {booking.depositRefundedAt && " · deposit refunded"}
           {booking.balanceRefundedAt && " · balance refunded"}

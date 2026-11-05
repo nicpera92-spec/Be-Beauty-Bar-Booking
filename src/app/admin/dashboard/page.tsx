@@ -3,15 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  addDays,
-  endOfMonth,
-  endOfYear,
-  format,
-  startOfMonth,
-  startOfYear,
-  subMonths,
-} from "date-fns";
+import { addDays, endOfMonth, format, startOfMonth, subMonths } from "date-fns";
 import { formatCurrency } from "@/lib/format";
 import type { DashboardStats } from "@/lib/dashboardStats";
 
@@ -23,26 +15,13 @@ function getAuthHeaders(): Record<string, string> {
   return t ? { Authorization: `Bearer ${t}` } : {};
 }
 
-type PeriodId =
-  | "this_month"
-  | "last_month"
-  | "last_30"
-  | "next_30"
-  | "last_3_months"
-  | "last_6_months"
-  | "last_12_months"
-  | "this_year"
-  | "custom";
+type PeriodId = "this_month" | "last_3_months" | "last_6_months" | "last_12_months" | "custom";
 
 const PERIODS: { id: PeriodId; label: string }[] = [
   { id: "this_month", label: "This month" },
-  { id: "last_month", label: "Last month" },
-  { id: "last_30", label: "Last 30 days" },
   { id: "last_3_months", label: "Last 3 months" },
   { id: "last_6_months", label: "Last 6 months" },
   { id: "last_12_months", label: "Last 12 months" },
-  { id: "this_year", label: "This year" },
-  { id: "next_30", label: "Next 30 days" },
   { id: "custom", label: "Custom dates" },
 ];
 
@@ -62,16 +41,6 @@ function periodRange(
       return { from: f(addDays(subMonths(today, 12), 1)), to: f(today) };
     case "this_month":
       return { from: f(startOfMonth(today)), to: f(endOfMonth(today)) };
-    case "last_month": {
-      const last = subMonths(today, 1);
-      return { from: f(startOfMonth(last)), to: f(endOfMonth(last)) };
-    }
-    case "last_30":
-      return { from: f(addDays(today, -29)), to: f(today) };
-    case "next_30":
-      return { from: f(today), to: f(addDays(today, 29)) };
-    case "this_year":
-      return { from: f(startOfYear(today)), to: f(endOfYear(today)) };
   }
 }
 

@@ -32,6 +32,7 @@ type BookingSummary = {
   endTime: string;
   depositAmount: number;
   voucherAmount?: number;
+  paidByCertificate?: boolean;
 };
 
 export default function CancelBookingPage() {
@@ -92,6 +93,7 @@ export default function CancelBookingPage() {
   const instagram = instagramHandle?.replace(/^@/, "");
   const deposit = booking ? formatCurrency(booking.depositAmount) : "";
   const hasDeposit = (booking?.depositAmount ?? 0) > 0;
+  const paidByCertificate = Boolean(booking?.paidByCertificate);
 
   const bookingCard = booking && (
     <div className="rounded-xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
@@ -102,8 +104,10 @@ export default function CancelBookingPage() {
         {formatBookingDate(booking.date, "EEEE, dd/MM/yyyy")} · {booking.startTime}–{booking.endTime}
         {booking.technicianName && <> · with {booking.technicianName}</>}
       </p>
-      {hasDeposit && (
-        <p className="text-slate-500 text-sm mt-2">{deposit} deposit paid</p>
+      {paidByCertificate ? (
+        <p className="text-slate-500 text-sm mt-2">Paid in full by gift certificate</p>
+      ) : (
+        hasDeposit && <p className="text-slate-500 text-sm mt-2">{deposit} deposit paid</p>
       )}
     </div>
   );
@@ -188,7 +192,15 @@ export default function CancelBookingPage() {
 
           <p className="text-sm font-semibold text-slate-800 pt-2">Cancel instead</p>
 
-          {state === "refundable" ? (
+          {paidByCertificate ? (
+            <div className="rounded-lg border-2 border-emerald-300 bg-emerald-50 px-4 py-4 space-y-2">
+              <p className="text-sm font-semibold text-emerald-800">Your treatment goes back on your gift certificate</p>
+              <p className="text-sm text-emerald-900/80 leading-relaxed">
+                If you cancel, your {booking.serviceName} is put back on your gift certificate so you can
+                use the same code to book again.
+              </p>
+            </div>
+          ) : state === "refundable" ? (
             <div className="rounded-lg border-2 border-emerald-300 bg-emerald-50 px-4 py-4 space-y-2">
               <p className="text-sm font-semibold text-emerald-800">
                 {hasDeposit ? "Your deposit will be refunded" : "No deposit to refund"}
@@ -250,7 +262,10 @@ export default function CancelBookingPage() {
               Your appointment has been moved
             </h1>
             <p className="text-sm text-slate-600 leading-relaxed">
-              Your deposit has been carried over. We&apos;ve sent you the new details — see you then!
+              {paidByCertificate
+                ? "Your gift certificate still covers it in full."
+                : "Your deposit has been carried over."}{" "}
+              We&apos;ve sent you the new details — see you then!
             </p>
           </div>
           {bookingCard}

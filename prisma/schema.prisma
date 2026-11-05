@@ -25,6 +25,7 @@ model Service {
   addOns        AddOn[]
   bookings      Booking[]
   waitingListEntries WaitingListEntry[]
+  giftCertificateItems GiftCertificateItem[]
 }
 
 model AddOn {
@@ -145,8 +146,10 @@ model CustomerNotificationPreference {
 model GiftVoucher {
   id                    String              @id @default(cuid())
   code                  String              @unique
-  initialAmount         Float
-  balance               Float
+  kind                  String              @default("credit") // credit (old £ vouchers) | certificate (treatments paid in full)
+  packageName           String?             // set when bought as one of the salon's combo packages
+  initialAmount         Float               // amount paid
+  balance               Float               // credit vouchers only; certificates stay 0
   status                String              @default("pending_payment") // pending_payment | active | cancelled
   purchaserName         String
   purchaserEmail        String
@@ -162,6 +165,40 @@ model GiftVoucher {
   updatedAt             DateTime            @updatedAt
   bookings              Booking[]
   transactions          VoucherTransaction[]
+  items                 GiftCertificateItem[]
+}
+
+// One treatment on a gift certificate (a combo certificate has several), paid in full when bought.
+model GiftCertificateItem {
+  id             String      @id @default(cuid())
+  voucherId      String
+  voucher        GiftVoucher @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  serviceId      String?
+  service        Service?    @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  serviceName    String
+  technicianName String?
+  price          Float       // treatment price when the certificate was bought
+  position       Int         @default(0)
+  status         String      @default("available") // available | booked | used
+  bookingId      String?     // booking currently using this treatment
+  usedAt         DateTime?
+  createdAt      DateTime    @default(now())
+  bookings       Booking[]
+
+  @@index([voucherId])
+}
+
+// A combo the owner sells as one gift certificate, at its own price.
+model GiftPackage {
+  id          String   @id @default(cuid())
+  name        String
+  description String?  @default("")
+  price       Float
+  serviceIds  String[]
+  active      Boolean  @default(true)
+  position    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 // Ledger of voucher balance changes: negative = value used, positive = value returned
@@ -243,6 +280,8 @@ model Booking {
   voucher                       GiftVoucher?   @relation(fields: [voucherId], references: [id])
   voucherAmount                 Float          @default(0) // part of depositAmount paid by gift voucher
   voucherRestoredAt             DateTime?      // voucher part returned to the voucher (refund / expiry)
+  certificateItemId             String?        // set = treatment paid in full by a gift certificate
+  certificateItem               GiftCertificateItem? @relation(fields: [certificateItemId], references: [id], onDelete: SetNull)
   reminderSentAt                DateTime?
   rebookReminderSentAt          DateTime?
   createdAt                     DateTime       @default(now())

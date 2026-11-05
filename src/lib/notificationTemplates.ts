@@ -69,10 +69,11 @@ export const PLACEHOLDER_LABELS: Record<string, string> = {
   reviewLink: "Review link",
   scheduleList: "Schedule",
   appointmentCount: "Appointment count",
-  voucherCode: "Voucher code",
-  voucherAmount: "Voucher amount",
-  voucherMessage: "Voucher message",
-  voucherExpiry: "Voucher expiry",
+  voucherCode: "Certificate code",
+  voucherAmount: "Certificate value",
+  voucherMessage: "Gift message",
+  voucherExpiry: "Certificate expiry",
+  voucherTreatments: "Treatments",
   buyerName: "Buyer name",
   buyerEmail: "Buyer email",
   recipientName: "Recipient name",
@@ -99,6 +100,11 @@ const LABEL_TO_VAR: Record<string, string> = {
   "Review link": "reviewLink",
   Schedule: "scheduleList",
   "Appointment count": "appointmentCount",
+  "Certificate code": "voucherCode",
+  "Certificate value": "voucherAmount",
+  "Gift message": "voucherMessage",
+  "Certificate expiry": "voucherExpiry",
+  Treatments: "voucherTreatments",
   "Voucher code": "voucherCode",
   "Voucher amount": "voucherAmount",
   "Voucher message": "voucherMessage",
@@ -180,13 +186,14 @@ export const MESSAGE_INSERT_TAGS: MessageInsertTag[] = [
   tag("Review link", "Your Google review page", ["review-request"]),
   tag("Schedule", "The list of appointments", ["daily-schedule"]),
   tag("Appointment count", "e.g. 3 appointments", ["daily-schedule"]),
-  tag("Voucher code", "e.g. BB-ABCD-2345", ["gift-voucher"]),
-  tag("Voucher amount", "e.g. £50", ["gift-voucher"]),
-  tag("Voucher message", "The buyer's personal message", ["gift-voucher"]),
-  tag("Voucher expiry", "Date the voucher expires", ["gift-voucher"]),
-  tag("Buyer name", "Who bought the voucher", ["gift-voucher"]),
+  tag("Treatments", "The treatments on the certificate", ["gift-voucher"]),
+  tag("Certificate code", "e.g. BB-ABCD-2345", ["gift-voucher"]),
+  tag("Gift message", "The buyer's personal message", ["gift-voucher"]),
+  tag("Certificate value", "What was paid, e.g. £65", ["gift-voucher"]),
+  tag("Certificate expiry", "Date the certificate expires", ["gift-voucher"]),
+  tag("Buyer name", "Who bought the certificate", ["gift-voucher"]),
   tag("Buyer email", "Buyer's email address", ["gift-voucher"]),
-  tag("Recipient name", "Who the voucher is for", ["gift-voucher"]),
+  tag("Recipient name", "Who the certificate is for", ["gift-voucher"]),
 ];
 
 export function insertTagsForGroup(groupId: string): MessageInsertTag[] {
@@ -238,9 +245,10 @@ export const MESSAGE_PREVIEW_SAMPLE: Record<string, string> = {
     "09:30–11:30 · Alex Smith · Lash Extensions – Any Style · 07700 900123 · Confirmed\n14:00–15:00 · Sam Jones · Gel Manicure · 07700 900456 · Awaiting deposit\n    📝 Allergic to latex",
   appointmentCount: "2 appointments",
   voucherCode: "BB-ABCD-2345",
-  voucherAmount: "£50",
-  voucherMessage: "Happy birthday! Enjoy some pampering x",
+  voucherAmount: "£65",
+  voucherMessage: "“Happy birthday! Enjoy some pampering x”",
   voucherExpiry: "5 November 2027",
+  voucherTreatments: "• Gel Manicure with Sarah\n• Lash Lift with Sarah",
   buyerName: "Jamie",
   buyerEmail: "jamie@example.com",
   recipientName: "Alex",
@@ -347,6 +355,13 @@ export function insertBeforeSignOff(body: string, paragraph: string): string {
   const signOff = trimmed.lastIndexOf("\n\n— ");
   if (signOff === -1) return `${trimmed}\n\n${paragraph}`;
   return `${trimmed.slice(0, signOff)}\n\n${paragraph}${trimmed.slice(signOff)}`;
+}
+
+/** The gift email must carry the buyer's personal message even if the template was edited without it. */
+export function giftEmailBodyWithMessage(body: string, message: string | null | undefined): string {
+  if (!message?.trim()) return body;
+  const hasMessage = [friendlyToken("Gift message"), friendlyToken("Voucher message")].some((t) => body.includes(t));
+  return hasMessage ? body : insertBeforeSignOff(body, friendlyToken("Gift message"));
 }
 
 /** Confirmation messages must always carry the customer's cancel link (and the email calendar + directions links). */

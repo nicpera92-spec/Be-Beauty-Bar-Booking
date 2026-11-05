@@ -5,7 +5,11 @@
 import { reviewRequestDates, selectReviewCandidates } from "@/lib/reviewRequests";
 import { formatSalonSchedule, formatScheduleLines, groupScheduleByTechnician } from "@/lib/dailySchedule";
 import { DEFAULT_NOTIFICATION_MESSAGES } from "@/lib/notificationDefaults";
-import { renderEmailBody } from "@/lib/notificationTemplates";
+import {
+  giftEmailBodyWithMessage,
+  renderEmailBody,
+  resolveNotificationMessages,
+} from "@/lib/notificationTemplates";
 import { computeDashboardStats, type StatsBooking } from "@/lib/dashboardStats";
 import { bookingMatchesContact, normalizeCustomerContact } from "@/lib/customerPortal";
 import { contactKeyForBooking, hasLaterBooking, indexLatestBookingDates } from "@/lib/rebookReminder";
@@ -71,19 +75,42 @@ const scheduleHtml = renderEmailBody(DEFAULT_NOTIFICATION_MESSAGES.dailySchedule
 assert(scheduleHtml.includes("SVITLANA (2 appointments)<br>09:30–10:30"), "schedule renders line by line");
 assert(!scheduleHtml.includes("**"), "no leftover placeholders");
 
-// --- gift voucher emails are editable templates ---
-const voucherHtml = renderEmailBody(DEFAULT_NOTIFICATION_MESSAGES.giftVoucherRecipientBody, {
+// --- gift certificate emails are editable templates ---
+const giftVars = {
   recipientName: "Alex",
-  voucherAmount: "£50",
+  voucherAmount: "£65",
   businessName: "Be Beauty Bar",
   buyerName: "Jamie",
   voucherMessage: "",
   voucherCode: "BB-ABCD-2345",
   voucherExpiry: "5 November 2027",
+  voucherTreatments: "• Gel Manicure with Sarah\n• Lash Lift with Sarah",
   bookLink: "bbbar.co.uk: https://bbbar.co.uk/book",
-});
-assert(voucherHtml.includes("Your voucher code: BB-ABCD-2345"), "voucher code in recipient email");
+};
+const voucherHtml = renderEmailBody(DEFAULT_NOTIFICATION_MESSAGES.giftCertificateRecipientBody, giftVars);
+assert(voucherHtml.includes("Your certificate code: BB-ABCD-2345"), "code in gift email");
+assert(voucherHtml.includes("• Gel Manicure with Sarah<br>• Lash Lift with Sarah"), "treatments listed in gift email");
+assert(voucherHtml.includes("Jamie has treated you"), "buyer named in gift email");
 assert(!voucherHtml.includes("<p></p>"), "empty personal message leaves no blank paragraph");
+assert(!voucherHtml.includes("**"), "no leftover gift placeholders");
+const resolvedGift = resolveNotificationMessages(null).giftCertificateRecipientBody;
+const withMessage = renderEmailBody(giftEmailBodyWithMessage(resolvedGift, "Happy birthday x"), {
+  ...giftVars,
+  voucherMessage: "“Happy birthday x”",
+});
+assert(withMessage.includes("“Happy birthday x”"), "personal message in gift email");
+const editedWithoutMessage = resolveNotificationMessages({
+  giftCertificateRecipientBody: "Hi **Recipient name**, enjoy! Code: **Certificate code**\n\n— **Salon name**",
+}).giftCertificateRecipientBody;
+const forced = renderEmailBody(giftEmailBodyWithMessage(editedWithoutMessage, "Love you"), {
+  ...giftVars,
+  voucherMessage: "“Love you”",
+});
+assert(forced.includes("<p>“Love you”</p><p>— Be Beauty Bar</p>"), "message added back if the template drops it");
+assert(
+  giftEmailBodyWithMessage(editedWithoutMessage, "") === editedWithoutMessage,
+  "no message, template untouched"
+);
 
 // --- dashboard ---
 const b = (over: Partial<StatsBooking>): StatsBooking => ({

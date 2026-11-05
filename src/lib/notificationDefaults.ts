@@ -40,12 +40,12 @@ export type NotificationMessages = {
   reviewRequestCustomerSubject: string;
   reviewRequestCustomerBody: string;
   reviewRequestCustomerSms: string;
-  giftVoucherRecipientSubject: string;
-  giftVoucherRecipientBody: string;
-  giftVoucherBuyerSubject: string;
-  giftVoucherBuyerBody: string;
-  giftVoucherOwnerSubject: string;
-  giftVoucherOwnerBody: string;
+  giftCertificateRecipientSubject: string;
+  giftCertificateRecipientBody: string;
+  giftCertificateBuyerSubject: string;
+  giftCertificateBuyerBody: string;
+  giftCertificateOwnerSubject: string;
+  giftCertificateOwnerBody: string;
   dailyScheduleSubject: string;
   dailyScheduleBody: string;
 };
@@ -286,38 +286,47 @@ Leave a review: **Review link**
   reviewRequestCustomerSms:
     "Hi **Customer name**, thank you for visiting **Salon name**! If you have a minute, we'd love a quick Google review: **Review link**",
 
-  giftVoucherRecipientSubject: "You've received a **Voucher amount** gift voucher for **Salon name**",
-  giftVoucherRecipientBody: `Hi **Recipient name**,
+  giftCertificateRecipientSubject: "**Buyer name** has sent you a gift certificate for **Salon name**",
+  giftCertificateRecipientBody: `Hi **Recipient name**,
 
-You've been given a **Voucher amount** gift voucher for **Salon name** from **Buyer name**!
+**Buyer name** has treated you to a gift certificate for **Salon name**!
 
-**Voucher message**
+**Gift message**
 
-Your voucher code: **Voucher code**
+Your treat:
+**Treatments**
 
-To use it, enter the code when you book online — it pays your deposit, and any remaining value can be used at the salon. Valid until **Voucher expiry**.
+It's already paid for in full — there's nothing to pay at your appointment.
+
+Your certificate code: **Certificate code**
+
+To use it, book your treatment online and enter the code on the last step. Valid until **Certificate expiry**.
 
 Book now: **Booking link**
 
 — **Salon name**`,
 
-  giftVoucherBuyerSubject: "Your **Voucher amount** gift voucher – **Salon name**",
-  giftVoucherBuyerBody: `Hi **Buyer name**,
+  giftCertificateBuyerSubject: "Your gift certificate for **Recipient name** – **Salon name**",
+  giftCertificateBuyerBody: `Hi **Buyer name**,
 
-Thank you for buying a **Voucher amount** gift voucher for **Recipient name**.
+Thank you for buying a gift certificate for **Recipient name**. We've emailed it to them with your message.
 
-Voucher code: **Voucher code**
-Valid until **Voucher expiry**
+Treatments:
+**Treatments**
 
-The code pays the deposit when booking online, and any remaining value can be used at the salon. If you gave their email address we've sent it to them too — otherwise you can print this email or forward the code.
+Certificate code: **Certificate code**
+Valid until **Certificate expiry**
 
 — **Salon name**`,
 
-  giftVoucherOwnerSubject: "Gift voucher sold – **Voucher amount**",
-  giftVoucherOwnerBody: `A **Voucher amount** gift voucher was bought online by **Buyer name** (**Buyer email**) for **Recipient name**.
+  giftCertificateOwnerSubject: "Gift certificate sold – **Certificate value**",
+  giftCertificateOwnerBody: `A **Certificate value** gift certificate was bought online by **Buyer name** (**Buyer email**) for **Recipient name**.
 
-Voucher code: **Voucher code**
-Valid until **Voucher expiry**
+Treatments:
+**Treatments**
+
+Certificate code: **Certificate code**
+Valid until **Certificate expiry**
 
 — **Salon name**`,
 
@@ -575,29 +584,29 @@ export const NOTIFICATION_MESSAGE_GROUPS: NotificationMessageGroup[] = [
   },
   {
     id: "gift-voucher",
-    title: "Gift voucher",
+    title: "Gift certificate",
     description:
-      "When a gift voucher is bought online (or one you create in the salon is emailed). The recipient email is only sent if the buyer gave their address.",
+      "When a gift certificate is bought online (or one you create in the salon is emailed). The gift email always includes the buyer's personal message. If the buyer chose to give it themselves, the gift email goes to them instead and no receipt is sent.",
     sections: [
       {
-        title: "Recipient email",
+        title: "Gift email (to the person it's for)",
         fields: [
-          { key: "giftVoucherRecipientSubject", label: "Subject", kind: "subject" },
-          { key: "giftVoucherRecipientBody", label: "Message", kind: "email" },
+          { key: "giftCertificateRecipientSubject", label: "Subject", kind: "subject" },
+          { key: "giftCertificateRecipientBody", label: "Message", kind: "email" },
         ],
       },
       {
-        title: "Buyer email",
+        title: "Buyer receipt",
         fields: [
-          { key: "giftVoucherBuyerSubject", label: "Subject", kind: "subject" },
-          { key: "giftVoucherBuyerBody", label: "Message", kind: "email" },
+          { key: "giftCertificateBuyerSubject", label: "Subject", kind: "subject" },
+          { key: "giftCertificateBuyerBody", label: "Message", kind: "email" },
         ],
       },
       {
         title: "Your email",
         fields: [
-          { key: "giftVoucherOwnerSubject", label: "Subject", kind: "subject" },
-          { key: "giftVoucherOwnerBody", label: "Message", kind: "email" },
+          { key: "giftCertificateOwnerSubject", label: "Subject", kind: "subject" },
+          { key: "giftCertificateOwnerBody", label: "Message", kind: "email" },
         ],
       },
     ],

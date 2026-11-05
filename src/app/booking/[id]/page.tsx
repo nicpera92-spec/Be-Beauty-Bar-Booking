@@ -21,6 +21,7 @@ type Booking = {
   servicePrice: number;
   depositAmount: number;
   voucherAmount?: number;
+  certificateItemId?: string | null;
   balancePaidOnline: boolean;
   status: string;
   notifyByEmail: boolean;
@@ -194,6 +195,7 @@ export default function BookingPage() {
   const confirmed = booking.status === "confirmed";
   const pending = booking.status === "pending_deposit";
   const noDeposit = booking.service.requiresDeposit === false;
+  const paidByCertificate = Boolean(booking.certificateItemId);
 
   // Calculate remaining balance (service price - base deposit, excluding SMS fee)
   const smsFee = settings?.smsNotificationFee ?? 0.05;
@@ -201,7 +203,7 @@ export default function BookingPage() {
     ? 0
     : booking.depositAmount - (booking.notifyBySMS ? smsFee : 0);
   const remaining = booking.servicePrice - baseDeposit;
-  const hasRemaining = remaining > 0.001;
+  const hasRemaining = !paidByCertificate && remaining > 0.001;
   const depositDueByCard = booking.depositAmount - (booking.voucherAmount ?? 0);
 
   return (
@@ -236,7 +238,9 @@ export default function BookingPage() {
         </p>
         <p className="text-sm text-slate-500">
           {formatCurrency(booking.servicePrice)} total
-          {noDeposit ? (
+          {paidByCertificate ? (
+            <> · Paid in full by gift certificate</>
+          ) : noDeposit ? (
             <> · No deposit required</>
           ) : (
             <>
@@ -305,7 +309,9 @@ export default function BookingPage() {
           <div>
             <h2 className="font-serif text-xl font-light text-slate-800 mb-3">Your booking is confirmed</h2>
             <p className="text-slate-600 text-sm mb-3 leading-relaxed">
-              {!noDeposit && "Your deposit has been received."}
+              {paidByCertificate
+                ? "Your gift certificate covers this treatment in full — there's nothing to pay at the salon."
+                : !noDeposit && "Your deposit has been received."}
               {booking.customerEmail && (
                 <> A confirmation email has been sent to{" "}
                 <strong className="text-slate-800">{booking.customerEmail}</strong>.</>
@@ -325,9 +331,18 @@ export default function BookingPage() {
               className="mt-5"
             />
             <p className="text-slate-500 text-sm leading-relaxed mt-3">
-              Need to cancel? Use the link in your confirmation email or text. Deposits are
-              refunded for cancellations made more than {settings?.cancellationRefundHours ?? 48}{" "}
-              hours before your appointment.
+              {paidByCertificate ? (
+                <>
+                  Need to cancel? Use the link in your confirmation email or text — the treatment goes
+                  back on your gift certificate so you can book again.
+                </>
+              ) : (
+                <>
+                  Need to cancel? Use the link in your confirmation email or text. Deposits are
+                  refunded for cancellations made more than {settings?.cancellationRefundHours ?? 48}{" "}
+                  hours before your appointment.
+                </>
+              )}
             </p>
           </div>
 

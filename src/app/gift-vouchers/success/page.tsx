@@ -7,6 +7,8 @@ import { formatBookingDate } from "@/lib/format";
 type Confirmed = {
   code: string;
   amount: number;
+  packageName: string | null;
+  treatments: string[];
   recipientName: string | null;
   recipientEmail: string | null;
   purchaserEmail: string;
@@ -27,9 +29,9 @@ export default function GiftVoucherSuccessPage() {
       .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
       .then(({ ok, data }) => {
         if (ok) setVoucher(data);
-        else setError("We're still confirming your payment — your voucher will be emailed to you shortly.");
+        else setError("We're still confirming your payment — the gift certificate will be emailed shortly.");
       })
-      .catch(() => setError("We're still confirming your payment — your voucher will be emailed to you shortly."));
+      .catch(() => setError("We're still confirming your payment — the gift certificate will be emailed shortly."));
   }, []);
 
   return (
@@ -47,10 +49,21 @@ export default function GiftVoucherSuccessPage() {
         {voucher && (
           <>
             <h1 className="font-serif text-2xl sm:text-3xl font-light text-slate-800">
-              Your £{voucher.amount} gift voucher is ready
+              {voucher.recipientName
+                ? `${voucher.recipientName}'s gift certificate is ready`
+                : "Your gift certificate is ready"}
             </h1>
             <div className="rounded-xl border-2 border-dashed border-slate-300 bg-white p-6">
-              <p className="text-xs uppercase tracking-wide text-slate-500 mb-2">Voucher code</p>
+              {voucher.treatments.length > 0 && (
+                <div className="mb-4 text-sm text-slate-700 space-y-0.5">
+                  {voucher.packageName && <p className="font-medium">{voucher.packageName}</p>}
+                  {voucher.treatments.map((t, i) => (
+                    <p key={i}>{t}</p>
+                  ))}
+                  <p className="text-xs text-slate-500 pt-1">Paid in full — nothing to pay at the appointment</p>
+                </div>
+              )}
+              <p className="text-xs uppercase tracking-wide text-slate-500 mb-2">Certificate code</p>
               <p className="text-2xl font-bold tracking-widest text-navy">{voucher.code}</p>
               {voucher.expiresAt && (
                 <p className="text-xs text-slate-500 mt-2">
@@ -59,14 +72,18 @@ export default function GiftVoucherSuccessPage() {
               )}
             </div>
             <p className="text-sm text-slate-600 leading-relaxed">
-              We&apos;ve emailed the code to <strong>{voucher.purchaserEmail}</strong>
-              {voucher.recipientEmail && (
+              {voucher.recipientEmail ? (
                 <>
-                  {" "}and to {voucher.recipientName ?? "the recipient"} at{" "}
-                  <strong>{voucher.recipientEmail}</strong>
+                  We&apos;ve emailed it, with your message, to {voucher.recipientName ?? "them"} at{" "}
+                  <strong>{voucher.recipientEmail}</strong>, and sent your receipt to{" "}
+                  <strong>{voucher.purchaserEmail}</strong>.
+                </>
+              ) : (
+                <>
+                  We&apos;ve emailed the gift certificate, with your message, to{" "}
+                  <strong>{voucher.purchaserEmail}</strong> so you can print or forward it.
                 </>
               )}
-              .
             </p>
           </>
         )}

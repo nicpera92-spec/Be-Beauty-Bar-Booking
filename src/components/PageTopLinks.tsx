@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
-/** My Bookings · Gift Vouchers, styled like the page's own Home/back links. */
+/** My Bookings · Gift Certificates, styled like the page's own Home/back links. */
 export function CustomerShortcuts() {
   const pathname = usePathname();
   const linkClass = (href: string) =>
@@ -15,7 +15,7 @@ export function CustomerShortcuts() {
         My Bookings
       </Link>
       <Link href="/gift-vouchers" className={linkClass("/gift-vouchers")}>
-        Gift Vouchers
+        Gift Certificates
       </Link>
     </nav>
   );

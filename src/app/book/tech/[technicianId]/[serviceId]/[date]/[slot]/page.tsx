@@ -47,7 +47,9 @@ export default function BookFormPage() {
   const [notifyByEmail, setNotifyByEmail] = useState(false);
   const [notifyBySMS, setNotifyBySMS] = useState(true);
   const [voucherInput, setVoucherInput] = useState("");
-  const [voucher, setVoucher] = useState<{ code: string; balance: number } | null>(null);
+  const [voucher, setVoucher] = useState<
+    { kind: "credit"; code: string; balance: number } | { kind: "certificate"; code: string; covers: string } | null
+  >(null);
   const [voucherError, setVoucherError] = useState<string | null>(null);
   const [checkingVoucher, setCheckingVoucher] = useState(false);
   const [showVoucher, setShowVoucher] = useState(false);
@@ -94,22 +96,35 @@ export default function BookFormPage() {
     ? (service?.depositAmount ?? 0) + (notifyBySMS ? smsFee : 0)
     : 0;
 
-  const voucherSplit = voucher && requiresDeposit ? voucherDepositSplit(totalDeposit, voucher.balance) : null;
+  const certificate = voucher?.kind === "certificate" ? voucher : null;
+  const creditVoucher = voucher?.kind === "credit" ? voucher : null;
+  const voucherSplit =
+    creditVoucher && requiresDeposit ? voucherDepositSplit(totalDeposit, creditVoucher.balance) : null;
   const coveredByVoucher = Boolean(voucherSplit && voucherSplit.voucher > 0 && voucherSplit.card <= 0);
 
   const applyVoucher = () => {
     setVoucherError(null);
     setCheckingVoucher(true);
-    fetch(`/api/vouchers/check?code=${encodeURIComponent(voucherInput)}`)
+    fetch(
+      `/api/vouchers/check?code=${encodeURIComponent(voucherInput)}&serviceId=${encodeURIComponent(serviceId)}`
+    )
       .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
       .then(({ ok, data }) => {
-        if (ok) setVoucher({ code: data.code, balance: data.balance });
-        else {
+        if (ok && data.kind === "certificate") {
+          setVoucher({ kind: "certificate", code: data.code, covers: data.covers ?? service?.name ?? "" });
+        } else if (ok && !requiresDeposit) {
           setVoucher(null);
-          setVoucherError(data?.error ?? "We couldn't find that voucher code.");
+          setVoucherError(
+            "This is a credit voucher, which pays deposits online. This treatment has no deposit, so please show your code at the salon instead."
+          );
+        } else if (ok) {
+          setVoucher({ kind: "credit", code: data.code, balance: data.balance });
+        } else {
+          setVoucher(null);
+          setVoucherError(data?.error ?? "We couldn't find that gift certificate code.");
         }
       })
-      .catch(() => setVoucherError("Could not check the voucher. Please try again."))
+      .catch(() => setVoucherError("Could not check the code. Please try again."))
       .finally(() => setCheckingVoucher(false));
   };
 
@@ -160,7 +175,8 @@ export default function BookFormPage() {
         notifyByEmail,
         notifyBySMS,
         ...(waitlistToken ? { waitlistToken } : {}),
-        ...(voucher && voucherSplit && voucherSplit.voucher > 0 ? { voucherCode: voucher.code } : {}),
+        ...(certificate ? { voucherCode: certificate.code } : {}),
+        ...(creditVoucher && voucherSplit && voucherSplit.voucher > 0 ? { voucherCode: creditVoucher.code } : {}),
       }),
     })
       .then((r) => {
@@ -209,7 +225,9 @@ export default function BookFormPage() {
       </h1>
       <p className="text-slate-600 text-sm mb-12">
         {dayLabel} · {startTime}–{endTime} · {formatCurrency(totalPrice)} total
-        {requiresDeposit ? (
+        {certificate ? (
+          <> · Paid in full by gift certificate</>
+        ) : requiresDeposit ? (
           <> · {formatCurrency(totalDeposit)} deposit</>
         ) : (
           <> · No deposit required</>
@@ -280,7 +298,9 @@ export default function BookFormPage() {
               <div className="flex-1">
                 <span className="text-sm font-medium text-slate-700">SMS (text message)</span>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  SMS notifications include a {formatCurrency(smsFee)} charge
+                  {certificate
+                    ? "Included with your gift certificate"
+                    : `SMS notifications include a ${formatCurrency(smsFee)} charge`}
                 </p>
               </div>
             </label>
@@ -359,20 +379,38 @@ export default function BookFormPage() {
           </div>
         )}
 
-        {requiresDeposit && (
-          <div className="rounded-lg border border-slate-200 bg-white p-4">
+        <div className="rounded-lg border border-slate-200 bg-white p-4">
             {!showVoucher && !voucher ? (
               <button
                 type="button"
                 onClick={() => setShowVoucher(true)}
                 className="text-sm text-navy font-medium hover:underline"
               >
-                Have a gift voucher?
+                Have a gift certificate?
               </button>
-            ) : voucher && voucherSplit ? (
+            ) : certificate ? (
               <div className="flex items-start justify-between gap-3">
                 <div className="text-sm text-slate-700">
-                  <p className="font-medium text-emerald-700">Gift voucher {voucher.code} applied</p>
+                  <p className="font-medium text-emerald-700">Gift certificate {certificate.code} applied</p>
+                  <p className="text-slate-600 mt-0.5">
+                    Your {certificate.covers} is paid in full — nothing to pay now or at the salon.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVoucher(null);
+                    setVoucherInput("");
+                  }}
+                  className="text-xs text-slate-500 hover:text-slate-700 shrink-0"
+                >
+                  Remove
+                </button>
+              </div>
+            ) : creditVoucher && voucherSplit ? (
+              <div className="flex items-start justify-between gap-3">
+                <div className="text-sm text-slate-700">
+                  <p className="font-medium text-emerald-700">Gift voucher {creditVoucher.code} applied</p>
                   <p className="text-slate-600 mt-0.5">
                     {voucherSplit.salon > 0 ? (
                       <>
@@ -384,8 +422,8 @@ export default function BookFormPage() {
                       <>
                         {formatCurrency(voucherSplit.voucher)} of your deposit is paid by the voucher
                         {voucherSplit.card > 0 && <> · {formatCurrency(voucherSplit.card)} left to pay by card</>}.
-                        {voucher.balance - voucherSplit.voucher > 0.001 && (
-                          <> {formatCurrency(voucher.balance - voucherSplit.voucher)} stays on the voucher to use at the salon.</>
+                        {creditVoucher.balance - voucherSplit.voucher > 0.001 && (
+                          <> {formatCurrency(creditVoucher.balance - voucherSplit.voucher)} stays on the voucher to use at the salon.</>
                         )}
                       </>
                     )}
@@ -405,7 +443,7 @@ export default function BookFormPage() {
             ) : (
               <div className="space-y-2">
                 <label htmlFor="voucher" className="block text-sm font-medium text-slate-700">
-                  Gift voucher code
+                  Gift certificate code
                 </label>
                 <div className="flex gap-2">
                   <input
@@ -428,11 +466,15 @@ export default function BookFormPage() {
                 {voucherError && <p className="text-sm text-red-600">{voucherError}</p>}
               </div>
             )}
-          </div>
-        )}
+        </div>
 
         <p className="text-sm text-slate-600 leading-relaxed">
-          {requiresDeposit && coveredByVoucher ? (
+          {certificate ? (
+            <>
+              By submitting, your gift certificate pays for this treatment in full and your booking is
+              confirmed straight away.
+            </>
+          ) : requiresDeposit && coveredByVoucher ? (
             <>
               By submitting, your gift voucher pays the{" "}
               {formatCurrency(voucherSplit?.voucher ?? totalDeposit)} deposit and your booking is
@@ -459,7 +501,7 @@ export default function BookFormPage() {
         >
           {submitting
             ? "Booking…"
-            : requiresDeposit && !coveredByVoucher
+            : requiresDeposit && !coveredByVoucher && !certificate
               ? "Request booking"
               : "Confirm booking"}
         </button>

@@ -1,9 +1,8 @@
-/** Gift voucher rules — pure, safe for client components. */
+/** Gift voucher / certificate rules — pure, safe for client components. */
 
-export const VOUCHER_PRESET_AMOUNTS = [25, 50, 75, 100];
-export const VOUCHER_MIN_AMOUNT = 10;
-export const VOUCHER_MAX_AMOUNT = 500;
 export const VOUCHER_VALID_MONTHS = 12;
+/** Most treatments one gift certificate can hold. */
+export const MAX_CERTIFICATE_ITEMS = 10;
 /** Stripe's smallest card charge; a voucher never leaves less than this to pay by card. */
 export const MIN_CARD_CHARGE = 0.5;
 
@@ -28,13 +27,53 @@ export function normalizeVoucherCode(input: unknown): string | null {
   return formatVoucherCode(compact);
 }
 
-export function isValidVoucherAmount(amount: unknown): amount is number {
-  const n = Number(amount);
-  return Number.isFinite(n) && Number.isInteger(n) && n >= VOUCHER_MIN_AMOUNT && n <= VOUCHER_MAX_AMOUNT;
-}
-
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+export type CertificateItemLike = {
+  id: string;
+  serviceId: string | null;
+  serviceName: string;
+  price: number;
+  status: string;
+};
+
+function sameName(a: string, b: string): boolean {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+/**
+ * The certificate treatment that pays for booking `service`: the exact treatment bought, or the
+ * same-named treatment with another technician as long as it doesn't cost more.
+ */
+export function matchCertificateItem<T extends CertificateItemLike>(
+  items: T[],
+  service: { id: string; name: string; price: number }
+): T | null {
+  const available = items.filter((i) => i.status === "available");
+  return (
+    available.find((i) => i.serviceId === service.id) ??
+    available.find((i) => sameName(i.serviceName, service.name) && service.price <= i.price + 0.001) ??
+    null
+  );
+}
+
+export function describeCertificateItem(item: { serviceName: string; technicianName?: string | null }): string {
+  return item.technicianName ? `${item.serviceName} with ${item.technicianName}` : item.serviceName;
+}
+
+/** Bullet list of the treatments on a certificate (package name first when bought as a combo). */
+export function certificateTreatmentsText(
+  items: { serviceName: string; technicianName?: string | null }[],
+  packageName?: string | null
+): string {
+  const lines = items.map((i) => `• ${describeCertificateItem(i)}`);
+  return packageName ? [packageName, ...lines].join("\n") : lines.join("\n");
+}
+
+export function sumPrices(items: { price: number }[]): number {
+  return round2(items.reduce((sum, i) => sum + i.price, 0));
 }
 
 /**

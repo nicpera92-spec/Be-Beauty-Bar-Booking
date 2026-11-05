@@ -47,6 +47,7 @@ function summarize(booking: NonNullable<Awaited<ReturnType<typeof loadBookingSum
     endTime: booking.endTime,
     depositAmount: booking.depositAmount,
     voucherAmount: booking.voucherAmount,
+    paidByCertificate: Boolean(booking.certificateItemId),
   };
 }
 

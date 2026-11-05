@@ -82,7 +82,7 @@ export function getAdminNavItems(role: "master" | "technician") {
         { href: "/admin/technicians", label: "Technicians", icon: ADMIN_NAV_ICONS.technicians },
         { href: "/admin/services", label: "Services", icon: ADMIN_NAV_ICONS.services },
         { href: "/admin/dashboard", label: "Stats", icon: ADMIN_NAV_ICONS.stats },
-        { href: "/admin/vouchers", label: "Vouchers", icon: ADMIN_NAV_ICONS.vouchers },
+        { href: "/admin/vouchers", label: "Gift certificates", icon: ADMIN_NAV_ICONS.vouchers },
       ]
     : [
         { href: "/admin/services", label: "My services", icon: ADMIN_NAV_ICONS.services },

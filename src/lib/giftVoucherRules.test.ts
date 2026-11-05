@@ -3,10 +3,13 @@
  * Run: npm run test:vouchers
  */
 import {
+  type CertificateItemLike,
+  certificateTreatmentsText,
   formatVoucherCode,
-  isValidVoucherAmount,
+  matchCertificateItem,
   normalizeVoucherCode,
   randomVoucherCodeFrom,
+  sumPrices,
   voucherDepositSplit,
 } from "@/lib/giftVoucherRules";
 import { describeRefundForCustomer, describeRefundForOwner } from "@/lib/customerCancellation";
@@ -27,11 +30,52 @@ assert(normalizeVoucherCode("BB-ABC") === null, "too short");
 assert(normalizeVoucherCode(42) === null, "non-string");
 assert(formatVoucherCode("ABCD2345") === "BB-ABCD-2345", "format raw");
 
-// --- amounts ---
-assert(isValidVoucherAmount(50), "£50 ok");
-assert(isValidVoucherAmount(10) && isValidVoucherAmount(500), "limits ok");
-assert(!isValidVoucherAmount(9) && !isValidVoucherAmount(501), "outside limits");
-assert(!isValidVoucherAmount(25.5), "whole pounds only");
+// --- certificate treatments ---
+const item = (id: string, over: Partial<CertificateItemLike> = {}): CertificateItemLike => ({
+  id,
+  serviceId: "gel-svitlana",
+  serviceName: "Gel Manicure",
+  price: 30,
+  status: "available",
+  ...over,
+});
+const gelSvitlana = { id: "gel-svitlana", name: "Gel Manicure", price: 30 };
+assert(matchCertificateItem([item("a")], gelSvitlana)?.id === "a", "exact treatment matches");
+assert(
+  matchCertificateItem([item("a", { status: "booked" }), item("b")], gelSvitlana)?.id === "b",
+  "booked treatment skipped, next one on the combo used"
+);
+assert(
+  matchCertificateItem([item("a", { status: "used" })], gelSvitlana) === null,
+  "used treatment can't be booked"
+);
+assert(
+  matchCertificateItem([item("a", { price: 25 })], { ...gelSvitlana, price: 35 })?.id === "a",
+  "same treatment still covered after a price rise"
+);
+assert(
+  matchCertificateItem([item("a")], { id: "gel-anna", name: " gel manicure ", price: 30 })?.id === "a",
+  "same-named treatment with another technician at the same price"
+);
+assert(
+  matchCertificateItem([item("a")], { id: "gel-anna", name: "Gel Manicure", price: 40 }) === null,
+  "another technician's dearer version isn't covered"
+);
+assert(
+  matchCertificateItem([item("a")], { id: "lash", name: "Lash Lift", price: 30 }) === null,
+  "different treatment not covered"
+);
+assert(
+  certificateTreatmentsText(
+    [
+      { serviceName: "Gel Manicure", technicianName: "Svitlana" },
+      { serviceName: "Lash Lift", technicianName: null },
+    ],
+    "Pamper Package"
+  ) === "Pamper Package\n• Gel Manicure with Svitlana\n• Lash Lift",
+  "treatment list for emails"
+);
+assert(sumPrices([{ price: 30.1 }, { price: 25.2 }]) === 55.3, "combo total rounds to pence");
 
 // --- paying deposits ---
 assert(eq(voucherDepositSplit(10.05, 50), { voucher: 10.05, card: 0, salon: 0 }), "voucher covers full deposit");
@@ -70,6 +114,18 @@ assert(
   describeRefundForOwner({ ...base, deposit: "none", depositAmount: 0, voucherAmount: 10, voucherReturned: 10 }) ===
     "£10.00 returned to the customer's gift voucher.",
   "owner voucher-only wording"
+);
+const certificateBack = { serviceName: "Gel Manicure", code: "BB-ABCD-2345" };
+assert(
+  describeRefundForCustomer({ ...base, deposit: "none", depositAmount: 0, certificateReturned: certificateBack }) ===
+    "Your Gel Manicure has been put back on your gift certificate (BB-ABCD-2345), so you can use it to book again.",
+  "certificate booking cancelled: treatment goes back"
+);
+assert(
+  describeRefundForOwner({ ...base, deposit: "none", depositAmount: 0, certificateReturned: certificateBack }).includes(
+    "put back on it"
+  ),
+  "owner told the treatment went back on the certificate"
 );
 
 console.log("giftVoucherRules: all checks passed");

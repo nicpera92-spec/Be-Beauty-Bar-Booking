@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireMaster } from "@/lib/auth";
-import { adjustVoucherBalance, recordVoucherTransaction } from "@/lib/giftVouchers";
+import { adjustVoucherBalance, recordVoucherTransaction, setCertificateItemUsed } from "@/lib/giftVouchers";
 
-/** { action: "use", amount, note } | { action: "add", amount, note } | { action: "cancel" } */
+/**
+ * { action: "use" | "add", amount, note } (old credit vouchers) | { action: "use_item" | "unuse_item", itemId }
+ * (certificate treatments) | { action: "cancel" }
+ */
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const master = await requireMaster(req);
   if (!master) return NextResponse.json({ error: "Only the owner can manage vouchers" }, { status: 403 });
@@ -17,6 +20,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     }
     await prisma.giftVoucher.update({ where: { id: params.id }, data: { status: "cancelled" } });
     await recordVoucherTransaction(params.id, 0, note ?? "Voucher cancelled");
+    return NextResponse.json({ ok: true });
+  }
+
+  if (body?.action === "use_item" || body?.action === "unuse_item") {
+    if (typeof body?.itemId !== "string") return NextResponse.json({ error: "Missing treatment" }, { status: 400 });
+    const result = await setCertificateItemUsed(params.id, body.itemId, body.action === "use_item");
+    if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
     return NextResponse.json({ ok: true });
   }
 

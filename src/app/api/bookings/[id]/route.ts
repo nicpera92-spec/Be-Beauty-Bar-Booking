@@ -38,7 +38,19 @@ export async function PATCH(
     );
   }
 
-  const before = await prisma.booking.findUnique({ where: { id }, select: { status: true } });
+  const before = await prisma.booking.findUnique({
+    where: { id },
+    select: { status: true, certificateItemId: true },
+  });
+  if (before?.certificateItemId && before.status === "cancelled" && status !== "cancelled") {
+    const { reclaimCertificateItemForBooking } = await import("@/lib/giftVouchers");
+    if (!(await reclaimCertificateItemForBooking(id))) {
+      return NextResponse.json(
+        { error: "This booking's gift certificate treatment has been used for another booking since." },
+        { status: 409 }
+      );
+    }
+  }
   const booking = await prisma.booking.update({
     where: { id },
     data: { status },
@@ -49,6 +61,10 @@ export async function PATCH(
   if (status === "cancelled" && before?.status === "pending_deposit") {
     const { restoreVoucherForBooking } = await import("@/lib/giftVouchers");
     await restoreVoucherForBooking(id, "Returned – booking cancelled before deposit was paid");
+  }
+  if (status === "cancelled" && before?.certificateItemId) {
+    const { releaseCertificateItemForBooking } = await import("@/lib/giftVouchers");
+    await releaseCertificateItemForBooking(id, "Returned – booking cancelled by the salon");
   }
 
   if (status === "confirmed") {

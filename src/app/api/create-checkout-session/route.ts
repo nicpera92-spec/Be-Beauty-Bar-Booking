@@ -47,6 +47,12 @@ export async function POST(req: NextRequest) {
     if (!booking) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
+    if (booking.certificateItemId) {
+      return NextResponse.json(
+        { error: "This booking is already paid in full by a gift certificate." },
+        { status: 400 }
+      );
+    }
 
     let amountPence: number;
     let productName: string;

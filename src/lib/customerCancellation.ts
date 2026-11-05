@@ -127,6 +127,8 @@ export type RefundOutcome = {
   /** Deposit paid by gift voucher, and how much of that went back onto the voucher. */
   voucherAmount?: number;
   voucherReturned?: number;
+  /** Treatment put back on the gift certificate that paid for it (always, whatever the timing). */
+  certificateReturned?: { serviceName: string; code: string } | null;
 };
 
 function totalDeposit(outcome: RefundOutcome): string {
@@ -134,6 +136,9 @@ function totalDeposit(outcome: RefundOutcome): string {
 }
 
 export function describeRefundForCustomer(outcome: RefundOutcome): string {
+  if (outcome.certificateReturned) {
+    return `Your ${outcome.certificateReturned.serviceName} has been put back on your gift certificate (${outcome.certificateReturned.code}), so you can use it to book again.`;
+  }
   const deposit = formatCurrency(outcome.depositAmount);
   const parts: string[] = [];
   const paidByVoucherOnly = outcome.depositAmount <= 0 && (outcome.voucherAmount ?? 0) > 0;
@@ -169,6 +174,9 @@ export function describeRefundForCustomer(outcome: RefundOutcome): string {
 }
 
 export function describeRefundForOwner(outcome: RefundOutcome): string {
+  if (outcome.certificateReturned) {
+    return `Paid by gift certificate ${outcome.certificateReturned.code} — the ${outcome.certificateReturned.serviceName} has been put back on it so they can book again.`;
+  }
   const deposit = formatCurrency(outcome.depositAmount);
   const parts: string[] = [];
   switch (outcome.deposit) {
@@ -285,6 +293,14 @@ export async function cancelBookingByCustomer(
     !booking.balanceRefundedAt &&
     Boolean(booking.stripeBalancePaymentIntentId);
   const stripe = getStripeInstance(settings?.stripeSecretKey);
+
+  if (booking.certificateItemId) {
+    const { releaseCertificateItemForBooking } = await import("@/lib/giftVouchers");
+    refund.certificateReturned = await releaseCertificateItemForBooking(
+      bookingId,
+      "Returned – customer cancelled"
+    );
+  }
 
   if (state === "refundable" && booking.voucherAmount > 0) {
     const { restoreVoucherForBooking } = await import("@/lib/giftVouchers");

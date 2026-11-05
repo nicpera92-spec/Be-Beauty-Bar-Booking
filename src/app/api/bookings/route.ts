@@ -7,7 +7,14 @@ import { sendBookingCreatedEmails, sendBookingConfirmationEmails } from "@/lib/e
 import { isBookingSlotAvailable } from "@/lib/bookingAvailability";
 import { hasWaitlistSameDayBookingAccess } from "@/lib/waitlist-booking-token";
 import { isBeforeMinBookableDate } from "@/lib/business-time";
-import { claimVoucherForDeposit, recordVoucherTransaction } from "@/lib/giftVouchers";
+import {
+  attachCertificateItemToBooking,
+  claimCertificateItem,
+  claimVoucherForDeposit,
+  lookupVoucher,
+  recordVoucherTransaction,
+  releaseCertificateItem,
+} from "@/lib/giftVouchers";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -219,11 +226,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const code = typeof voucherCode === "string" && voucherCode.trim() ? voucherCode : null;
+    const lookup = code ? await lookupVoucher(code) : null;
+    if (lookup && !lookup.ok) {
+      return NextResponse.json({ error: lookup.error }, { status: 400 });
+    }
+
+    // Gift certificate: the treatment is already paid in full, so no deposit or SMS fee.
+    let certificate: { voucherId: string; itemId: string } | null = null;
+    if (lookup?.ok && lookup.kind === "certificate") {
+      const claimed = await claimCertificateItem(code, service);
+      if (!claimed.ok) {
+        return NextResponse.json({ error: claimed.error }, { status: 400 });
+      }
+      certificate = { voucherId: claimed.voucherId, itemId: claimed.itemId };
+    }
+
     let voucher: { voucherId: string; amount: number } | null = null;
     // Pence a voucher couldn't cover (below Stripe's minimum) are paid at the salon instead.
-    let onlineDeposit = deposit;
-    if (typeof voucherCode === "string" && voucherCode.trim() && requiresDeposit && deposit > 0) {
-      const claimed = await claimVoucherForDeposit(voucherCode, deposit);
+    let onlineDeposit = certificate ? 0 : deposit;
+    if (lookup?.ok && lookup.kind === "credit" && requiresDeposit && deposit > 0) {
+      const claimed = await claimVoucherForDeposit(code, deposit);
       if (!claimed.ok) {
         return NextResponse.json({ error: claimed.error }, { status: 400 });
       }
@@ -231,7 +254,7 @@ export async function POST(req: NextRequest) {
       onlineDeposit = Math.round((deposit - claimed.salon) * 100) / 100;
     }
     const depositDueByCard = onlineDeposit - (voucher?.amount ?? 0);
-    const confirmedNow = !requiresDeposit || depositDueByCard <= 0.001;
+    const confirmedNow = !requiresDeposit || Boolean(certificate) || depositDueByCard <= 0.001;
 
     let booking;
     try {
@@ -252,6 +275,7 @@ export async function POST(req: NextRequest) {
           notifyByEmail: wantsEmail,
           notifyBySMS: wantsSMS,
           ...(voucher && { voucherId: voucher.voucherId, voucherAmount: voucher.amount }),
+          ...(certificate && { voucherId: certificate.voucherId, certificateItemId: certificate.itemId }),
         },
         include: { service: true, technician: true },
       });
@@ -262,10 +286,14 @@ export async function POST(req: NextRequest) {
           data: { balance: { increment: voucher.amount } },
         });
       }
+      if (certificate) await releaseCertificateItem(certificate.itemId);
       throw e;
     }
     if (voucher) {
       await recordVoucherTransaction(voucher.voucherId, -voucher.amount, "Deposit for booking", booking.id);
+    }
+    if (certificate) {
+      await attachCertificateItemToBooking(certificate.voucherId, certificate.itemId, booking);
     }
 
     // Confirmed straight away (no deposit, or a voucher covered it) → send the

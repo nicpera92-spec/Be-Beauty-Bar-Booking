@@ -29,6 +29,7 @@ type Booking = {
   startTime: string;
   endTime: string;
   depositAmount: number;
+  certificateItemId?: string | null;
   status: string;
   notifyByEmail: boolean;
   notifyBySMS: boolean;
@@ -627,7 +628,9 @@ export default function AdminCalendarPage() {
                               booking.customerEmail || "No contact"
                             )}
                             {" · "}
-                            {formatCurrency(booking.depositAmount)} deposit
+                            {booking.certificateItemId
+                              ? "Paid in full by gift certificate"
+                              : `${formatCurrency(booking.depositAmount)} deposit`}
                           </p>
                           {booking.notes && booking.notes.trim() && (
                             <p className="text-sm text-navy mt-2 italic border-l-2 border-navy/30 pl-2">
