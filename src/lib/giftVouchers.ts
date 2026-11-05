@@ -11,6 +11,7 @@ import {
   randomVoucherCodeFrom,
   sumPrices,
   voucherDepositSplit,
+  voucherRefundAmount,
 } from "@/lib/giftVoucherRules";
 
 const baseUrl = () => (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001").replace(/\/$/, "");
@@ -455,7 +456,8 @@ export async function releaseCertificateItemForBooking(
   });
   if (!booking?.certificateItemId) return null;
   const released = await prisma.giftCertificateItem.updateMany({
-    where: { id: booking.certificateItemId, status: "booked", bookingId },
+    // A cancelled (refunded) certificate doesn't take treatments back.
+    where: { id: booking.certificateItemId, status: "booked", bookingId, voucher: { status: "active" } },
     data: { status: "available", bookingId: null },
   });
   if (released.count === 0) return null;
@@ -578,6 +580,62 @@ export async function setCertificateItemUsed(
     `${used ? "Used in salon" : "Made available again"}: ${item?.serviceName ?? "treatment"}`
   );
   return { ok: true };
+}
+
+export type VoucherCancelResult =
+  | {
+      ok: true;
+      refundAmount: number;
+      /** refunded = sent back by Stripe; manual = salon sale or Stripe failed, refund it yourself. */
+      refund: "refunded" | "manual" | "none";
+    }
+  | { ok: false; error: string };
+
+/**
+ * Voids a certificate (the code stops working) and refunds the buyer for treatments not yet
+ * booked or used. Treatments already booked stay booked. Safe to call twice — only the first runs.
+ */
+export async function cancelVoucherWithRefund(voucherId: string, note: string | null): Promise<VoucherCancelResult> {
+  const voucher = await prisma.giftVoucher.findUnique({ where: { id: voucherId }, include: { items: true } });
+  if (!voucher || voucher.status !== "active") return { ok: false, error: "This certificate isn't active." };
+  const claimed = await prisma.giftVoucher.updateMany({
+    where: { id: voucherId, status: "active" },
+    data: { status: "cancelled", ...(voucher.kind === "credit" && { balance: 0 }) },
+  });
+  if (claimed.count === 0) return { ok: false, error: "This certificate isn't active." };
+
+  const refundAmount = voucherRefundAmount(voucher);
+  let refund: "refunded" | "manual" | "none" = "none";
+  if (refundAmount >= 0.01) {
+    refund = "manual";
+    const stripe = voucher.stripePaymentIntentId && !voucher.soldInSalon ? await getStripe() : null;
+    if (stripe && voucher.stripePaymentIntentId) {
+      try {
+        await stripe.refunds.create({
+          payment_intent: voucher.stripePaymentIntentId,
+          amount: Math.round(refundAmount * 100),
+          reason: "requested_by_customer",
+        });
+        refund = "refunded";
+      } catch (e) {
+        console.error("Gift certificate refund failed:", e);
+      }
+    }
+  }
+
+  const refundNote =
+    refund === "refunded"
+      ? ` – £${refundAmount.toFixed(2)} refunded by card`
+      : refund === "manual"
+        ? ` – £${refundAmount.toFixed(2)} to refund ${voucher.soldInSalon ? "in the salon" : "manually (Stripe refund failed)"}`
+        : "";
+  await recordVoucherTransaction(voucherId, 0, `${note ?? "Certificate cancelled"}${refundNote}`);
+
+  if (refund === "refunded" && voucher.purchaserEmail) {
+    const { sendGiftCertificateRefundEmail } = await import("@/lib/email");
+    await sendGiftCertificateRefundEmail(voucherId, refundAmount);
+  }
+  return { ok: true, refundAmount, refund };
 }
 
 /** Gift certificate sold in the salon (paid in person) — active straight away. */

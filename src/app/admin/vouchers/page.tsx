@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatBookingDate, formatCurrency } from "@/lib/format";
 import NumberField from "@/components/NumberField";
-import { normalizeVoucherCode, sumPrices } from "@/lib/giftVoucherRules";
+import { normalizeVoucherCode, sumPrices, voucherRefundAmount } from "@/lib/giftVoucherRules";
 
 const ADMIN_TOKEN_KEY = "admin-token";
 
@@ -58,7 +58,9 @@ type GiftPackage = {
 
 const inputClass = "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm bg-white";
 
-function patchVoucher(id: string, body: Record<string, unknown>): Promise<void> {
+type CancelResult = { refundAmount?: number; refund?: "refunded" | "manual" | "none" };
+
+function patchVoucher(id: string, body: Record<string, unknown>): Promise<CancelResult> {
   return fetch(`/api/admin/vouchers/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
@@ -67,6 +69,7 @@ function patchVoucher(id: string, body: Record<string, unknown>): Promise<void> 
     .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
     .then(({ ok, data }) => {
       if (!ok) throw new Error(data?.error ?? "Update failed");
+      return data as CancelResult;
     });
 }
 
@@ -106,14 +109,38 @@ function CertificateRow({ voucher, onChanged }: { voucher: Voucher; onChanged: (
             : "Active";
   const today = new Date().toISOString().slice(0, 10);
 
+  const refundAmount = voucherRefundAmount(voucher);
+  const cancelConfirmText = [
+    `Cancel ${voucher.code}? The code will stop working straight away.`,
+    refundAmount >= 0.01
+      ? voucher.soldInSalon
+        ? `It was sold in the salon, so refund ${formatCurrency(refundAmount)} to them yourself.`
+        : `${formatCurrency(refundAmount)} will be refunded to the buyer's card${
+            isCertificate && available < voucher.items.length ? " (for the treatments not yet booked or used)" : ""
+          }, and they'll be emailed.`
+      : "Nothing is left to refund.",
+    isCertificate && voucher.items.some((i) => i.status === "booked")
+      ? "Treatments already booked stay booked."
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
   const act = (body: Record<string, unknown>, confirmText?: string) => {
     if (confirmText && !confirm(confirmText)) return;
     setBusy(true);
     setError(null);
     patchVoucher(voucher.id, body)
-      .then(() => {
+      .then((result) => {
         setAmount(0);
         setNote("");
+        if (body.action === "cancel" && result.refund === "manual") {
+          alert(
+            `Cancelled. Please refund ${formatCurrency(result.refundAmount ?? 0)} ${
+              voucher.soldInSalon ? "in the salon" : "in Stripe — the automatic refund didn't go through"
+            }.`
+          );
+        }
         onChanged();
       })
       .catch((e) => setError(e?.message ?? "Update failed"))
@@ -247,13 +274,12 @@ function CertificateRow({ voucher, onChanged }: { voucher: Voucher; onChanged: (
           {voucher.status === "active" && (
             <button
               type="button"
-              onClick={() =>
-                act({ action: "cancel" }, `Cancel ${voucher.code}? It can't be used after this.`)
-              }
+              onClick={() => act({ action: "cancel" }, cancelConfirmText)}
               disabled={busy}
               className="text-xs text-red-600 hover:underline"
             >
               Cancel {isCertificate ? "certificate" : "voucher"}
+              {refundAmount >= 0.01 && ` & refund ${formatCurrency(refundAmount)}`}
             </button>
           )}
         </div>

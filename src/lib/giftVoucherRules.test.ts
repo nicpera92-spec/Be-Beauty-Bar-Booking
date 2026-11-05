@@ -11,6 +11,7 @@ import {
   randomVoucherCodeFrom,
   sumPrices,
   voucherDepositSplit,
+  voucherRefundAmount,
 } from "@/lib/giftVoucherRules";
 import { describeRefundForCustomer, describeRefundForOwner } from "@/lib/customerCancellation";
 
@@ -76,6 +77,24 @@ assert(
   "treatment list for emails"
 );
 assert(sumPrices([{ price: 30.1 }, { price: 25.2 }]) === 55.3, "combo total rounds to pence");
+
+// --- refunds when a certificate is cancelled ---
+const cert = (statuses: string[], paid = 65) => ({
+  kind: "certificate",
+  initialAmount: paid,
+  balance: 0,
+  items: [
+    { price: 30, status: statuses[0] },
+    { price: 45, status: statuses[1] },
+  ],
+});
+assert(voucherRefundAmount(cert(["available", "available"])) === 65, "unused combo refunded in full");
+assert(voucherRefundAmount(cert(["booked", "available"])) === 39, "combo discount shared: 45/75 of £65 = £39");
+assert(voucherRefundAmount(cert(["used", "booked"])) === 0, "nothing left to refund");
+assert(
+  voucherRefundAmount({ kind: "credit", initialAmount: 50, balance: 12.5, items: [] }) === 12.5,
+  "old credit voucher refunds its balance"
+);
 
 // --- paying deposits ---
 assert(eq(voucherDepositSplit(10.05, 50), { voucher: 10.05, card: 0, salon: 0 }), "voucher covers full deposit");

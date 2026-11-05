@@ -736,6 +736,28 @@ export async function sendGiftVoucherEmails(voucherId: string): Promise<{ ok: bo
   return errors.length ? { ok: false, error: errors.join("; ") } : { ok: true };
 }
 
+/** Tells the buyer their gift certificate was cancelled and refunded. */
+export async function sendGiftCertificateRefundEmail(
+  voucherId: string,
+  amount: number
+): Promise<{ ok: boolean; error?: string }> {
+  if (!resendClient) return { ok: false, error: "RESEND_API_KEY not set" };
+  const voucher = await prisma.giftVoucher.findUnique({ where: { id: voucherId } });
+  const to = voucher?.purchaserEmail?.trim();
+  if (!voucher || !to || voucher.soldInSalon) return { ok: false, error: "No buyer email" };
+  const { businessName } = await getMessages();
+  const forWhom = voucher.recipientName?.trim() ? ` for ${escapeHtmlText(voucher.recipientName.trim())}` : "";
+  return sendResendEmail({
+    from,
+    to,
+    subject: `Gift certificate refunded – ${businessName}`,
+    html: `<p>Hi ${escapeHtmlText(voucher.purchaserName)},</p>
+<p>Your gift certificate${forWhom} (code ${escapeHtmlText(voucher.code)}) has been cancelled and the code can no longer be used.</p>
+<p>We've refunded <strong>${formatCurrency(amount)}</strong> to your original payment method. Please allow 5–10 working days for it to appear.</p>
+<p>— ${escapeHtmlText(businessName)}</p>`,
+  });
+}
+
 function escapeHtmlText(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }

@@ -77,6 +77,24 @@ export function sumPrices(items: { price: number }[]): number {
 }
 
 /**
+ * What goes back to the buyer when a certificate is cancelled: the share of what they paid for
+ * treatments not yet booked or used (so a combo's discount is shared fairly). Old credit vouchers
+ * refund their remaining balance.
+ */
+export function voucherRefundAmount(voucher: {
+  kind: string;
+  initialAmount: number;
+  balance: number;
+  items: { price: number; status: string }[];
+}): number {
+  if (voucher.kind !== "certificate") return round2(Math.max(0, Math.min(voucher.balance, voucher.initialAmount)));
+  const total = sumPrices(voucher.items);
+  if (total <= 0) return 0;
+  const unused = sumPrices(voucher.items.filter((i) => i.status === "available"));
+  return round2((voucher.initialAmount * unused) / total);
+}
+
+/**
  * How much of a deposit a voucher pays. Covers it in full when the balance allows. If the voucher
  * falls short by less than Stripe's minimum card charge, the voucher is used in full and the few
  * pence move to the balance paid at the salon (`salon`) — so the booking confirms without a card.

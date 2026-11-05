@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { requireMaster } from "@/lib/auth";
-import { adjustVoucherBalance, recordVoucherTransaction, setCertificateItemUsed } from "@/lib/giftVouchers";
+import { adjustVoucherBalance, cancelVoucherWithRefund, setCertificateItemUsed } from "@/lib/giftVouchers";
 
 /**
  * { action: "use" | "add", amount, note } (old credit vouchers) | { action: "use_item" | "unuse_item", itemId }
@@ -14,13 +13,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const note = typeof body?.note === "string" && body.note.trim() ? body.note.trim().slice(0, 200) : null;
 
   if (body?.action === "cancel") {
-    const voucher = await prisma.giftVoucher.findUnique({ where: { id: params.id } });
-    if (!voucher || voucher.status !== "active") {
-      return NextResponse.json({ error: "Voucher isn't active" }, { status: 400 });
-    }
-    await prisma.giftVoucher.update({ where: { id: params.id }, data: { status: "cancelled" } });
-    await recordVoucherTransaction(params.id, 0, note ?? "Voucher cancelled");
-    return NextResponse.json({ ok: true });
+    const result = await cancelVoucherWithRefund(params.id, note);
+    if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
+    return NextResponse.json(result);
   }
 
   if (body?.action === "use_item" || body?.action === "unuse_item") {
