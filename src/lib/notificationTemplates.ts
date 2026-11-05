@@ -62,6 +62,8 @@ export const PLACEHOLDER_LABELS: Record<string, string> = {
   instagramLink: "Instagram link",
   cancelLink: "Cancel link",
   refundDetails: "Refund details",
+  calendarLink: "Calendar link",
+  directionsLink: "Directions link",
 };
 
 const LABEL_TO_VAR: Record<string, string> = {
@@ -77,6 +79,8 @@ const LABEL_TO_VAR: Record<string, string> = {
   "Instagram link": "instagramLink",
   "Cancel link": "cancelLink",
   "Refund details": "refundDetails",
+  "Calendar link": "calendarLink",
+  "Directions link": "directionsLink",
 };
 
 export function friendlyToken(label: string): string {
@@ -129,6 +133,16 @@ export const MESSAGE_INSERT_TAGS: { label: string; token: string; hint?: string 
     token: friendlyToken("Refund details"),
     hint: "Whether the deposit was refunded (customer cancellation only)",
   },
+  {
+    label: "Calendar link",
+    token: friendlyToken("Calendar link"),
+    hint: "Add the appointment to their calendar (booking confirmed only)",
+  },
+  {
+    label: "Directions link",
+    token: friendlyToken("Directions link"),
+    hint: "Google Maps directions to the salon",
+  },
 ];
 
 export function toFriendlyPlaceholders(template: string): string {
@@ -167,6 +181,8 @@ export const MESSAGE_PREVIEW_SAMPLE: Record<string, string> = {
   optOutLink: "https://bbbar.co.uk/rebook-reminder/opt-out?token=example",
   instagramLink: "https://instagram.com/bebeauty.bar",
   cancelLink: "https://bbbar.co.uk/cancel/example/abc123",
+  calendarLink: "https://bbbar.co.uk/booking/example#calendar",
+  directionsLink: "https://maps.google.com/?q=Be%20Beauty%20Bar%2C%2033%20Castle%20St%2C%20Swansea%20SA1%201HZ",
   refundDetails:
     "Your deposit of £20.00 has been refunded to your original payment method. Please allow 5–10 working days for it to appear.",
 };
@@ -263,14 +279,31 @@ function normalizeAllNotificationMessages(
   return normalized;
 }
 
-/** Confirmation messages must always carry the customer's cancel link. */
+/** Adds a paragraph just above the "— Salon name" sign-off (or at the end if there isn't one). */
+export function insertBeforeSignOff(body: string, paragraph: string): string {
+  const trimmed = body.trimEnd();
+  const signOff = trimmed.lastIndexOf("\n\n— ");
+  if (signOff === -1) return `${trimmed}\n\n${paragraph}`;
+  return `${trimmed.slice(0, signOff)}\n\n${paragraph}${trimmed.slice(signOff)}`;
+}
+
+/** Confirmation messages must always carry the customer's cancel link (and the email calendar + directions links). */
 function ensureCancelLink(messages: NotificationMessages): NotificationMessages {
   const token = friendlyToken("Cancel link");
+  const calendarToken = friendlyToken("Calendar link");
+  const directionsToken = friendlyToken("Directions link");
   const result = { ...messages };
-  if (!result.bookingConfirmedCustomerBody.includes(token)) {
-    const body = result.bookingConfirmedCustomerBody.trimEnd();
-    result.bookingConfirmedCustomerBody = `${body}\n\nCancel your booking: ${token}`;
-  }
+  const ensureInBody = (needle: string, paragraph: string) => {
+    if (!result.bookingConfirmedCustomerBody.includes(needle)) {
+      result.bookingConfirmedCustomerBody = insertBeforeSignOff(
+        result.bookingConfirmedCustomerBody,
+        paragraph
+      );
+    }
+  };
+  ensureInBody(calendarToken, `Add it to your calendar: ${calendarToken}`);
+  ensureInBody(directionsToken, `Find us: ${directionsToken}`);
+  ensureInBody(token, `Cancel your booking: ${token}`);
   if (!result.bookingConfirmedCustomerSms.includes(token)) {
     const sms = result.bookingConfirmedCustomerSms.trimEnd();
     result.bookingConfirmedCustomerSms = `${sms} Cancel here: ${token}`;

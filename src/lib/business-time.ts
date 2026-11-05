@@ -23,6 +23,12 @@ export function isBeforeMinBookableDate(dateStr: string, at: Date = new Date()):
   return dateStr < businessTomorrowStr(at);
 }
 
+/** A UK appointment time (date + "HH:mm") as a UTC instant. */
+export function appointmentStartUtc(date: string, time: string): Date {
+  const [h, m] = time.split(":");
+  return fromZonedTime(`${date}T${h.padStart(2, "0")}:${m}:00`, BUSINESS_TIMEZONE);
+}
+
 /** End of the given calendar day in London, as a UTC instant (for JWT expiry). */
 export function businessEndOfDayUtc(dateStr: string): Date {
   return fromZonedTime(`${dateStr}T23:59:59.999`, BUSINESS_TIMEZONE);

@@ -13,6 +13,7 @@
     "test:waitlist-token": "tsx src/lib/waitlist-booking-token.test.ts",
     "test:cancellation": "tsx src/lib/customerCancellation.test.ts",
     "test:deposit": "tsx src/lib/deposit.test.ts",
+    "test:calendar": "tsx src/lib/calendarInvite.test.ts",
     "test:working-hours": "tsx src/lib/workingHours.test.ts && tsx src/lib/workingHours.slots.test.ts && tsx src/lib/workingHours.edge.test.ts",
     "test:exclusions": "tsx src/lib/categoryCapacity.exclusion.test.ts",
     "test:db-url": "tsx src/lib/databaseUrl.test.ts",

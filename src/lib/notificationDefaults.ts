@@ -69,6 +69,10 @@ Time: **Time**
 
 We look forward to seeing you!
 
+Add it to your calendar: **Calendar link**
+
+Find us: **Directions link**
+
 Need to cancel? Cancellations made more than 48 hours before your appointment receive a full deposit refund. Cancellations within 48 hours of your appointment are non-refundable. Each booking can only be cancelled once.
 
 Cancel your booking: **Cancel link**
@@ -175,11 +179,13 @@ Service: **Service**
 Date: **Date**
 Time: **Time**
 
+Find us: **Directions link**
+
 We look forward to seeing you!
 
 — **Salon name**`,
   reminderCustomerSms:
-    "Hi **Customer name**! Just a reminder – your **Service** appointment at **Salon name** is tomorrow **Date** at **Time**. See you soon!",
+    "Hi **Customer name**! Just a reminder – your **Service** appointment at **Salon name** is tomorrow **Date** at **Time**. Find us: **Directions link** See you soon!",
 
   waitlistCustomerSubject: "Good news — a slot has opened on **Date** at **Salon name**",
   waitlistCustomerBody: `Hi **Customer name**,

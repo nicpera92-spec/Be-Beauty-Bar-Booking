@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { format, parse } from "date-fns";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/format";
+import { bookingCalendarEvent, googleCalendarUrl, googleMapsUrl } from "@/lib/calendarInvite";
 
 type Booking = {
   id: string;
@@ -29,6 +30,7 @@ type Settings = {
   instagramHandle?: string | null;
   smsNotificationFee?: number | null;
   cancellationRefundHours?: number;
+  businessAddress?: string | null;
 };
 
 export default function BookingPage() {
@@ -305,6 +307,40 @@ export default function BookingPage() {
               {businessName} has also received a confirmation. We look forward to seeing
               you!
             </p>
+            <div className="flex flex-wrap gap-2 mt-5" id="calendar">
+              <a
+                href={`/api/bookings/${booking.id}/calendar`}
+                className="inline-flex items-center justify-center px-4 py-2.5 rounded-lg border border-slate-200 text-sm font-medium text-navy hover:bg-slate-50 transition min-h-[44px]"
+              >
+                Add to Apple / Outlook calendar
+              </a>
+              <a
+                href={googleCalendarUrl(
+                  bookingCalendarEvent(
+                    booking,
+                    businessName,
+                    typeof window !== "undefined" ? `${window.location.origin}/booking/${booking.id}` : "",
+                    settings?.businessAddress
+                  )
+                )}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center px-4 py-2.5 rounded-lg border border-slate-200 text-sm font-medium text-navy hover:bg-slate-50 transition min-h-[44px]"
+              >
+                Add to Google Calendar
+              </a>
+              <a
+                href={googleMapsUrl(businessName, settings?.businessAddress)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center px-4 py-2.5 rounded-lg border border-slate-200 text-sm font-medium text-navy hover:bg-slate-50 transition min-h-[44px]"
+              >
+                Get directions
+              </a>
+            </div>
+            {settings?.businessAddress && (
+              <p className="text-slate-500 text-sm mt-3">{settings.businessAddress}</p>
+            )}
             <p className="text-slate-500 text-sm leading-relaxed mt-3">
               Need to cancel? Use the link in your confirmation email or text. Deposits are
               refunded for cancellations made more than {settings?.cancellationRefundHours ?? 48}{" "}

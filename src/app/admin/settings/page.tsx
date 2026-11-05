@@ -147,6 +147,7 @@ function SettingsFeatureRow({
 type Settings = {
   businessName: string;
   businessEmail?: string | null;
+  businessAddress?: string | null;
   instagramHandle?: string | null;
   defaultDepositAmount?: number | null;
   defaultPrice?: number | null;
@@ -266,6 +267,7 @@ function AdminSettingsPageInner() {
     setForm({
       businessName: data.businessName,
       businessEmail: data.businessEmail ?? "",
+      businessAddress: data.businessAddress ?? "",
       instagramHandle: data.instagramHandle ?? "",
       defaultDepositAmount: data.defaultDepositAmount ?? undefined,
       defaultPrice: data.defaultPrice ?? undefined,
@@ -324,6 +326,7 @@ function AdminSettingsPageInner() {
     const payload: Record<string, unknown> = {
       businessName: form.businessName,
       businessEmail: form.businessEmail,
+      businessAddress: form.businessAddress,
       instagramHandle: form.instagramHandle,
       defaultDepositAmount: form.defaultDepositAmount,
       defaultPrice: form.defaultPrice,
@@ -591,6 +594,19 @@ function AdminSettingsPageInner() {
                   onChange={(e) => setForm((f) => ({ ...f, businessEmail: e.target.value }))}
                   className={inputClass}
                   placeholder="you@bebeautybar.com"
+                />
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <label className="text-sm text-charcoal/65">Salon address</label>
+                  <SettingsInfoTip text="Used for Google Maps directions in confirmation emails, reminders, calendar invites and the booking page." />
+                </div>
+                <input
+                  type="text"
+                  value={form.businessAddress ?? ""}
+                  onChange={(e) => setForm((f) => ({ ...f, businessAddress: e.target.value }))}
+                  className={inputClass}
+                  placeholder="33 Castle St, Swansea SA1 1HZ"
                 />
               </div>
               <div>

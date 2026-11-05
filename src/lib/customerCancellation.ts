@@ -1,8 +1,7 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import Stripe from "stripe";
-import { fromZonedTime } from "date-fns-tz";
 import { prisma } from "@/lib/prisma";
-import { BUSINESS_TIMEZONE } from "@/lib/business-time";
+import { appointmentStartUtc } from "@/lib/business-time";
 import { formatCurrency } from "@/lib/format";
 import { DEFAULT_CANCELLATION_REFUND_HOURS, normalizeRefundHours } from "@/lib/cancellationPolicy";
 
@@ -86,10 +85,7 @@ export async function resolveCancelCode(code: string): Promise<string | null> {
   return booking ? `/cancel/${booking.id}/${createCancelSignature(booking.id)}` : null;
 }
 
-export function appointmentStartUtc(date: string, startTime: string): Date {
-  const [h, m] = startTime.split(":");
-  return fromZonedTime(`${date}T${h.padStart(2, "0")}:${m}:00`, BUSINESS_TIMEZONE);
-}
+export { appointmentStartUtc };
 
 export type CustomerCancelState =
   | "refundable"

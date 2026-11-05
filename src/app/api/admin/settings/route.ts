@@ -34,6 +34,7 @@ export async function PATCH(req: NextRequest) {
   const {
     businessName,
     businessEmail,
+    businessAddress,
     instagramHandle,
     defaultDepositAmount,
     defaultPrice,
@@ -69,6 +70,13 @@ export async function PATCH(req: NextRequest) {
   }
   if (businessName != null) data.businessName = businessName;
   if (businessEmail != null) data.businessEmail = businessEmail === "" ? null : businessEmail;
+  if (businessAddress != null) {
+    const address = String(businessAddress).trim();
+    if (address.length > 300) {
+      return NextResponse.json({ error: "Address is too long" }, { status: 400 });
+    }
+    data.businessAddress = address === "" ? null : address;
+  }
   if (instagramHandle != null) data.instagramHandle = instagramHandle === "" ? null : instagramHandle;
   if (defaultDepositAmount != null) data.defaultDepositAmount = defaultDepositAmount === "" ? null : Number(defaultDepositAmount);
   if (defaultPrice != null) data.defaultPrice = defaultPrice === "" ? null : Number(defaultPrice);

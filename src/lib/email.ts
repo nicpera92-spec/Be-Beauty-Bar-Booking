@@ -15,6 +15,7 @@ import {
   resolveNotificationMessages,
 } from "@/lib/notificationTemplates";
 import { createWaitlistBookingToken } from "@/lib/waitlist-booking-token";
+import { googleMapsUrl } from "@/lib/calendarInvite";
 
 const resendClient = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const from = process.env.EMAIL_FROM || "Be Beauty Bar <onboarding@resend.dev>";
@@ -72,6 +73,8 @@ function bookingVars(
     instagramLink: extra?.instagramLink ?? "",
     cancelLink: extra?.cancelLink ?? "",
     refundDetails: extra?.refundDetails ?? "",
+    calendarLink: extra?.calendarLink ?? "",
+    directionsLink: extra?.directionsLink ?? "",
   };
 }
 
@@ -147,6 +150,8 @@ export async function sendBookingConfirmationEmails(bookingId: string): Promise<
     const vars = bookingVars(booking, businessName, {
       instagramLink,
       cancelLink: buildCancelLink(booking.id),
+      calendarLink: bookingSiteUrl(`/booking/${booking.id}#calendar`),
+      directionsLink: googleMapsUrl(businessName, settings?.businessAddress),
     });
     const smsVars = {
       ...vars,
@@ -380,11 +385,13 @@ export async function sendBookingReminderEmails(
       return { ok: false, error: "Booking not found or not confirmed" };
     }
 
-    const { messages, businessName, instagramLink } = await getMessages();
-    const vars = bookingVars(booking, businessName, { instagramLink });
+    const { settings, messages, businessName, instagramLink } = await getMessages();
+    const directionsLink = googleMapsUrl(businessName, settings?.businessAddress);
+    const vars = bookingVars(booking, businessName, { instagramLink, directionsLink });
     const smsVars = {
       ...bookingVars(booking, businessName, { instagramLink }),
       date: formatBookingDate(booking.date, "dd/MM"),
+      directionsLink: bookingSiteUrl("/directions").replace(/^https:\/\//, ""),
     };
 
     if (booking.notifyByEmail && booking.customerEmail && resendClient) {

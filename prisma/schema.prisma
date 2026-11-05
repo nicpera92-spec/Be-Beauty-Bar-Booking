@@ -81,6 +81,7 @@ model BusinessSettings {
   id                   String   @id // single row, use "default"
   businessName         String   @default("Be Beauty Bar")
   businessEmail        String?
+  businessAddress      String?
   adminLoginEmail      String?
   adminPasswordHash    String?
   instagramHandle      String?
