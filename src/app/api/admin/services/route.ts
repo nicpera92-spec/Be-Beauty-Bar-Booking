@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyAdminRequest } from "@/lib/auth";
+import { depositFromPercent, isValidDepositPercent } from "@/lib/deposit";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,17 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { name, category, durationMin, price, depositAmount, description, technicianId, requiresDeposit } = body;
+  const {
+    name,
+    category,
+    durationMin,
+    price,
+    depositAmount,
+    depositPercent,
+    description,
+    technicianId,
+    requiresDeposit,
+  } = body;
 
   if (!name || !category || durationMin == null) {
     return NextResponse.json(
@@ -66,7 +77,19 @@ export async function POST(req: NextRequest) {
     where: { id: "default" },
   });
   const p = price != null ? Number(price) : settings?.defaultPrice ?? 0;
-  const d = depositAmount != null ? Number(depositAmount) : settings?.defaultDepositAmount ?? 0;
+  if (depositPercent != null && !isValidDepositPercent(depositPercent)) {
+    return NextResponse.json(
+      { error: "Deposit percentage must be more than 0 and no more than 100" },
+      { status: 400 }
+    );
+  }
+  const percent = depositPercent != null ? Number(depositPercent) : null;
+  const d =
+    percent != null
+      ? depositFromPercent(p, percent)
+      : depositAmount != null
+        ? Number(depositAmount)
+        : settings?.defaultDepositAmount ?? 0;
   if (d > p) {
     return NextResponse.json(
       { error: "Deposit cannot exceed full price" },
@@ -96,6 +119,7 @@ export async function POST(req: NextRequest) {
       durationMin: Number(durationMin),
       price: p,
       depositAmount: needsDeposit ? d : 0,
+      depositPercent: needsDeposit ? percent : null,
       requiresDeposit: needsDeposit,
       description: description ?? "",
     },

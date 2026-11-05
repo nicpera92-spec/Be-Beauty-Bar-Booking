@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { addDays, format, parse } from "date-fns";
 import { getSlotsForDay } from "@/lib/slotUtils";
-import { getMaxConcurrentForCategory, getCategoryExclusionPairs } from "@/lib/bookingAvailability";
+import {
+  getCategoryCapacityRules,
+  getCategoryExclusionPairs,
+  maxConcurrentFromRules,
+} from "@/lib/bookingAvailability";
 import { hasWaitlistSameDayBookingAccess } from "@/lib/waitlist-booking-token";
 import { businessDateStr, isBeforeMinBookableDate } from "@/lib/business-time";
 import { resolveHoursForDate } from "@/lib/workingHours";
@@ -23,10 +27,45 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const service = await prisma.service.findUnique({
-      where: { id: serviceId },
-      include: { technician: { select: { active: true, workingHours: true } } },
-    });
+    const now = new Date();
+    const businessToday = businessDateStr(now);
+    const [service, settings, bookings, blocks, capacityRules, exclusionPairs, sameDayWaitlistAccess] =
+      await Promise.all([
+        prisma.service.findUnique({
+          where: { id: serviceId },
+          include: { technician: { select: { active: true, workingHours: true } } },
+        }),
+        prisma.businessSettings.findUnique({
+          where: { id: "default" },
+          select: { openTime: true, closeTime: true, slotInterval: true },
+        }),
+        prisma.booking.findMany({
+          where: { date: { gte: from, lte: to }, status: { not: "cancelled" } },
+          select: {
+            date: true,
+            technicianId: true,
+            startTime: true,
+            endTime: true,
+            service: { select: { category: true } },
+          },
+        }),
+        prisma.availabilityBlock.findMany({
+          where: {
+            startDate: { lte: to },
+            endDate: { gte: from },
+            technicianId,
+          },
+        }),
+        getCategoryCapacityRules(),
+        getCategoryExclusionPairs(),
+        waitlistToken
+          ? hasWaitlistSameDayBookingAccess(waitlistToken, {
+              date: businessToday,
+              serviceId,
+              technicianId,
+            })
+          : Promise.resolve(false),
+      ]);
     if (!service) {
       return NextResponse.json({ error: "Service not found" }, { status: 404 });
     }
@@ -48,43 +87,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ availability });
     }
 
-    const [settings, bookings, blocks, maxConcurrent, exclusionPairs] = await Promise.all([
-      prisma.businessSettings.findUnique({ where: { id: "default" } }),
-      prisma.booking.findMany({
-        where: { date: { gte: from, lte: to }, status: { not: "cancelled" } },
-        select: {
-          date: true,
-          technicianId: true,
-          startTime: true,
-          endTime: true,
-          service: { select: { category: true } },
-        },
-      }),
-      prisma.availabilityBlock.findMany({
-        where: {
-          startDate: { lte: to },
-          endDate: { gte: from },
-          technicianId,
-        },
-      }),
-      getMaxConcurrentForCategory(service.category),
-      getCategoryExclusionPairs(),
-    ]);
-
+    const maxConcurrent = maxConcurrentFromRules(capacityRules, service.category);
     const s = settings ?? { openTime: "09:00", closeTime: "17:00", slotInterval: 30 };
     const fromDate = parse(from, "yyyy-MM-dd", new Date());
     const toDate = parse(to, "yyyy-MM-dd", new Date());
-    const now = new Date();
-    const businessToday = businessDateStr(now);
-    const sameDayWaitlistAccess =
-      waitlistToken &&
-      serviceId &&
-      technicianId &&
-      (await hasWaitlistSameDayBookingAccess(waitlistToken, {
-        date: businessToday,
-        serviceId,
-        technicianId,
-      }));
     const numDays = Math.round((toDate.getTime() - fromDate.getTime()) / (24 * 60 * 60 * 1000)) + 1;
     const availability: Record<string, boolean> = {};
 

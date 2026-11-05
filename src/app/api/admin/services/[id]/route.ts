@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyAdminRequest } from "@/lib/auth";
+import { depositFromPercent, isValidDepositPercent } from "@/lib/deposit";
 
 export async function PATCH(
   req: NextRequest,
@@ -13,7 +14,17 @@ export async function PATCH(
 
   const { id } = params;
   const body = await req.json().catch(() => ({}));
-  const { name, category, durationMin, price, depositAmount, description, active, requiresDeposit } = body;
+  const {
+    name,
+    category,
+    durationMin,
+    price,
+    depositAmount,
+    depositPercent,
+    description,
+    active,
+    requiresDeposit,
+  } = body;
 
   const current = await prisma.service.findUnique({ where: { id } });
   if (!current) {
@@ -33,6 +44,7 @@ export async function PATCH(
     durationMin?: number;
     price?: number;
     depositAmount?: number;
+    depositPercent?: number | null;
     requiresDeposit?: boolean;
     description?: string | null;
     active?: boolean;
@@ -57,10 +69,28 @@ export async function PATCH(
   // can edit any service. Ownership is already enforced above, so apply both.
   if (price !== undefined) data.price = Number(price);
   if (depositAmount !== undefined) data.depositAmount = Number(depositAmount);
+  if (depositPercent !== undefined) {
+    if (depositPercent !== null && !isValidDepositPercent(depositPercent)) {
+      return NextResponse.json(
+        { error: "Deposit percentage must be more than 0 and no more than 100" },
+        { status: 400 }
+      );
+    }
+    data.depositPercent = depositPercent === null ? null : Number(depositPercent);
+  }
+  // Percentage deposits follow the price, so recalculate whenever price or percentage changes.
+  const effectivePercent =
+    data.depositPercent !== undefined ? data.depositPercent : current.depositPercent;
+  if (effectivePercent != null) {
+    data.depositAmount = depositFromPercent(data.price ?? current.price, effectivePercent);
+  }
   if (requiresDeposit !== undefined) {
     data.requiresDeposit = Boolean(requiresDeposit);
     // No deposit required → clear any deposit amount so nothing is charged.
-    if (!data.requiresDeposit) data.depositAmount = 0;
+    if (!data.requiresDeposit) {
+      data.depositAmount = 0;
+      data.depositPercent = null;
+    }
   }
   if (description !== undefined) data.description = description === null ? "" : String(description);
   if (active !== undefined) data.active = Boolean(active);

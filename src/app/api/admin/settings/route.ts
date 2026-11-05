@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { verifyAdminRequest, requireMaster } from "@/lib/auth";
 import { toAdminClientSettings } from "@/lib/publicSettings";
+import { invalidateBusinessSettingsCache } from "@/lib/cachedSettings";
 import {
   MAX_CANCELLATION_POLICY_LENGTH,
   MAX_CANCELLATION_REFUND_HOURS,
@@ -168,6 +169,7 @@ export async function PATCH(req: NextRequest) {
       },
       update: data,
     });
+    invalidateBusinessSettingsCache();
     revalidatePath("/", "layout");
     return NextResponse.json(toAdminClientSettings(settings as unknown as Record<string, unknown>));
   } catch (e) {

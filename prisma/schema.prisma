@@ -16,6 +16,7 @@ model Service {
   durationMin   Int
   price         Float      @default(0)
   depositAmount Float
+  depositPercent Float?    // set = deposit is this % of price (depositAmount kept in sync); null = fixed £ amount
   requiresDeposit Boolean  @default(true) // when false, bookings confirm without a deposit payment
   description   String?    @default("")
   active        Boolean    @default(true)

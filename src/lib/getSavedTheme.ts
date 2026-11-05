@@ -1,5 +1,5 @@
 import { unstable_noStore as noStore } from "next/cache";
-import { prisma } from "@/lib/prisma";
+import { getCachedPublicSettings } from "@/lib/cachedSettings";
 import {
   DEFAULT_PRIMARY,
   DEFAULT_SECONDARY,
@@ -8,7 +8,7 @@ import {
   themeColorsToCssVars,
 } from "@/lib/themePalettes";
 
-/** Load saved theme colours from the database (always fresh — not statically cached). */
+/** Load saved theme colours (pages render per request; the settings read itself is cached). */
 export async function getSavedThemeCssVars(): Promise<Record<string, string>> {
   const theme = await getSavedTheme();
   return theme.cssVars;
@@ -20,11 +20,9 @@ export async function getSavedTheme(): Promise<{
 }> {
   noStore();
   try {
-    const settings = await prisma.businessSettings.findUnique({
-      where: { id: "default" },
-    });
-    const primary = settings?.primaryColor ?? DEFAULT_PRIMARY;
-    const secondary = settings?.secondaryColor ?? DEFAULT_SECONDARY;
+    const settings = await getCachedPublicSettings();
+    const primary = (settings?.primaryColor as string | null | undefined) ?? DEFAULT_PRIMARY;
+    const secondary = (settings?.secondaryColor as string | null | undefined) ?? DEFAULT_SECONDARY;
     const palette = findThemePalette(primary, secondary);
     return {
       cssVars: themeColorsToCssVars(primary, secondary),

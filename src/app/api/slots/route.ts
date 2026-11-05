@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parse } from "date-fns";
 import { getSlotsForDay } from "@/lib/slotUtils";
-import { getMaxConcurrentForCategory, getCategoryExclusionPairs } from "@/lib/bookingAvailability";
+import {
+  getCategoryCapacityRules,
+  getCategoryExclusionPairs,
+  maxConcurrentFromRules,
+} from "@/lib/bookingAvailability";
 import { hasWaitlistSameDayBookingAccess } from "@/lib/waitlist-booking-token";
 import { isBeforeMinBookableDate } from "@/lib/business-time";
 import { resolveHoursForDate } from "@/lib/workingHours";
@@ -21,10 +25,37 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const service = await prisma.service.findUnique({
-      where: { id: serviceId },
-      include: { technician: { select: { id: true, active: true, workingHours: true } } },
-    });
+    const waitlistToken = searchParams.get("wl");
+    const [service, sameDayWaitlistAccess, settings, dayBookings, blocks, capacityRules, exclusionPairs] =
+      await Promise.all([
+        prisma.service.findUnique({
+          where: { id: serviceId },
+          include: { technician: { select: { id: true, active: true, workingHours: true } } },
+        }),
+        hasWaitlistSameDayBookingAccess(waitlistToken, { date, serviceId, technicianId }),
+        prisma.businessSettings.findUnique({
+          where: { id: "default" },
+          select: { openTime: true, closeTime: true, slotInterval: true },
+        }),
+        prisma.booking.findMany({
+          where: { date, status: { not: "cancelled" } },
+          select: {
+            technicianId: true,
+            startTime: true,
+            endTime: true,
+            service: { select: { category: true } },
+          },
+        }),
+        prisma.availabilityBlock.findMany({
+          where: {
+            startDate: { lte: date },
+            endDate: { gte: date },
+            technicianId,
+          },
+        }),
+        getCategoryCapacityRules(),
+        getCategoryExclusionPairs(),
+      ]);
 
     if (!service) {
       return NextResponse.json({ error: "Service not found" }, { status: 404 });
@@ -40,37 +71,10 @@ export async function GET(req: NextRequest) {
     }
 
     const day = parse(date, "yyyy-MM-dd", new Date());
-    const waitlistToken = searchParams.get("wl");
-    const sameDayWaitlistAccess = await hasWaitlistSameDayBookingAccess(waitlistToken, {
-      date,
-      serviceId,
-      technicianId,
-    });
     if (!sameDayWaitlistAccess && isBeforeMinBookableDate(date)) {
       return NextResponse.json({ slots: [] });
     }
-
-    const [settings, dayBookings, blocks, maxConcurrent, exclusionPairs] = await Promise.all([
-      prisma.businessSettings.findUnique({ where: { id: "default" } }),
-      prisma.booking.findMany({
-        where: { date, status: { not: "cancelled" } },
-        select: {
-          technicianId: true,
-          startTime: true,
-          endTime: true,
-          service: { select: { category: true } },
-        },
-      }),
-      prisma.availabilityBlock.findMany({
-        where: {
-          startDate: { lte: date },
-          endDate: { gte: date },
-          technicianId,
-        },
-      }),
-      getMaxConcurrentForCategory(service.category),
-      getCategoryExclusionPairs(),
-    ]);
+    const maxConcurrent = maxConcurrentFromRules(capacityRules, service.category);
 
     const s = settings ?? { openTime: "09:00", closeTime: "17:00", slotInterval: 30 };
     const dayHours = resolveHoursForDate(

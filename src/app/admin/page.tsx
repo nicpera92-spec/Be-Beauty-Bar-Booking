@@ -71,9 +71,12 @@ type WaitlistEntry = {
 function WaitlistBookingStatus({ entry }: { entry: WaitlistEntry }) {
   const booking = entry.matchedBooking;
   if (!booking) {
-    return entry.lastNotifiedAt ? (
+    if (!entry.lastNotifiedAt) return null;
+    return entry.status === "active" ? (
       <p className="text-xs font-medium text-amber-700 mt-1.5">Not booked yet</p>
-    ) : null;
+    ) : (
+      <p className="text-xs font-medium text-charcoal/55 mt-1.5">Notified, didn&apos;t book</p>
+    );
   }
   const when = `${formatBookingDateFriendly(booking.date)} at ${booking.startTime}`;
   if (booking.status === "cancelled") {

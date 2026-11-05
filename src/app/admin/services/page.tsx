@@ -5,8 +5,116 @@ import Link from "next/link";
 import { formatCurrency } from "@/lib/format";
 import { useRouter } from "next/navigation";
 import { orderCategories } from "@/lib/categoryOrder";
+import { depositFromPercent, formatDepositPercent, isValidDepositPercent } from "@/lib/deposit";
 
 const ADMIN_TOKEN_KEY = "admin-token";
+
+type DepositMode = "amount" | "percent";
+
+type DepositForm = {
+  price: number;
+  depositAmount: number;
+  depositMode: DepositMode;
+  depositPercent: number;
+  requiresDeposit: boolean;
+};
+
+function effectiveDeposit(form: DepositForm): number {
+  if (!form.requiresDeposit) return 0;
+  return form.depositMode === "percent"
+    ? depositFromPercent(form.price, form.depositPercent)
+    : form.depositAmount;
+}
+
+function depositFormError(form: DepositForm): string | null {
+  if (!form.requiresDeposit) return null;
+  if (form.depositMode === "percent" && !isValidDepositPercent(form.depositPercent)) {
+    return "Deposit percentage must be more than 0 and no more than 100.";
+  }
+  if (effectiveDeposit(form) > form.price) return "Deposit cannot exceed full price.";
+  return null;
+}
+
+function initialDepositPercent(price: number, depositAmount: number): number {
+  return price > 0 ? Math.round((depositAmount / price) * 100) : 20;
+}
+
+function DepositField({
+  form,
+  onChange,
+}: {
+  form: DepositForm;
+  onChange: (patch: Partial<DepositForm>) => void;
+}) {
+  const percentMode = form.depositMode === "percent";
+  const switchMode = (mode: DepositMode) => {
+    if (mode === form.depositMode) return;
+    if (mode === "percent") {
+      onChange({
+        depositMode: mode,
+        depositPercent: initialDepositPercent(form.price, form.depositAmount),
+      });
+    } else {
+      onChange({ depositMode: mode, depositAmount: effectiveDeposit(form) });
+    }
+  };
+  const toggleClass = (active: boolean) =>
+    `px-2 py-0.5 text-[11px] font-medium transition ${
+      active ? "bg-navy text-white" : "bg-white text-charcoal/60 hover:bg-slate-50"
+    }`;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-1 mb-1">
+        <label className="block text-xs text-charcoal/60">
+          Deposit ({percentMode ? "%" : "£"})
+        </label>
+        <div
+          className="inline-flex rounded-md border border-slate-200 overflow-hidden"
+          role="group"
+          aria-label="Deposit type"
+        >
+          <button
+            type="button"
+            onClick={() => switchMode("amount")}
+            disabled={!form.requiresDeposit}
+            aria-pressed={!percentMode}
+            className={toggleClass(!percentMode)}
+          >
+            £
+          </button>
+          <button
+            type="button"
+            onClick={() => switchMode("percent")}
+            disabled={!form.requiresDeposit}
+            aria-pressed={percentMode}
+            className={toggleClass(percentMode)}
+          >
+            %
+          </button>
+        </div>
+      </div>
+      <input
+        type="number"
+        min={0}
+        max={percentMode ? 100 : undefined}
+        step={percentMode ? 1 : 0.01}
+        value={percentMode ? form.depositPercent : form.depositAmount}
+        disabled={!form.requiresDeposit}
+        onChange={(e) => {
+          const value = parseFloat(e.target.value) || 0;
+          onChange(percentMode ? { depositPercent: value } : { depositAmount: value });
+        }}
+        className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white disabled:bg-slate-100 disabled:text-charcoal/40"
+      />
+      {percentMode && form.requiresDeposit && (
+        <p className="text-xs text-charcoal/50 mt-1">
+          = {formatCurrency(effectiveDeposit(form))} of {formatCurrency(form.price)}
+        </p>
+      )}
+    </div>
+  );
+}
 
 function getAuthHeaders(): Record<string, string> {
   if (typeof window === "undefined") return {};
@@ -28,6 +136,7 @@ type Service = {
   durationMin: number;
   price: number;
   depositAmount: number;
+  depositPercent: number | null;
   requiresDeposit: boolean;
   description: string | null;
   active: boolean;
@@ -247,15 +356,19 @@ function AdminServiceRow({
 }) {
   const [editing, setEditing] = useState(false);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
-  const [form, setForm] = useState({
+  const formFromService = () => ({
     name: service.name,
     category: service.category,
     durationMin: service.durationMin,
     price: service.price,
     depositAmount: service.depositAmount,
+    depositMode: (service.depositPercent != null ? "percent" : "amount") as DepositMode,
+    depositPercent:
+      service.depositPercent ?? initialDepositPercent(service.price, service.depositAmount),
     requiresDeposit: service.requiresDeposit ?? true,
     description: service.description ?? "",
   });
+  const [form, setForm] = useState(formFromService);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<number | null>(null);
@@ -263,17 +376,10 @@ function AdminServiceRow({
   // When not editing, keep form in sync with service (e.g. when revisiting the page or after refetch)
   useEffect(() => {
     if (!editing) {
-      setForm({
-        name: service.name,
-        category: service.category,
-        durationMin: service.durationMin,
-        price: service.price,
-        depositAmount: service.depositAmount,
-        requiresDeposit: service.requiresDeposit ?? true,
-        description: service.description ?? "",
-      });
+      setForm(formFromService());
     }
-  }, [editing, service.id, service.name, service.category, service.durationMin, service.price, service.depositAmount, service.requiresDeposit, service.description]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing, service.id, service.name, service.category, service.durationMin, service.price, service.depositAmount, service.depositPercent, service.requiresDeposit, service.description]);
 
   useEffect(() => {
     if (savedAt == null) return;
@@ -287,8 +393,9 @@ function AdminServiceRow({
     .filter((cat) => cat);
 
   const save = (closeAfterSave = true) => {
-    if (form.requiresDeposit && form.depositAmount > form.price) {
-      setSaveError("Deposit cannot exceed full price.");
+    const depositError = depositFormError(form);
+    if (depositError) {
+      setSaveError(depositError);
       return;
     }
     setSaveError(null);
@@ -298,7 +405,9 @@ function AdminServiceRow({
       category: String(form.category).trim(),
       durationMin: Number(form.durationMin) || 30,
       price: Number(form.price) || 0,
-      depositAmount: form.requiresDeposit ? Number(form.depositAmount) || 0 : 0,
+      depositAmount: effectiveDeposit(form),
+      depositPercent:
+        form.requiresDeposit && form.depositMode === "percent" ? form.depositPercent : null,
       requiresDeposit: form.requiresDeposit,
       description: form.description == null ? "" : String(form.description),
     };
@@ -331,11 +440,12 @@ function AdminServiceRow({
     form.category !== service.category ||
     form.durationMin !== service.durationMin ||
     form.price !== service.price ||
-    form.depositAmount !== service.depositAmount ||
+    effectiveDeposit(form) !== service.depositAmount ||
+    (form.requiresDeposit && form.depositMode === "percent" ? form.depositPercent : null) !==
+      (service.depositPercent ?? null) ||
     form.requiresDeposit !== (service.requiresDeposit ?? true) ||
     (form.description ?? "") !== (service.description ?? "");
-  const canSave =
-    editing && formChanged && (!form.requiresDeposit || form.depositAmount <= form.price);
+  const canSave = editing && formChanged && depositFormError(form) === null;
 
   useEffect(() => {
     if (!canSave) return;
@@ -487,25 +597,7 @@ function AdminServiceRow({
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white"
               />
             </div>
-            <div>
-              <label className="block text-xs text-charcoal/60 mb-1">
-                Deposit (£)
-              </label>
-              <input
-                type="number"
-                min={0}
-                step={0.01}
-                value={form.depositAmount}
-                disabled={!form.requiresDeposit}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    depositAmount: parseFloat(e.target.value) || 0,
-                  }))
-                }
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white disabled:bg-slate-100 disabled:text-charcoal/40"
-              />
-            </div>
+            <DepositField form={form} onChange={(patch) => setForm((f) => ({ ...f, ...patch }))} />
           </div>
           <label className="flex items-center gap-2.5 cursor-pointer">
             <input
@@ -552,15 +644,7 @@ function AdminServiceRow({
               onClick={() => {
                 setEditing(false);
                 setSaveError(null);
-                setForm({
-                  name: service.name,
-                  category: service.category,
-                  durationMin: service.durationMin,
-                  price: service.price,
-                  depositAmount: service.depositAmount,
-                  requiresDeposit: service.requiresDeposit ?? true,
-                  description: service.description ?? "",
-                });
+                setForm(formFromService());
               }}
               className="px-4 py-2 rounded-lg border border-slate-200 text-charcoal text-sm hover:bg-slate-50"
             >
@@ -586,7 +670,11 @@ function AdminServiceRow({
               <p className="text-sm font-semibold text-charcoal mt-1">
                 {service.durationMin} min · {formatCurrency(service.price)} ·{" "}
                 {service.requiresDeposit
-                  ? `${formatCurrency(service.depositAmount)} deposit`
+                  ? `${formatCurrency(service.depositAmount)} deposit${
+                      service.depositPercent != null
+                        ? ` (${formatDepositPercent(service.depositPercent)})`
+                        : ""
+                    }`
                   : "No deposit"}
               </p>
             </div>
@@ -774,6 +862,8 @@ function AddServiceForm({
     durationMin: 60,
     price: defaultPrice,
     depositAmount: defaultDeposit,
+    depositMode: "amount" as DepositMode,
+    depositPercent: initialDepositPercent(defaultPrice, defaultDeposit),
     requiresDeposit: true,
     description: "",
   });
@@ -797,8 +887,9 @@ function AddServiceForm({
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (form.requiresDeposit && form.depositAmount > form.price) {
-      setSubmitError("Deposit cannot exceed full price.");
+    const depositError = depositFormError(form);
+    if (depositError) {
+      setSubmitError(depositError);
       return;
     }
     if (creatingNewCategory && !newCategoryName.trim()) {
@@ -817,12 +908,16 @@ function AddServiceForm({
       ? newCategoryName.trim().toLowerCase().replace(/\s+/g, "-")
       : form.category;
     
+    const { depositMode, ...fields } = form;
     fetch("/api/admin/services", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...getAuthHeaders() },
       body: JSON.stringify({
-        ...form,
+        ...fields,
         category: categoryToUse,
+        depositAmount: effectiveDeposit(form),
+        depositPercent:
+          form.requiresDeposit && depositMode === "percent" ? form.depositPercent : null,
       }),
     })
       .then((r) => r.json().then((d) => ({ ok: r.ok, data: d })))
@@ -837,6 +932,8 @@ function AddServiceForm({
             durationMin: 60,
             price: defaultPrice,
             depositAmount: defaultDeposit,
+            depositMode: "amount",
+            depositPercent: initialDepositPercent(defaultPrice, defaultDeposit),
             requiresDeposit: true,
             description: "",
           });
@@ -972,23 +1069,7 @@ function AddServiceForm({
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white"
               />
             </div>
-            <div>
-              <label className="block text-xs text-charcoal/60 mb-1">Deposit (£)</label>
-              <input
-                type="number"
-                min={0}
-                step={0.01}
-                value={form.depositAmount}
-                disabled={!form.requiresDeposit}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    depositAmount: parseFloat(e.target.value) || 0,
-                  }))
-                }
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white disabled:bg-slate-100 disabled:text-charcoal/40"
-              />
-            </div>
+            <DepositField form={form} onChange={(patch) => setForm((f) => ({ ...f, ...patch }))} />
           </div>
           <label className="flex items-center gap-2.5 cursor-pointer">
             <input

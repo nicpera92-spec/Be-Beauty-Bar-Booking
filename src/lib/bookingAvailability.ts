@@ -8,11 +8,24 @@ import {
   timeRangesOverlap,
 } from "@/lib/categoryCapacity";
 
-export async function getMaxConcurrentForCategory(category: string): Promise<number> {
-  const rule = await prisma.categoryCapacityRule.findUnique({ where: { category } });
+export function maxConcurrentFromRules(
+  rules: { category: string; maxConcurrent: number }[],
+  category: string
+): number {
+  const rule = rules.find((r) => r.category === category);
   if (rule) return rule.maxConcurrent;
   const fallback = DEFAULT_CATEGORY_RULES.find((r) => r.category === category);
   return fallback?.maxConcurrent ?? 1;
+}
+
+export async function getMaxConcurrentForCategory(category: string): Promise<number> {
+  const rule = await prisma.categoryCapacityRule.findUnique({ where: { category } });
+  return maxConcurrentFromRules(rule ? [rule] : [], category);
+}
+
+/** All capacity rules — lets callers fetch them alongside the service in one round trip. */
+export async function getCategoryCapacityRules(): Promise<{ category: string; maxConcurrent: number }[]> {
+  return prisma.categoryCapacityRule.findMany({ select: { category: true, maxConcurrent: true } });
 }
 
 export async function getCategoryExclusionPairs(): Promise<CategoryExclusionPair[]> {
