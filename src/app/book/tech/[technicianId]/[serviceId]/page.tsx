@@ -7,6 +7,7 @@ import Link from "next/link";
 import { formatCurrency } from "@/lib/format";
 import { getCustomerBookableRange } from "@/lib/booking-calendar-range";
 import WaitlistJoinForm from "@/components/WaitlistJoinForm";
+import PageTopLinks from "@/components/PageTopLinks";
 
 type Service = {
   id: string;
@@ -179,14 +180,14 @@ export default function BookDatePage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-8 py-16 sm:py-20 md:py-28">
-      <div className="flex flex-wrap gap-x-6 gap-y-1 mb-8">
+      <PageTopLinks>
         <Link href="/" className="text-sm text-navy hover:underline">
           Home
         </Link>
         <Link href={`/book/tech/${technicianId}`} className="text-sm text-navy hover:underline">
           ← Back to services
         </Link>
-      </div>
+      </PageTopLinks>
       <h1 className="font-serif text-2xl md:text-3xl font-light text-slate-800 mb-3">
         {service.name}
       </h1>

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { categoryLabel } from "@/lib/categoryCapacity";
 import { compactCategoryLabel } from "@/lib/categoryDisplay";
+import PageTopLinks from "@/components/PageTopLinks";
 
 type Technician = {
   id: string;
@@ -57,9 +58,11 @@ export default function BookPage() {
   if (loading) {
     return (
       <div className="max-w-2xl mx-auto px-6 py-24 text-center">
-        <Link href="/" className="text-sm text-navy hover:underline mb-6 inline-block">
-          Home
-        </Link>
+        <PageTopLinks className="mb-6">
+          <Link href="/" className="text-sm text-navy hover:underline">
+            Home
+          </Link>
+        </PageTopLinks>
         <p className="text-slate-500">Loading…</p>
       </div>
     );
@@ -68,9 +71,11 @@ export default function BookPage() {
   if (loadError) {
     return (
       <div className="max-w-2xl mx-auto px-6 py-24 text-center">
-        <Link href="/" className="text-sm text-navy hover:underline mb-6 inline-block">
-          Home
-        </Link>
+        <PageTopLinks className="mb-6">
+          <Link href="/" className="text-sm text-navy hover:underline">
+            Home
+          </Link>
+        </PageTopLinks>
         <p className="text-slate-600 mb-4">
           Booking is temporarily unavailable. Please try again in a moment.
         </p>
@@ -88,9 +93,11 @@ export default function BookPage() {
   if (technicians.length === 0) {
     return (
       <div className="max-w-2xl mx-auto px-6 py-24 text-center">
-        <Link href="/" className="text-sm text-navy hover:underline mb-6 inline-block">
-          Home
-        </Link>
+        <PageTopLinks className="mb-6">
+          <Link href="/" className="text-sm text-navy hover:underline">
+            Home
+          </Link>
+        </PageTopLinks>
         <p className="text-slate-600">No technicians are available to book right now.</p>
       </div>
     );
@@ -98,9 +105,11 @@ export default function BookPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-8 py-16 sm:py-20 md:py-28">
-      <Link href="/" className="text-sm text-navy hover:underline mb-8 inline-block">
-        Home
-      </Link>
+      <PageTopLinks>
+        <Link href="/" className="text-sm text-navy hover:underline">
+          Home
+        </Link>
+      </PageTopLinks>
       <p className="text-xs font-medium uppercase tracking-[0.2em] text-navy mb-2">
         Welcome
       </p>

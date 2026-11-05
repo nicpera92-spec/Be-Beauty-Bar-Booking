@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { formatPriceShort, formatDurationHours } from "@/lib/format";
 import { orderCategories } from "@/lib/categoryOrder";
+import PageTopLinks from "@/components/PageTopLinks";
 
 type Service = {
   id: string;
@@ -93,7 +94,7 @@ export default function TechnicianServicesPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-8 py-16 sm:py-20 md:py-28">
-      <div className="flex flex-wrap gap-x-6 gap-y-1 mb-8">
+      <PageTopLinks>
         <Link href="/" className="text-sm text-navy hover:underline">
           Home
         </Link>
@@ -102,7 +103,7 @@ export default function TechnicianServicesPage() {
             ← Back to technicians
           </Link>
         )}
-      </div>
+      </PageTopLinks>
 
       <p className="text-xs font-medium uppercase tracking-[0.2em] text-navy mb-2">
         {technician.name}

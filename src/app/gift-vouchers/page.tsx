@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import NumberField from "@/components/NumberField";
+import PageTopLinks from "@/components/PageTopLinks";
 import {
   VOUCHER_MAX_AMOUNT,
   VOUCHER_MIN_AMOUNT,
@@ -56,9 +57,11 @@ export default function GiftVouchersPage() {
 
   return (
     <div className="max-w-xl mx-auto px-4 sm:px-8 py-16 sm:py-20">
-      <Link href="/" className="text-sm text-navy hover:underline mb-8 inline-block">
-        Home
-      </Link>
+      <PageTopLinks>
+        <Link href="/" className="text-sm text-navy hover:underline">
+          Home
+        </Link>
+      </PageTopLinks>
       <h1 className="font-serif text-2xl md:text-3xl font-light text-slate-800 mb-3">Gift Vouchers</h1>
       <p className="text-sm text-slate-600 leading-relaxed mb-8">
         Treat someone to nails, lashes or permanent makeup. The voucher code is emailed straight away

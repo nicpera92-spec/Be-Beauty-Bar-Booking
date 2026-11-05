@@ -6,6 +6,7 @@ import { format, parse } from "date-fns";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/format";
 import BookingCalendarButtons from "@/components/BookingCalendarButtons";
+import PageTopLinks from "@/components/PageTopLinks";
 
 type Booking = {
   id: string;
@@ -150,9 +151,11 @@ export default function BookingPage() {
   if (loading || justPaidWaitingConfirmation) {
     return (
       <div className="max-w-2xl mx-auto px-6 py-24 text-center">
-        <Link href="/" className="text-sm text-navy hover:underline mb-6 inline-block">
-          Home
-        </Link>
+        <PageTopLinks className="mb-6">
+          <Link href="/" className="text-sm text-navy hover:underline">
+            Home
+          </Link>
+        </PageTopLinks>
         <p className="text-slate-500">
           {paidParam || justPaidWaitingConfirmation ? "Confirming your payment…" : "Loading your booking…"}
         </p>
@@ -165,9 +168,11 @@ export default function BookingPage() {
   if (!booking) {
     return (
       <div className="max-w-2xl mx-auto px-6 py-24 text-center">
-        <Link href="/" className="text-sm text-navy hover:underline mb-6 inline-block">
-          Home
-        </Link>
+        <PageTopLinks className="mb-6">
+          <Link href="/" className="text-sm text-navy hover:underline">
+            Home
+          </Link>
+        </PageTopLinks>
         <p className="text-slate-600 mb-6">Booking not found.</p>
         <Link href="/book" className="text-navy hover:underline">
           Book an appointment
@@ -201,12 +206,11 @@ export default function BookingPage() {
 
   return (
     <div className="max-w-xl mx-auto px-4 sm:px-8 py-16 sm:py-20 md:py-28">
-      <Link
-        href="/"
-        className="text-sm text-navy hover:underline mb-8 inline-block"
-      >
-        Home
-      </Link>
+      <PageTopLinks>
+        <Link href="/" className="text-sm text-navy hover:underline">
+          Home
+        </Link>
+      </PageTopLinks>
       <div className="rounded-xl border border-slate-200 bg-white p-6 sm:p-8 md:p-10 shadow-sm">
         <div
           className={`inline-block px-3 py-1.5 rounded-full text-xs font-medium uppercase tracking-wider mb-8 ${
