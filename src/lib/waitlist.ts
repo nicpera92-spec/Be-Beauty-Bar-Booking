@@ -5,6 +5,19 @@ import { businessDateStr } from "@/lib/business-time";
 import { getSlotsForDay } from "@/lib/slotUtils";
 import { getMaxConcurrentForCategory, getCategoryExclusionPairs } from "@/lib/bookingAvailability";
 import { resolveHoursForDate } from "@/lib/workingHours";
+import {
+  formatWaitlistDateRange,
+  waitlistHasExplicitRange,
+  waitlistRangeEnd,
+  type WaitlistDatePreference,
+} from "@/lib/waitlistDates";
+
+export {
+  formatWaitlistDateRange,
+  waitlistHasExplicitRange,
+  waitlistRangeEnd,
+  type WaitlistDatePreference,
+};
 
 export type OpenSlot = {
   date: string;
@@ -63,24 +76,6 @@ export function waitlistEntryFulfilledByBooking(
   return waitlistEntryInterestedInDate(entry, bookingDate);
 }
 
-export type WaitlistDatePreference = {
-  preferredDate: string;
-  preferredDateEnd: string | null;
-  notifyEarliest: boolean;
-};
-
-/** Inclusive end of the customer's requested date range. */
-export function waitlistRangeEnd(entry: WaitlistDatePreference): string {
-  if (entry.preferredDateEnd && entry.preferredDateEnd >= entry.preferredDate) {
-    return entry.preferredDateEnd;
-  }
-  return entry.preferredDate;
-}
-
-export function waitlistHasExplicitRange(entry: WaitlistDatePreference): boolean {
-  return Boolean(entry.preferredDateEnd && entry.preferredDateEnd > entry.preferredDate);
-}
-
 /** First date to scan when looking for open slots for this entry. */
 export function waitlistNotificationSearchStart(
   entry: WaitlistDatePreference,
@@ -127,19 +122,6 @@ export function mergeWaitlistPreferences(
 }
 
 /** Human-readable waitlist date range for admin and confirmations. */
-export function formatWaitlistDateRange(
-  entry: WaitlistDatePreference,
-  formatDate: (dateStr: string) => string
-): string {
-  if (waitlistHasExplicitRange(entry)) {
-    return `${formatDate(entry.preferredDate)} – ${formatDate(waitlistRangeEnd(entry))}`;
-  }
-  if (entry.notifyEarliest) {
-    return `${formatDate(entry.preferredDate)} · earlier dates too`;
-  }
-  return formatDate(entry.preferredDate);
-}
-
 function waitlistContactOr(customerEmail: string | null, customerPhone: string | null) {
   const email = customerEmail?.trim() || "";
   const phone = customerPhone?.trim() || "";

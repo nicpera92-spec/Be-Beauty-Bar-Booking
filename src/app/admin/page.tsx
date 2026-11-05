@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { formatCurrency, formatBookingDateFriendly } from "@/lib/format";
-import { formatWaitlistDateRange } from "@/lib/waitlist";
+import { formatWaitlistDateRange } from "@/lib/waitlistDates";
 import AdminNav from "@/components/AdminNav";
 
 const ADMIN_TOKEN_KEY = "admin-token";
