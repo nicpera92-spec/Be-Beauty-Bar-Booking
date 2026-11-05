@@ -15,9 +15,10 @@ function getAuthHeaders(): Record<string, string> {
   return t ? { Authorization: `Bearer ${t}` } : {};
 }
 
-type PeriodId = "this_month" | "last_3_months" | "last_6_months" | "last_12_months" | "custom";
+type PeriodId = "today" | "this_month" | "last_3_months" | "last_6_months" | "last_12_months" | "custom";
 
 const PERIODS: { id: PeriodId; label: string }[] = [
+  { id: "today", label: "Today" },
   { id: "this_month", label: "This month" },
   { id: "last_3_months", label: "Last 3 months" },
   { id: "last_6_months", label: "Last 6 months" },
@@ -39,6 +40,8 @@ function periodRange(
       return { from: f(addDays(subMonths(today, 6), 1)), to: f(today) };
     case "last_12_months":
       return { from: f(addDays(subMonths(today, 12), 1)), to: f(today) };
+    case "today":
+      return { from: f(today), to: f(today) };
     case "this_month":
       return { from: f(startOfMonth(today)), to: f(endOfMonth(today)) };
   }
@@ -209,8 +212,14 @@ export default function AdminDashboardPage() {
 
       {range && (
         <p className="text-xs text-charcoal/50 mb-4">
-          Appointments dated {format(new Date(`${range.from}T12:00:00`), "d MMM yyyy")} –{" "}
-          {format(new Date(`${range.to}T12:00:00`), "d MMM yyyy")}
+          {range.from === range.to ? (
+            <>Appointments on {format(new Date(`${range.from}T12:00:00`), "EEEE d MMM yyyy")}</>
+          ) : (
+            <>
+              Appointments dated {format(new Date(`${range.from}T12:00:00`), "d MMM yyyy")} –{" "}
+              {format(new Date(`${range.to}T12:00:00`), "d MMM yyyy")}
+            </>
+          )}
           {upcoming
             ? " — upcoming appointments booked so far, not a forecast"
             : includesFuture
