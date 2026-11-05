@@ -94,4 +94,28 @@ assert(defaults.bookingConfirmedCustomerBody.includes(friendlyToken("Directions 
 const directionsHtml = renderEmailBody(defaults.bookingConfirmedCustomerBody, { directionsLink: maps });
 assert(directionsHtml.includes(`<a href="${maps}">Find us</a>`), "email renders a clean Find us link");
 
+// --- My Bookings link in the confirmation ---
+const myBookingsToken = friendlyToken("My bookings link");
+assert(defaults.bookingConfirmedCustomerBody.includes(myBookingsToken), "confirmation email has My Bookings link");
+assert(defaults.bookingConfirmedCustomerSms.includes(myBookingsToken), "confirmation SMS has My Bookings link");
+const savedOld = resolveNotificationMessages({
+  bookingConfirmedCustomerBody: "Hi **Customer name**!\n\n— **Salon name**",
+  bookingConfirmedCustomerSms: "Hi **Customer name**, you're booked!",
+});
+assert(
+  savedOld.bookingConfirmedCustomerBody.includes(`See all your bookings: ${myBookingsToken}\n\n— `),
+  "saved email gets My Bookings link above the sign-off"
+);
+assert(
+  /Cancel here: .*Your bookings: /.test(savedOld.bookingConfirmedCustomerSms),
+  "saved SMS gets cancel link first, then My Bookings"
+);
+const myHtml = renderEmailBody(defaults.bookingConfirmedCustomerBody, {
+  myBookingsLink: "https://bbbar.co.uk/my-bookings",
+});
+assert(
+  myHtml.includes('<a href="https://bbbar.co.uk/my-bookings">See all your bookings</a>'),
+  "email renders a clean My Bookings link"
+);
+
 console.log("calendarInvite: all checks passed");

@@ -93,9 +93,11 @@ Need to change or cancel? Up to 48 hours before your appointment you can move it
 
 Change or cancel your booking: **Cancel link**
 
+See all your bookings: **My bookings link**
+
 — **Salon name**`,
   bookingConfirmedCustomerSms:
-    "Hi **Customer name**, your booking at **Salon name** is confirmed. **Service** on **Date** at **Time**. We look forward to seeing you! Cancel here: **Cancel link** (deposit non-refundable within 48hrs)",
+    "Hi **Customer name**, your booking at **Salon name** is confirmed. **Service** on **Date** at **Time**. We look forward to seeing you! Cancel here: **Cancel link** (deposit non-refundable within 48hrs) Your bookings: **My bookings link**",
 
   bookingConfirmedOwnerSubject: "Booking confirmed – **Customer name**",
   bookingConfirmedOwnerBody: `A deposit has been received.

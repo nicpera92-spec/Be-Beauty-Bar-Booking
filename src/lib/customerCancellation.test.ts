@@ -147,7 +147,7 @@ const legacy = resolveNotificationMessages({
 });
 assert(legacy.bookingConfirmedCustomerBody.includes(cancelToken), "saved email without link gets one");
 assert(
-  legacy.bookingConfirmedCustomerSms.endsWith(`Cancel here: ${cancelToken}`),
+  legacy.bookingConfirmedCustomerSms.includes(`booked! Cancel here: ${cancelToken}`),
   "saved SMS without link gets a Cancel here link"
 );
 
@@ -155,7 +155,8 @@ const earlierAppend = resolveNotificationMessages({
   bookingConfirmedCustomerSms: `Hi **Customer name**, you're booked! Need to cancel? ${cancelToken}`,
 });
 assert(
-  earlierAppend.bookingConfirmedCustomerSms.endsWith(`booked! Cancel here: ${cancelToken}`),
+  earlierAppend.bookingConfirmedCustomerSms.includes(`booked! Cancel here: ${cancelToken}`) &&
+    !earlierAppend.bookingConfirmedCustomerSms.includes("Need to cancel?"),
   "earlier Need to cancel wording becomes Cancel here"
 );
 

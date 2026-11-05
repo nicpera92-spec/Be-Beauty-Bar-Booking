@@ -96,6 +96,7 @@ function bookingVars(
     previousDate: extra?.previousDate ?? "",
     previousTime: extra?.previousTime ?? "",
     reviewLink: extra?.reviewLink ?? "",
+    myBookingsLink: extra?.myBookingsLink ?? bookingSiteUrl("/my-bookings"),
   };
 }
 
@@ -182,6 +183,7 @@ export async function sendBookingConfirmationEmails(bookingId: string): Promise<
         booking.notifyBySMS && booking.customerPhone
           ? await buildShortCancelLink(booking.id)
           : vars.cancelLink,
+      myBookingsLink: bookingSiteUrl("/my-bookings").replace(/^https:\/\//, ""),
     };
 
     if (booking.customerEmail && resendClient) {

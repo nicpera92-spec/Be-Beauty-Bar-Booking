@@ -76,6 +76,7 @@ export const PLACEHOLDER_LABELS: Record<string, string> = {
   buyerName: "Buyer name",
   buyerEmail: "Buyer email",
   recipientName: "Recipient name",
+  myBookingsLink: "My bookings link",
 };
 
 const LABEL_TO_VAR: Record<string, string> = {
@@ -105,6 +106,7 @@ const LABEL_TO_VAR: Record<string, string> = {
   "Buyer name": "buyerName",
   "Buyer email": "buyerEmail",
   "Recipient name": "recipientName",
+  "My bookings link": "myBookingsLink",
 };
 
 export function friendlyToken(label: string): string {
@@ -164,6 +166,11 @@ export const MESSAGE_INSERT_TAGS: MessageInsertTag[] = [
   tag("Refund details", "Whether the deposit was refunded", ["customer-cancel"]),
   tag("Calendar link", "Add the appointment to their calendar", ["booking-confirmed", "customer-reschedule"]),
   tag("Directions link", "Google Maps directions to the salon", [
+    "booking-confirmed",
+    "customer-reschedule",
+    "reminder",
+  ]),
+  tag("My bookings link", "Their My Bookings page (all their appointments)", [
     "booking-confirmed",
     "customer-reschedule",
     "reminder",
@@ -237,6 +244,7 @@ export const MESSAGE_PREVIEW_SAMPLE: Record<string, string> = {
   buyerName: "Jamie",
   buyerEmail: "jamie@example.com",
   recipientName: "Alex",
+  myBookingsLink: "https://bbbar.co.uk/my-bookings",
   refundDetails:
     "Your deposit of £20.00 has been refunded to your original payment method. Please allow 5–10 working days for it to appear.",
 };
@@ -358,6 +366,8 @@ function ensureCancelLink(messages: NotificationMessages): NotificationMessages 
   ensureInBody(calendarToken, `Add it to your calendar: ${calendarToken}`);
   ensureInBody(directionsToken, `Find us: ${directionsToken}`);
   ensureInBody(token, `Change or cancel your booking: ${token}`);
+  const myBookingsToken = friendlyToken("My bookings link");
+  ensureInBody(myBookingsToken, `See all your bookings: ${myBookingsToken}`);
   if (!result.bookingConfirmedCustomerSms.includes(token)) {
     const sms = result.bookingConfirmedCustomerSms.trimEnd();
     result.bookingConfirmedCustomerSms = `${sms} Cancel here: ${token}`;
@@ -366,6 +376,10 @@ function ensureCancelLink(messages: NotificationMessages): NotificationMessages 
     `Need to cancel? ${token}`,
     `Cancel here: ${token}`
   );
+  if (!result.bookingConfirmedCustomerSms.includes(myBookingsToken)) {
+    const sms = result.bookingConfirmedCustomerSms.trimEnd();
+    result.bookingConfirmedCustomerSms = `${sms} Your bookings: ${myBookingsToken}`;
+  }
   return result;
 }
 
