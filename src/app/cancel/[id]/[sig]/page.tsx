@@ -105,11 +105,10 @@ export default function CancelBookingPage() {
             href={`https://instagram.com/${instagram}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-block font-semibold text-white bg-navy px-2.5 py-0.5 rounded-md hover:bg-navy-light transition"
+            className="font-bold text-navy hover:underline"
           >
             @{instagram}
           </a>
-          .
         </>
       ) : (
         "."
