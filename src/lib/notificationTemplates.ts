@@ -66,6 +66,7 @@ export const PLACEHOLDER_LABELS: Record<string, string> = {
   directionsLink: "Directions link",
   previousDate: "Previous date",
   previousTime: "Previous time",
+  movesLeft: "Moves left",
   reviewLink: "Review link",
   scheduleList: "Schedule",
   appointmentCount: "Appointment count",
@@ -97,6 +98,7 @@ const LABEL_TO_VAR: Record<string, string> = {
   "Directions link": "directionsLink",
   "Previous date": "previousDate",
   "Previous time": "previousTime",
+  "Moves left": "movesLeft",
   "Review link": "reviewLink",
   Schedule: "scheduleList",
   "Appointment count": "appointmentCount",
@@ -183,6 +185,9 @@ export const MESSAGE_INSERT_TAGS: MessageInsertTag[] = [
   ]),
   tag("Previous date", "Original date before the customer moved it", ["customer-reschedule"]),
   tag("Previous time", "Original time before the customer moved it", ["customer-reschedule"]),
+  tag("Moves left", "Whether they can move it again online, or should message you on Instagram", [
+    "customer-reschedule",
+  ]),
   tag("Review link", "Your Google review page", ["review-request"]),
   tag("Schedule", "The list of appointments", ["daily-schedule"]),
   tag("Appointment count", "e.g. 3 appointments", ["daily-schedule"]),
@@ -240,6 +245,7 @@ export const MESSAGE_PREVIEW_SAMPLE: Record<string, string> = {
   directionsLink: "https://maps.google.com/?q=Be%20Beauty%20Bar%2C%2033%20Castle%20St%2C%20Swansea%20SA1%201HZ",
   previousDate: "Friday, 19 June 2026",
   previousTime: "11:00 – 12:00",
+  movesLeft: "You can move it once more online if you need to.",
   reviewLink: "https://g.page/r/example/review",
   scheduleList:
     "09:30–11:30 · Alex Smith · Lash Extensions – Any Style · 07700 900123 · Confirmed\n14:00–15:00 · Sam Jones · Gel Manicure · 07700 900456 · Awaiting deposit\n    📝 Allergic to latex",

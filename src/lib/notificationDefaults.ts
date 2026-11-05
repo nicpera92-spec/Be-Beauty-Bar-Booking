@@ -89,7 +89,7 @@ Add it to your calendar: **Calendar link**
 
 Find us: **Directions link**
 
-Need to change or cancel? Up to 48 hours before your appointment you can move it once to another day or time, or cancel with a full deposit refund. Cancellations within 48 hours of your appointment are non-refundable. Each booking can only be cancelled once.
+Need to change or cancel? Up to 48 hours before your appointment you can move it up to twice to another day or time, or cancel with a full deposit refund. Cancellations within 48 hours of your appointment are non-refundable. Each booking can only be cancelled once.
 
 Change or cancel your booking: **Cancel link**
 
@@ -174,7 +174,7 @@ Time: **Time**
 
 (Previously **Previous date** at **Previous time**.)
 
-Your deposit has been carried over. Please note this booking can't be moved again online.
+Your deposit has been carried over. **Moves left**
 
 Add it to your calendar: **Calendar link**
 

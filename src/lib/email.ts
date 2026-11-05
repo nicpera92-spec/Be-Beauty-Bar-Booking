@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { sendSMS, formatUKPhoneToE164 } from "@/lib/sms";
 import { formatBookingDate, formatCurrency } from "@/lib/format";
 import { certificateTreatmentsText } from "@/lib/giftVoucherRules";
+import { MAX_CUSTOMER_RESCHEDULES } from "@/lib/customerReschedule";
 import {
   applyTemplate,
   buildBookLink,
@@ -11,6 +12,7 @@ import {
   bookingLinkEmailVars,
   bookingLinkMessageVars,
   bookingSiteUrl,
+  friendlyToken,
   giftEmailBodyWithMessage,
   renderEmailBody,
   renderEmailSubject,
@@ -424,6 +426,10 @@ export async function sendRescheduleEmails(
       directionsLink: googleMapsUrl(businessName, settings?.businessAddress),
       previousDate: formatBookingDate(previous.date, "EEEE, d MMMM yyyy"),
       previousTime: `${previous.startTime} – ${previous.endTime}`,
+      movesLeft:
+        booking.rescheduleCount < MAX_CUSTOMER_RESCHEDULES
+          ? "You can move it once more online if you need to."
+          : `This booking can't be moved again online. If you need a different time, please message us on Instagram.\nInstagram: ${instagramLink}`,
     });
     const smsVars = {
       ...vars,
@@ -438,7 +444,14 @@ export async function sendRescheduleEmails(
         from,
         to: booking.customerEmail,
         subject: renderEmailSubject(messages.rescheduleCustomerSubject, vars),
-        html: renderEmailBody(messages.rescheduleCustomerBody, vars),
+        html: renderEmailBody(
+          // Saved copies of the old wording ("can't be moved again") get the up-to-date line instead.
+          messages.rescheduleCustomerBody.replace(
+            "Please note this booking can't be moved again online.",
+            friendlyToken("Moves left")
+          ),
+          vars
+        ),
         attachments: bookingIcsAttachment(booking, businessName, settings?.businessAddress),
       });
     }

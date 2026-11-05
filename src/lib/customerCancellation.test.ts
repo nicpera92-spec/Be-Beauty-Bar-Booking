@@ -83,8 +83,8 @@ assert(normalizeRefundHours(-5) === 0, "hours floored at 0");
 const defaultPolicy = resolveCancellationPolicy(null, 48);
 assert(defaultPolicy.length === 6, "default policy has 6 points");
 assert(
-  defaultPolicy[1].some((s) => s.bold && s.text === "once"),
-  "default policy explains moving an appointment once"
+  defaultPolicy[1].some((s) => s.bold && s.text === "twice"),
+  "default policy explains moving an appointment up to twice"
 );
 assert(
   defaultPolicy[2].some((s) => s.bold && s.text === "more than 48 hours"),
@@ -180,8 +180,12 @@ assert(
 );
 const late = getRescheduleEligibility(movable, new Date(start - 10 * HOUR), 48);
 assert(!late.allowed && late.reason === "too_late", "can't move within 48h");
-const twice = getRescheduleEligibility({ ...movable, rescheduleCount: 1 }, new Date(start - 72 * HOUR), 48);
-assert(!twice.allowed && twice.reason === "already_rescheduled", "can only move once");
+assert(
+  getRescheduleEligibility({ ...movable, rescheduleCount: 1 }, new Date(start - 72 * HOUR), 48).allowed,
+  "can move a second time"
+);
+const third = getRescheduleEligibility({ ...movable, rescheduleCount: 2 }, new Date(start - 72 * HOUR), 48);
+assert(!third.allowed && third.reason === "already_rescheduled", "can only move twice");
 const gone = getRescheduleEligibility({ ...movable, status: "cancelled" }, new Date(start - 72 * HOUR), 48);
 assert(!gone.allowed && gone.reason === "not_available", "cancelled booking can't be moved");
 const sms = applyTemplate(defaults.bookingConfirmedCustomerSms, {

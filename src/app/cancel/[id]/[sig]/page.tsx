@@ -33,6 +33,7 @@ type BookingSummary = {
   depositAmount: number;
   voucherAmount?: number;
   paidByCertificate?: boolean;
+  movesLeft?: number;
 };
 
 export default function CancelBookingPage() {
@@ -112,6 +113,23 @@ export default function CancelBookingPage() {
     </div>
   );
 
+  const contactUsLink = instagram ? (
+    <>
+      {" "}on Instagram{" "}
+      <a
+        href={`https://instagram.com/${instagram}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="font-bold text-navy hover:underline"
+      >
+        @{instagram}
+      </a>
+      .
+    </>
+  ) : (
+    "."
+  );
+
   const contactLine = (
     <p className="text-sm text-slate-500 leading-relaxed">
       Any questions? DM us on Instagram
@@ -174,8 +192,11 @@ export default function CancelBookingPage() {
               sig={sig}
               minDate={reschedule.minDate}
               maxDate={reschedule.maxDate}
+              movesLeft={booking.movesLeft ?? 1}
               onRescheduled={(moved) => {
-                setBooking((b) => (b ? { ...b, ...moved } : b));
+                setBooking((b) =>
+                  b ? { ...b, ...moved, movesLeft: Math.max(0, (b.movesLeft ?? 1) - 1) } : b
+                );
                 setState("rescheduled");
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
@@ -183,10 +204,11 @@ export default function CancelBookingPage() {
           ) : reschedule && !reschedule.allowed ? (
             <p className="text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 leading-relaxed">
               {reschedule.reason === "already_rescheduled"
-                ? "This booking has already been moved once, so it can't be moved again online. If you need a different time, please contact us."
+                ? "This booking has already been moved twice, so it can't be moved again online."
                 : reschedule.reason === "too_late"
-                  ? `Your appointment is less than ${refundHours} hours away, so it can't be moved online. If you need a different time, please contact us.`
-                  : "This booking can't be moved online. If you need a different time, please contact us."}
+                  ? `Your appointment is less than ${refundHours} hours away, so it can't be moved online.`
+                  : "This booking can't be moved online."}{" "}
+              If you need a different time, please contact us{contactUsLink}
             </p>
           ) : null}
 
@@ -282,9 +304,16 @@ export default function CancelBookingPage() {
             businessAddress={businessAddress}
           />
           <p className="text-xs text-slate-500 leading-relaxed">
-            This booking can&apos;t be moved again online. You can still cancel it using the same
-            link — deposits are refunded for cancellations made more than {refundHours} hours before
-            your appointment.
+            {(booking.movesLeft ?? 0) > 0 ? (
+              <>You can move it once more online using the same link if you need to.</>
+            ) : (
+              <>
+                This booking can&apos;t be moved again online — if you need a different time, please
+                contact us{contactUsLink}
+              </>
+            )}{" "}
+            You can still cancel it using the same link — deposits are refunded for cancellations made
+            more than {refundHours} hours before your appointment.
           </p>
           {contactLine}
           {bookAgainLink}

@@ -5,11 +5,11 @@ import { DEFAULT_CANCELLATION_REFUND_HOURS, normalizeRefundHours } from "@/lib/c
 import { getAvailabilityForRange, getAvailableSlotsForDay } from "@/lib/slotAvailability";
 
 /** A customer can move a booking themselves this many times. */
-export const MAX_CUSTOMER_RESCHEDULES = 1;
+export const MAX_CUSTOMER_RESCHEDULES = 2;
 
 export type RescheduleBlockReason = "already_rescheduled" | "too_late" | "not_available";
 
-/** Rescheduling follows the free-cancellation window and is limited to one move per booking. */
+/** Rescheduling follows the free-cancellation window and is limited to MAX_CUSTOMER_RESCHEDULES moves. */
 export function getRescheduleEligibility(
   booking: { status: string; date: string; startTime: string; rescheduleCount: number },
   now: Date,

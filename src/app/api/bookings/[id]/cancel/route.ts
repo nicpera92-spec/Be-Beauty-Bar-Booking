@@ -7,7 +7,11 @@ import {
   verifyCancelSignature,
 } from "@/lib/customerCancellation";
 import { DEFAULT_CANCELLATION_REFUND_HOURS, normalizeRefundHours } from "@/lib/cancellationPolicy";
-import { getRescheduleEligibility, rescheduleDateRange } from "@/lib/customerReschedule";
+import {
+  MAX_CUSTOMER_RESCHEDULES,
+  getRescheduleEligibility,
+  rescheduleDateRange,
+} from "@/lib/customerReschedule";
 
 async function loadBookingSummary(id: string) {
   const [booking, settings] = await Promise.all([
@@ -48,6 +52,7 @@ function summarize(booking: NonNullable<Awaited<ReturnType<typeof loadBookingSum
     depositAmount: booking.depositAmount,
     voucherAmount: booking.voucherAmount,
     paidByCertificate: Boolean(booking.certificateItemId),
+    movesLeft: Math.max(0, MAX_CUSTOMER_RESCHEDULES - booking.rescheduleCount),
   };
 }
 

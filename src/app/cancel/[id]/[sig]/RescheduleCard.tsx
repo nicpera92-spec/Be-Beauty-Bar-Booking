@@ -27,12 +27,14 @@ export default function RescheduleCard({
   sig,
   minDate,
   maxDate,
+  movesLeft,
   onRescheduled,
 }: {
   id: string;
   sig: string;
   minDate: string;
   maxDate: string;
+  movesLeft: number;
   onRescheduled: (booking: { date: string; startTime: string; endTime: string }) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -113,8 +115,9 @@ export default function RescheduleCard({
       <div className="rounded-xl border-2 border-slate-300 bg-white px-4 py-4 space-y-3">
         <p className="text-sm font-semibold text-slate-800">Need a different day or time?</p>
         <p className="text-sm text-slate-600 leading-relaxed">
-          You can move this appointment <strong>once</strong>, free of charge — your deposit carries
-          over to the new time.
+          You can move this appointment{" "}
+          <strong>{movesLeft === 1 ? "once more" : `up to ${movesLeft === 2 ? "twice" : `${movesLeft} times`}`}</strong>,
+          free of charge — your deposit carries over to the new time.
         </p>
         <button
           type="button"
