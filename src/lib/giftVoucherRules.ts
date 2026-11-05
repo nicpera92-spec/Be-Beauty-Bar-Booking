@@ -38,16 +38,19 @@ function round2(n: number): number {
 }
 
 /**
- * How much of a deposit a voucher pays. Covers it in full when the balance allows; otherwise
- * leaves at least MIN_CARD_CHARGE for the card so Stripe can take the rest.
+ * How much of a deposit a voucher pays. Covers it in full when the balance allows. If the voucher
+ * falls short by less than Stripe's minimum card charge, the voucher is used in full and the few
+ * pence move to the balance paid at the salon (`salon`) — so the booking confirms without a card.
  */
-export function voucherDepositSplit(deposit: number, voucherBalance: number): { voucher: number; card: number } {
+export function voucherDepositSplit(
+  deposit: number,
+  voucherBalance: number
+): { voucher: number; card: number; salon: number } {
   const dep = round2(Math.max(0, deposit));
   const balance = round2(Math.max(0, voucherBalance));
-  if (dep === 0 || balance === 0) return { voucher: 0, card: dep };
-  if (balance >= dep) return { voucher: dep, card: 0 };
-  let voucher = balance;
-  if (dep - voucher < MIN_CARD_CHARGE) voucher = round2(dep - MIN_CARD_CHARGE);
-  if (voucher <= 0) return { voucher: 0, card: dep };
-  return { voucher: round2(voucher), card: round2(dep - voucher) };
+  if (dep === 0 || balance === 0) return { voucher: 0, card: dep, salon: 0 };
+  if (balance >= dep) return { voucher: dep, card: 0, salon: 0 };
+  const shortfall = round2(dep - balance);
+  if (shortfall < MIN_CARD_CHARGE) return { voucher: balance, card: 0, salon: shortfall };
+  return { voucher: balance, card: shortfall, salon: 0 };
 }

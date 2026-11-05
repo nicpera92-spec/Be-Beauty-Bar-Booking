@@ -34,12 +34,17 @@ assert(!isValidVoucherAmount(9) && !isValidVoucherAmount(501), "outside limits")
 assert(!isValidVoucherAmount(25.5), "whole pounds only");
 
 // --- paying deposits ---
-assert(eq(voucherDepositSplit(10.05, 50), { voucher: 10.05, card: 0 }), "voucher covers full deposit");
-assert(eq(voucherDepositSplit(20, 15), { voucher: 15, card: 5 }), "partial voucher, rest by card");
-assert(eq(voucherDepositSplit(10.05, 10), { voucher: 9.55, card: 0.5 }), "leaves at least 50p for the card");
-assert(eq(voucherDepositSplit(0.4, 10), { voucher: 0.4, card: 0 }), "tiny deposit fully covered");
-assert(eq(voucherDepositSplit(10, 0), { voucher: 0, card: 10 }), "empty voucher pays nothing");
-assert(eq(voucherDepositSplit(0, 50), { voucher: 0, card: 0 }), "no deposit, nothing used");
+assert(eq(voucherDepositSplit(10.05, 50), { voucher: 10.05, card: 0, salon: 0 }), "voucher covers full deposit");
+assert(eq(voucherDepositSplit(20, 15), { voucher: 15, card: 5, salon: 0 }), "partial voucher, rest by card");
+assert(
+  eq(voucherDepositSplit(10.1, 10), { voucher: 10, card: 0, salon: 0.1 }),
+  "£10 voucher on £10.10 deposit: no 50p card charge, 10p added to salon balance"
+);
+assert(eq(voucherDepositSplit(10.49, 10), { voucher: 10, card: 0, salon: 0.49 }), "49p shortfall goes to salon");
+assert(eq(voucherDepositSplit(10.5, 10), { voucher: 10, card: 0.5, salon: 0 }), "50p shortfall can be paid by card");
+assert(eq(voucherDepositSplit(0.4, 10), { voucher: 0.4, card: 0, salon: 0 }), "tiny deposit fully covered");
+assert(eq(voucherDepositSplit(10, 0), { voucher: 0, card: 10, salon: 0 }), "empty voucher pays nothing");
+assert(eq(voucherDepositSplit(0, 50), { voucher: 0, card: 0, salon: 0 }), "no deposit, nothing used");
 
 // --- refund wording with vouchers ---
 const base = { balance: "none" as const, balanceAmount: 0, refundHours: 48 };

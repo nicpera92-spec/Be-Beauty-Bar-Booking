@@ -220,14 +220,17 @@ export async function POST(req: NextRequest) {
     }
 
     let voucher: { voucherId: string; amount: number } | null = null;
+    // Pence a voucher couldn't cover (below Stripe's minimum) are paid at the salon instead.
+    let onlineDeposit = deposit;
     if (typeof voucherCode === "string" && voucherCode.trim() && requiresDeposit && deposit > 0) {
       const claimed = await claimVoucherForDeposit(voucherCode, deposit);
       if (!claimed.ok) {
         return NextResponse.json({ error: claimed.error }, { status: 400 });
       }
       voucher = { voucherId: claimed.voucherId, amount: claimed.amount };
+      onlineDeposit = Math.round((deposit - claimed.salon) * 100) / 100;
     }
-    const depositDueByCard = deposit - (voucher?.amount ?? 0);
+    const depositDueByCard = onlineDeposit - (voucher?.amount ?? 0);
     const confirmedNow = !requiresDeposit || depositDueByCard <= 0.001;
 
     let booking;
@@ -243,7 +246,7 @@ export async function POST(req: NextRequest) {
           startTime,
           endTime,
           servicePrice,
-          depositAmount: deposit,
+          depositAmount: onlineDeposit,
           notes: notes ?? "",
           status: confirmedNow ? "confirmed" : "pending_deposit",
           notifyByEmail: wantsEmail,

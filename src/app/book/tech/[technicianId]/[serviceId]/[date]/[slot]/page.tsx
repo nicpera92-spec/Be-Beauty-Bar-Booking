@@ -374,10 +374,20 @@ export default function BookFormPage() {
                 <div className="text-sm text-slate-700">
                   <p className="font-medium text-emerald-700">Gift voucher {voucher.code} applied</p>
                   <p className="text-slate-600 mt-0.5">
-                    {formatCurrency(voucherSplit.voucher)} of your deposit is paid by the voucher
-                    {voucherSplit.card > 0 && <> · {formatCurrency(voucherSplit.card)} left to pay by card</>}.
-                    {voucher.balance - voucherSplit.voucher > 0.001 && (
-                      <> {formatCurrency(voucher.balance - voucherSplit.voucher)} stays on the voucher to use at the salon.</>
+                    {voucherSplit.salon > 0 ? (
+                      <>
+                        Your {formatCurrency(voucherSplit.voucher)} voucher covers your deposit — the
+                        remaining {formatCurrency(voucherSplit.salon)} is simply added to what you pay
+                        at the salon.
+                      </>
+                    ) : (
+                      <>
+                        {formatCurrency(voucherSplit.voucher)} of your deposit is paid by the voucher
+                        {voucherSplit.card > 0 && <> · {formatCurrency(voucherSplit.card)} left to pay by card</>}.
+                        {voucher.balance - voucherSplit.voucher > 0.001 && (
+                          <> {formatCurrency(voucher.balance - voucherSplit.voucher)} stays on the voucher to use at the salon.</>
+                        )}
+                      </>
                     )}
                   </p>
                 </div>
@@ -424,8 +434,9 @@ export default function BookFormPage() {
         <p className="text-sm text-slate-600 leading-relaxed">
           {requiresDeposit && coveredByVoucher ? (
             <>
-              By submitting, your gift voucher pays the {formatCurrency(totalDeposit)} deposit and your
-              booking is confirmed straight away.
+              By submitting, your gift voucher pays the{" "}
+              {formatCurrency(voucherSplit?.voucher ?? totalDeposit)} deposit and your booking is
+              confirmed straight away.
             </>
           ) : requiresDeposit ? (
             <>

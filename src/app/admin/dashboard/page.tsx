@@ -23,19 +23,43 @@ function getAuthHeaders(): Record<string, string> {
   return t ? { Authorization: `Bearer ${t}` } : {};
 }
 
-type PeriodId = "this_month" | "last_month" | "last_30" | "next_30" | "this_year";
+type PeriodId =
+  | "this_month"
+  | "last_month"
+  | "last_30"
+  | "next_30"
+  | "last_3_months"
+  | "last_6_months"
+  | "last_12_months"
+  | "this_year"
+  | "custom";
 
 const PERIODS: { id: PeriodId; label: string }[] = [
   { id: "this_month", label: "This month" },
   { id: "last_month", label: "Last month" },
   { id: "last_30", label: "Last 30 days" },
-  { id: "next_30", label: "Next 30 days" },
+  { id: "last_3_months", label: "Last 3 months" },
+  { id: "last_6_months", label: "Last 6 months" },
+  { id: "last_12_months", label: "Last 12 months" },
   { id: "this_year", label: "This year" },
+  { id: "next_30", label: "Next 30 days" },
+  { id: "custom", label: "Custom dates" },
 ];
 
-function periodRange(id: PeriodId, today = new Date()): { from: string; to: string } {
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function periodRange(
+  id: Exclude<PeriodId, "custom">,
+  today = new Date()
+): { from: string; to: string } {
   const f = (d: Date) => format(d, "yyyy-MM-dd");
   switch (id) {
+    case "last_3_months":
+      return { from: f(addDays(subMonths(today, 3), 1)), to: f(today) };
+    case "last_6_months":
+      return { from: f(addDays(subMonths(today, 6), 1)), to: f(today) };
+    case "last_12_months":
+      return { from: f(addDays(subMonths(today, 12), 1)), to: f(today) };
     case "this_month":
       return { from: f(startOfMonth(today)), to: f(endOfMonth(today)) };
     case "last_month": {
@@ -108,10 +132,22 @@ export default function AdminDashboardPage() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
   const [period, setPeriod] = useState<PeriodId>("this_month");
+  const [customFrom, setCustomFrom] = useState(() => format(startOfMonth(new Date()), "yyyy-MM-dd"));
+  const [customTo, setCustomTo] = useState(() => format(new Date(), "yyyy-MM-dd"));
   const [stats, setStats] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const range = useMemo(() => periodRange(period), [period]);
+  const customValid = DATE_RE.test(customFrom) && DATE_RE.test(customTo) && customFrom <= customTo;
+  const range = useMemo(
+    () =>
+      period === "custom"
+        ? customValid
+          ? { from: customFrom, to: customTo }
+          : null
+        : periodRange(period),
+    [period, customFrom, customTo, customValid]
+  );
+  const todayStr = format(new Date(), "yyyy-MM-dd");
 
   useEffect(() => {
     if (!sessionStorage.getItem(ADMIN_TOKEN_KEY)) {
@@ -128,7 +164,7 @@ export default function AdminDashboardPage() {
   }, [router]);
 
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !range) return;
     setLoading(true);
     setError(null);
     fetch(`/api/admin/dashboard?from=${range.from}&to=${range.to}`, {
@@ -144,7 +180,8 @@ export default function AdminDashboardPage() {
       .finally(() => setLoading(false));
   }, [ready, range]);
 
-  const upcoming = period === "next_30";
+  const upcoming = Boolean(range && range.from >= todayStr);
+  const includesFuture = Boolean(range && range.to > todayStr);
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
@@ -158,7 +195,7 @@ export default function AdminDashboardPage() {
         </Link>
       </div>
 
-      <div className="flex gap-1 p-1 mb-6 rounded-xl border border-slate-200 bg-white overflow-x-auto">
+      <div className="flex flex-wrap gap-1 p-1 mb-4 rounded-xl border border-slate-200 bg-white">
         {PERIODS.map((p) => (
           <button
             key={p.id}
@@ -173,11 +210,45 @@ export default function AdminDashboardPage() {
         ))}
       </div>
 
-      <p className="text-xs text-charcoal/50 mb-4">
-        Appointments dated {format(new Date(range.from), "d MMM yyyy")} –{" "}
-        {format(new Date(range.to), "d MMM yyyy")}
-        {upcoming ? " (booked so far)" : ""}
-      </p>
+      {period === "custom" && (
+        <div className="flex flex-wrap items-end gap-3 mb-4 rounded-xl border border-slate-200 bg-white p-3">
+          <label className="text-xs text-charcoal/60">
+            From
+            <input
+              type="date"
+              value={customFrom}
+              max={customTo || undefined}
+              onChange={(e) => setCustomFrom(e.target.value)}
+              className="block mt-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-charcoal bg-white min-h-[40px]"
+            />
+          </label>
+          <label className="text-xs text-charcoal/60">
+            To
+            <input
+              type="date"
+              value={customTo}
+              min={customFrom || undefined}
+              onChange={(e) => setCustomTo(e.target.value)}
+              className="block mt-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-charcoal bg-white min-h-[40px]"
+            />
+          </label>
+          {!customValid && (
+            <p className="text-xs text-red-600 pb-2">Choose a start date on or before the end date.</p>
+          )}
+        </div>
+      )}
+
+      {range && (
+        <p className="text-xs text-charcoal/50 mb-4">
+          Appointments dated {format(new Date(`${range.from}T12:00:00`), "d MMM yyyy")} –{" "}
+          {format(new Date(`${range.to}T12:00:00`), "d MMM yyyy")}
+          {upcoming
+            ? " — upcoming appointments booked so far, not a forecast"
+            : includesFuture
+              ? " — includes upcoming appointments booked so far"
+              : ""}
+        </p>
+      )}
 
       {loading && <p className="text-sm text-charcoal/60">Loading stats…</p>}
       {error && <p className="text-sm text-red-600">{error}</p>}
@@ -211,6 +282,7 @@ export default function AdminDashboardPage() {
             <StatCard
               label="Customers"
               value={`${stats.newCustomers} new · ${stats.returningCustomers} returning`}
+              hint="New = first-ever appointment with you falls in these dates. Returning = had been before."
             />
             <StatCard label="Moved by customers" value={String(stats.rescheduled)} />
             <StatCard label="Awaiting deposit" value={String(stats.pending)} />

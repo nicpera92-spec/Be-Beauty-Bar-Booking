@@ -173,21 +173,24 @@ export async function lookupVoucher(codeInput: unknown, now: Date = new Date()):
   return { ok: true, id: voucher.id, code: voucher.code, balance: voucher.balance, expiresAt: voucher.expiresAt };
 }
 
-/** Takes value off a voucher for a deposit. Returns how much was taken (0 if nothing applies). */
+/**
+ * Takes value off a voucher for a deposit. `salon` is any few pence the voucher couldn't cover
+ * that move to the balance paid in person (see voucherDepositSplit).
+ */
 export async function claimVoucherForDeposit(
   codeInput: unknown,
   deposit: number
-): Promise<{ ok: true; voucherId: string; amount: number } | { ok: false; error: string }> {
+): Promise<{ ok: true; voucherId: string; amount: number; salon: number } | { ok: false; error: string }> {
   const voucher = await lookupVoucher(codeInput);
   if (!voucher.ok) return voucher;
-  const { voucher: amount } = voucherDepositSplit(deposit, voucher.balance);
+  const { voucher: amount, salon } = voucherDepositSplit(deposit, voucher.balance);
   if (amount <= 0) return { ok: false, error: "This voucher can't be used for this deposit." };
   const claimed = await prisma.giftVoucher.updateMany({
     where: { id: voucher.id, status: "active", balance: { gte: amount } },
     data: { balance: { decrement: amount } },
   });
   if (claimed.count === 0) return { ok: false, error: "This voucher's balance has changed. Please try again." };
-  return { ok: true, voucherId: voucher.id, amount };
+  return { ok: true, voucherId: voucher.id, amount, salon };
 }
 
 export async function recordVoucherTransaction(

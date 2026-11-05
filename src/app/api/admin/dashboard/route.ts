@@ -7,6 +7,7 @@ import { contactKeyForBooking } from "@/lib/rebookReminder";
 export const dynamic = "force-dynamic";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const MAX_RANGE_DAYS = 366 * 3;
 
 export async function GET(req: NextRequest) {
   const master = await requireMaster(req);
@@ -18,6 +19,10 @@ export async function GET(req: NextRequest) {
   const to = req.nextUrl.searchParams.get("to") ?? "";
   if (!DATE_RE.test(from) || !DATE_RE.test(to) || from > to) {
     return NextResponse.json({ error: "from and to (yyyy-MM-dd) required" }, { status: 400 });
+  }
+  const days = (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000;
+  if (days > MAX_RANGE_DAYS) {
+    return NextResponse.json({ error: "Please choose a range of 3 years or less." }, { status: 400 });
   }
 
   const [inRange, confirmedHistory, waitlistJoined, waitlistBooked] = await Promise.all([

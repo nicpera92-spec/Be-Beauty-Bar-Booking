@@ -12,6 +12,10 @@ export async function GET(req: NextRequest) {
     code: voucher.code,
     balance: voucher.balance,
     expiresAt: voucher.expiresAt,
-    ...(split && { appliedToDeposit: split.voucher, depositDueByCard: split.card }),
+    ...(split && {
+      appliedToDeposit: split.voucher,
+      depositDueByCard: split.card,
+      addedToSalonBalance: split.salon,
+    }),
   });
 }
