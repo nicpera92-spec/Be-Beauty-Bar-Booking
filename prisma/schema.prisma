@@ -179,6 +179,7 @@ model Booking {
   depositRefundedAt             DateTime?
   balanceRefundedAt             DateTime?
   customerCancelledAt           DateTime? // set when the customer cancels via their confirmation link
+  cancelCode                    String?        @unique // short code for the SMS cancel link (/c/<code>)
   reminderSentAt                DateTime?
   rebookReminderSentAt          DateTime?
   createdAt                     DateTime       @default(now())

@@ -273,8 +273,12 @@ function ensureCancelLink(messages: NotificationMessages): NotificationMessages 
   }
   if (!result.bookingConfirmedCustomerSms.includes(token)) {
     const sms = result.bookingConfirmedCustomerSms.trimEnd();
-    result.bookingConfirmedCustomerSms = `${sms} Need to cancel? ${token}`;
+    result.bookingConfirmedCustomerSms = `${sms} Cancel here: ${token}`;
   }
+  result.bookingConfirmedCustomerSms = result.bookingConfirmedCustomerSms.replace(
+    `Need to cancel? ${token}`,
+    `Cancel here: ${token}`
+  );
   return result;
 }
 

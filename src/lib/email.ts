@@ -143,7 +143,7 @@ export async function sendBookingConfirmationEmails(bookingId: string): Promise<
     }
 
     const { settings, messages, businessName, instagramLink } = await getMessages();
-    const { buildCancelLink } = await import("@/lib/customerCancellation");
+    const { buildCancelLink, buildShortCancelLink } = await import("@/lib/customerCancellation");
     const vars = bookingVars(booking, businessName, {
       instagramLink,
       cancelLink: buildCancelLink(booking.id),
@@ -152,6 +152,10 @@ export async function sendBookingConfirmationEmails(bookingId: string): Promise<
       ...vars,
       date: formatBookingDate(booking.date, "dd/MM/yyyy"),
       time: `${booking.startTime}-${booking.endTime}`,
+      cancelLink:
+        booking.notifyBySMS && booking.customerPhone
+          ? await buildShortCancelLink(booking.id)
+          : vars.cancelLink,
     };
 
     if (booking.customerEmail && resendClient) {

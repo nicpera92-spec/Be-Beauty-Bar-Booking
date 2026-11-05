@@ -105,7 +105,7 @@ export default function CancelBookingPage() {
             href={`https://instagram.com/${instagram}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-navy hover:underline"
+            className="inline-block font-semibold text-white bg-navy px-2.5 py-0.5 rounded-md hover:bg-navy-light transition"
           >
             @{instagram}
           </a>
@@ -180,11 +180,6 @@ export default function CancelBookingPage() {
             </div>
           )}
 
-          <p className="text-xs text-slate-500 leading-relaxed">
-            Please note: each booking can only be cancelled once, and a cancelled booking can&apos;t be
-            restored. To come back, simply make a new booking.
-          </p>
-
           {error && (
             <p className="text-sm text-slate-700 bg-slate-100 border border-slate-200 px-4 py-3 rounded-lg">
               {error}
@@ -203,10 +198,6 @@ export default function CancelBookingPage() {
                 ? "Cancel anyway – I understand my deposit is non-refundable"
                 : "Cancel my booking"}
           </button>
-
-          <p className="text-sm text-slate-600 text-center">
-            Changed your mind? You don&apos;t need to do anything — your booking stays as it is.
-          </p>
 
           {contactLine}
           {bookAgainLink}

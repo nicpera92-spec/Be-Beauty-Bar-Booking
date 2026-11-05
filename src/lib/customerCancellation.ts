@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import Stripe from "stripe";
 import { fromZonedTime } from "date-fns-tz";
 import { prisma } from "@/lib/prisma";
@@ -32,6 +32,51 @@ export function verifyCancelSignature(bookingId: string, signature: string | nul
 export function buildCancelLink(bookingId: string): string {
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001").replace(/\/$/, "");
   return `${baseUrl}/cancel/${bookingId}/${createCancelSignature(bookingId)}`;
+}
+
+const CANCEL_CODE_LENGTH = 10;
+const CANCEL_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+
+function randomCancelCode(): string {
+  const bytes = randomBytes(CANCEL_CODE_LENGTH);
+  let code = "";
+  for (const byte of bytes) code += CANCEL_CODE_ALPHABET[byte % CANCEL_CODE_ALPHABET.length];
+  return code;
+}
+
+/** SMS-friendly link without the protocol — phones still make it tappable. */
+export function formatShortCancelLink(code: string): string {
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001").replace(/\/$/, "");
+  return `${baseUrl.replace(/^https:\/\//, "")}/c/${code}`;
+}
+
+/** Short cancel link for SMS; falls back to the full signed link if a code can't be stored. */
+export async function buildShortCancelLink(bookingId: string): Promise<string> {
+  const existing = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    select: { cancelCode: true },
+  });
+  if (existing?.cancelCode) return formatShortCancelLink(existing.cancelCode);
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const code = randomCancelCode();
+    try {
+      await prisma.booking.update({ where: { id: bookingId }, data: { cancelCode: code } });
+      return formatShortCancelLink(code);
+    } catch (e) {
+      console.warn("Could not store cancel code, retrying:", e);
+    }
+  }
+  return buildCancelLink(bookingId);
+}
+
+/** Resolves a short cancel code to the full signed cancel page path. */
+export async function resolveCancelCode(code: string): Promise<string | null> {
+  const booking = await prisma.booking.findUnique({
+    where: { cancelCode: code },
+    select: { id: true },
+  });
+  return booking ? `/cancel/${booking.id}/${createCancelSignature(booking.id)}` : null;
 }
 
 export function appointmentStartUtc(date: string, startTime: string): Date {

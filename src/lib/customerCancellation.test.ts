@@ -9,6 +9,7 @@ import {
   appointmentStartUtc,
   buildCancelLink,
   createCancelSignature,
+  formatShortCancelLink,
   describeRefundForCustomer,
   describeRefundForOwner,
   getCustomerCancelState,
@@ -71,6 +72,7 @@ assert(
   buildCancelLink("booking_abc") === `https://bbbar.co.uk/cancel/booking_abc/${sig}`,
   "cancel link format"
 );
+assert(formatShortCancelLink("Ab3dEf9h2K") === "bbbar.co.uk/c/Ab3dEf9h2K", "short SMS link has no protocol");
 
 // --- refund wording ---
 const base = { depositAmount: 20.05, balanceAmount: 30, balance: "none" as const };
@@ -104,12 +106,25 @@ const legacy = resolveNotificationMessages({
   bookingConfirmedCustomerSms: "Hi **Customer name**, you're booked!",
 });
 assert(legacy.bookingConfirmedCustomerBody.includes(cancelToken), "saved email without link gets one");
-assert(legacy.bookingConfirmedCustomerSms.includes(cancelToken), "saved SMS without link gets one");
+assert(
+  legacy.bookingConfirmedCustomerSms.endsWith(`Cancel here: ${cancelToken}`),
+  "saved SMS without link gets a Cancel here link"
+);
+
+const earlierAppend = resolveNotificationMessages({
+  bookingConfirmedCustomerSms: `Hi **Customer name**, you're booked! Need to cancel? ${cancelToken}`,
+});
+assert(
+  earlierAppend.bookingConfirmedCustomerSms.endsWith(`booked! Cancel here: ${cancelToken}`),
+  "earlier Need to cancel wording becomes Cancel here"
+);
 
 const link = buildCancelLink("booking_abc");
 const html = renderEmailBody(defaults.bookingConfirmedCustomerBody, { cancelLink: link, customerName: "Alex" });
 assert(html.includes(`<a href="${link}">Cancel your booking</a>`), "email renders a clean cancel link");
-const sms = applyTemplate(defaults.bookingConfirmedCustomerSms, { cancelLink: link });
-assert(sms.includes(link), "SMS contains full cancel URL");
+const sms = applyTemplate(defaults.bookingConfirmedCustomerSms, {
+  cancelLink: formatShortCancelLink("Ab3dEf9h2K"),
+});
+assert(sms.includes("Cancel here: bbbar.co.uk/c/Ab3dEf9h2K"), "SMS contains short cancel link");
 
 console.log("customerCancellation: all checks passed");
