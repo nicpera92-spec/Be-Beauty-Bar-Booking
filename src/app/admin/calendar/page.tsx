@@ -65,6 +65,7 @@ export default function AdminCalendarPage() {
   const [loading, setLoading] = useState(true);
   const [sessionReady, setSessionReady] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [scrollRequest, setScrollRequest] = useState(0);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const detailPanelRef = useRef<HTMLDivElement>(null);
@@ -189,7 +190,16 @@ export default function AdminCalendarPage() {
   useEffect(() => {
     if (!sessionReady) return;
     setSelectedDate(format(startOfDay(new Date()), "yyyy-MM-dd"));
+    // Mobile shows the day panel below the calendars, so bring today's bookings into view.
+    if (window.matchMedia("(max-width: 1023px)").matches) {
+      setScrollRequest((n) => n + 1);
+    }
   }, [sessionReady]);
+
+  const selectDate = (dateStr: string | null) => {
+    setSelectedDate(dateStr);
+    if (dateStr) setScrollRequest((n) => n + 1);
+  };
 
   const confirmDeposit = useCallback(
     (bookingId: string) => {
@@ -277,13 +287,14 @@ export default function AdminCalendarPage() {
     [refreshCalendar]
   );
 
+  // Waits for loading to finish: the day panel isn't rendered while "Loading calendar…" shows.
   useEffect(() => {
-    if (!selectedDate) return;
+    if (!scrollRequest || loading) return;
     const timer = window.setTimeout(() => {
       detailPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 80);
     return () => window.clearTimeout(timer);
-  }, [selectedDate]);
+  }, [scrollRequest, loading]);
 
   const resolvedTechnicianFilter = isMaster ? technicianFilter ?? "all" : "all";
   const calendarReady = sessionReady && (!isMaster || technicianFilter !== null);
@@ -454,7 +465,7 @@ export default function AdminCalendarPage() {
                     <button
                       key={dateStr}
                       type="button"
-                      onClick={() => setSelectedDate(isSelected ? null : dateStr)}
+                      onClick={() => selectDate(isSelected ? null : dateStr)}
                       className={`
                         aspect-square overflow-hidden p-1.5 sm:p-2 rounded-lg border-2 transition-all touch-manipulation min-h-[44px]
                         ${isToday(day) ? "border-navy bg-navy/5" : "border-slate-200"}
