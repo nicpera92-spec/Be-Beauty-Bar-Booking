@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import BookingCalendarButtons from "@/components/BookingCalendarButtons";
+import { HomeBackLinks } from "@/components/PageTopLinks";
 import { formatBookingDate } from "@/lib/format";
 
 type ConfirmedBooking = {
@@ -51,6 +52,7 @@ export default function DepositConfirmedPage() {
   return (
     <div className="min-h-[70vh] flex flex-col items-center justify-center px-4 py-16">
       <div className="max-w-md w-full text-center space-y-6">
+        <HomeBackLinks className="mb-2" />
         <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-emerald-100 text-emerald-600" aria-hidden>
           <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />

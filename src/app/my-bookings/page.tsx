@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { formatBookingDate } from "@/lib/format";
-import PageTopLinks from "@/components/PageTopLinks";
+import { HomeBackLinks } from "@/components/PageTopLinks";
 
 const TOKEN_KEY = "customer-portal-token";
 
@@ -173,11 +173,7 @@ export default function MyBookingsPage() {
 
   return (
     <div className="max-w-xl mx-auto px-4 sm:px-8 py-16 sm:py-20">
-      <PageTopLinks>
-        <Link href="/" className="text-sm text-navy hover:underline">
-          Home
-        </Link>
-      </PageTopLinks>
+      <HomeBackLinks />
       <h1 className="font-serif text-2xl md:text-3xl font-light text-slate-800 mb-3">My Bookings</h1>
 
       {step === "contact" && (

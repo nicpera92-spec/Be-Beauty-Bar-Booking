@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { formatBookingDate, formatCurrency } from "@/lib/format";
 import BookingCalendarButtons from "@/components/BookingCalendarButtons";
+import { HomeBackLinks } from "@/components/PageTopLinks";
 import RescheduleCard from "./RescheduleCard";
 
 type State =
@@ -172,6 +173,7 @@ export default function CancelBookingPage() {
 
   return (
     <div className="max-w-xl mx-auto px-4 sm:px-8 py-16 sm:py-20 md:py-28 space-y-8">
+      <HomeBackLinks className="mb-0" />
       {(state === "refundable" || state === "non_refundable") && booking && (
         <>
           <div>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { formatBookingDate } from "@/lib/format";
+import { HomeBackLinks } from "@/components/PageTopLinks";
 
 type Confirmed = {
   code: string;
@@ -37,6 +38,7 @@ export default function GiftVoucherSuccessPage() {
   return (
     <div className="min-h-[70vh] flex flex-col items-center justify-center px-4 py-16">
       <div className="max-w-md w-full text-center space-y-6">
+        <HomeBackLinks className="mb-2" />
         {!voucher && !error && <p className="text-slate-500">Confirming your payment…</p>}
 
         {error && (

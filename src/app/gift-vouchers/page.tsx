@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import PageTopLinks from "@/components/PageTopLinks";
+import { HomeBackLinks } from "@/components/PageTopLinks";
 import { formatCurrency } from "@/lib/format";
 import { categoryLabel } from "@/lib/categoryCapacity";
 import { MAX_CERTIFICATE_ITEMS, VOUCHER_VALID_MONTHS, sumPrices } from "@/lib/giftVoucherRules";
@@ -136,11 +135,7 @@ export default function GiftCertificatesPage() {
 
   return (
     <div className="max-w-xl mx-auto px-4 sm:px-8 py-16 sm:py-20">
-      <PageTopLinks>
-        <Link href="/" className="text-sm text-navy hover:underline">
-          Home
-        </Link>
-      </PageTopLinks>
+      <HomeBackLinks />
       <h1 className="font-serif text-2xl md:text-3xl font-light text-slate-800 mb-3">Gift Certificates</h1>
       <p className="text-sm text-slate-600 leading-relaxed mb-8">
         Treat someone to a treatment — or a combo — paid for in full, so there&apos;s nothing for them to

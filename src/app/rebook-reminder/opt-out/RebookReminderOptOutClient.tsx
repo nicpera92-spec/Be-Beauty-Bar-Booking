@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { HomeBackLinks } from "@/components/PageTopLinks";
 
 export default function RebookReminderOptOutClient() {
   const searchParams = useSearchParams();
@@ -32,6 +33,7 @@ export default function RebookReminderOptOutClient() {
   return (
     <div className="min-h-[60vh] flex items-center justify-center px-4 py-16">
       <div className="max-w-md w-full text-center space-y-4">
+        <HomeBackLinks className="mb-6" />
         {state === "loading" && (
           <>
             <h1 className="font-serif text-2xl text-charcoal">One moment…</h1>

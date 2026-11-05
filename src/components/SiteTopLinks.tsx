@@ -7,9 +7,11 @@ import { CustomerShortcuts } from "@/components/PageTopLinks";
 function hasOwnTopRow(pathname: string): boolean {
   return (
     /^\/book(\/|$)/.test(pathname) ||
-    (/^\/booking\//.test(pathname) && !pathname.startsWith("/booking/deposit-confirmed")) ||
-    pathname === "/my-bookings" ||
-    pathname === "/gift-vouchers"
+    /^\/booking\//.test(pathname) ||
+    /^\/cancel\//.test(pathname) ||
+    /^\/gift-vouchers(\/|$)/.test(pathname) ||
+    pathname.startsWith("/rebook-reminder") ||
+    pathname === "/my-bookings"
   );
 }
 
