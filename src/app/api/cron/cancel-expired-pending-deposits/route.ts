@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { subHours } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { sendDepositExpiredCancellationEmails } from "@/lib/email";
+import { restoreVoucherForBooking } from "@/lib/giftVouchers";
 
 async function run(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
@@ -41,6 +42,7 @@ async function run(req: NextRequest) {
         data: { status: "cancelled" },
       });
       cancelled++;
+      await restoreVoucherForBooking(b.id, "Returned – deposit not paid in time");
 
       const result = await sendDepositExpiredCancellationEmails(b.id);
       if (!result.ok) emailsFailed++;

@@ -15,7 +15,7 @@ import {
   storageToEditorHtml,
 } from "@/lib/messageEditorDom";
 import {
-  MESSAGE_INSERT_TAGS,
+  insertTagsForGroup,
   previewEmailHtml,
   previewMessage,
 } from "@/lib/notificationTemplates";
@@ -158,15 +158,17 @@ function MessageTokenInput({
 }
 
 function InsertTags({
+  groupId,
   onInsert,
   compact,
 }: {
+  groupId: string;
   onInsert: (token: string) => void;
   compact?: boolean;
 }) {
   return (
     <div className="flex flex-wrap gap-1.5">
-      {MESSAGE_INSERT_TAGS.map((tag) => (
+      {insertTagsForGroup(groupId).map((tag) => (
         <button
           key={tag.label}
           type="button"
@@ -292,7 +294,7 @@ function MessageGroupFields({
     <>
       <div className="rounded-xl border border-slate-100 bg-slate-50/40 px-3 py-3 space-y-2">
         <p className="text-xs text-charcoal/50">Add details:</p>
-        <InsertTags onInsert={handleInsert} compact={hasSmsOnlySection} />
+        <InsertTags groupId={group.id} onInsert={handleInsert} compact={hasSmsOnlySection} />
         <p className="text-xs text-charcoal/45">
           Tap a field first, then use Add details. Press delete on a detail to remove the whole
           thing. Added details show <span className="underline decoration-navy/55">underlined</span>{" "}

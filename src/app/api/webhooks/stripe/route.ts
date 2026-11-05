@@ -50,6 +50,17 @@ export async function POST(req: NextRequest) {
     }
 
     const session = event.data.object as Stripe.Checkout.Session;
+    if (session.metadata?.type === "voucher") {
+      const voucherId = session.metadata.voucherId;
+      if (voucherId && session.payment_status === "paid") {
+        const paymentIntentId =
+          typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id ?? null;
+        const { activateVoucher } = await import("@/lib/giftVouchers");
+        await activateVoucher(voucherId, paymentIntentId);
+      }
+      return NextResponse.json({ received: true });
+    }
+
     const bookingId = session.metadata?.bookingId;
     const type = (session.metadata?.type as string) || "deposit";
     if (!bookingId) {

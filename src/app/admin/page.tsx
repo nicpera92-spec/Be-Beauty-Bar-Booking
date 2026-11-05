@@ -40,6 +40,7 @@ type Booking = {
   depositRefundedAt: string | null;
   balanceRefundedAt: string | null;
   customerCancelledAt: string | null;
+  rescheduleCount?: number;
   createdAt: string;
 };
 
@@ -873,6 +874,7 @@ function AdminBookingRow({
           {booking.depositRefundedAt && " · deposit refunded"}
           {booking.balanceRefundedAt && " · balance refunded"}
           {booking.customerCancelledAt && " · cancelled by customer"}
+          {(booking.rescheduleCount ?? 0) > 0 && " · moved by customer"}
         </p>
         {booking.notes && booking.notes.trim() && (
           <p className="text-sm text-navy mt-2 italic">

@@ -19,6 +19,7 @@ type Booking = {
   endTime: string;
   servicePrice: number;
   depositAmount: number;
+  voucherAmount?: number;
   balancePaidOnline: boolean;
   status: string;
   notifyByEmail: boolean;
@@ -196,6 +197,7 @@ export default function BookingPage() {
     : booking.depositAmount - (booking.notifyBySMS ? smsFee : 0);
   const remaining = booking.servicePrice - baseDeposit;
   const hasRemaining = remaining > 0.001;
+  const depositDueByCard = booking.depositAmount - (booking.voucherAmount ?? 0);
 
   return (
     <div className="max-w-xl mx-auto px-4 sm:px-8 py-16 sm:py-20 md:py-28">
@@ -233,7 +235,12 @@ export default function BookingPage() {
           {noDeposit ? (
             <> · No deposit required</>
           ) : (
-            <> · {formatCurrency(booking.depositAmount)} deposit</>
+            <>
+              {" "}· {formatCurrency(booking.depositAmount)} deposit
+              {(booking.voucherAmount ?? 0) > 0 && (
+                <> ({formatCurrency(booking.voucherAmount!)} by gift voucher)</>
+              )}
+            </>
           )}
           {hasRemaining && (
             <> · {formatCurrency(remaining)} remaining</>
@@ -244,7 +251,7 @@ export default function BookingPage() {
       {pending && (
         <div className="mt-10 rounded-xl border border-slate-200 bg-white p-6 sm:p-8 md:p-10 shadow-sm space-y-8">
           <h2 className="font-serif text-xl font-light text-slate-800">
-            Pay your deposit ({formatCurrency(booking.depositAmount)}) to confirm
+            Pay your deposit ({formatCurrency(depositDueByCard)}) to confirm
           </h2>
 
           <div>
@@ -261,7 +268,7 @@ export default function BookingPage() {
               disabled={paying}
               className="w-full bg-navy text-white py-4 rounded-lg font-medium hover:bg-navy-light disabled:opacity-50 transition touch-manipulation min-h-[52px] shadow-sm"
             >
-              {paying ? "Redirecting to payment…" : "Pay " + formatCurrency(booking.depositAmount) + " by card"}
+              {paying ? "Redirecting to payment…" : "Pay " + formatCurrency(depositDueByCard) + " by card"}
             </button>
             {payError && (
               <p className="mt-3 text-sm text-slate-600">{payError}</p>

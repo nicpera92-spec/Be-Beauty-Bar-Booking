@@ -4,6 +4,8 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { formatBookingDate, formatCurrency } from "@/lib/format";
+import BookingCalendarButtons from "@/components/BookingCalendarButtons";
+import RescheduleCard from "./RescheduleCard";
 
 type State =
   | "loading"
@@ -13,9 +15,15 @@ type State =
   | "already_cancelled"
   | "appointment_passed"
   | "not_confirmed"
-  | "cancelled";
+  | "cancelled"
+  | "rescheduled";
+
+type RescheduleInfo =
+  | { allowed: true; minDate: string; maxDate: string }
+  | { allowed: false; reason: "already_rescheduled" | "too_late" | "not_available" };
 
 type BookingSummary = {
+  id: string;
   customerName: string;
   serviceName: string;
   technicianName: string | null;
@@ -23,6 +31,7 @@ type BookingSummary = {
   startTime: string;
   endTime: string;
   depositAmount: number;
+  voucherAmount?: number;
 };
 
 export default function CancelBookingPage() {
@@ -34,6 +43,8 @@ export default function CancelBookingPage() {
   const [refundHours, setRefundHours] = useState(48);
   const [businessName, setBusinessName] = useState("Be Beauty Bar");
   const [instagramHandle, setInstagramHandle] = useState<string | null>(null);
+  const [businessAddress, setBusinessAddress] = useState<string | null>(null);
+  const [reschedule, setReschedule] = useState<RescheduleInfo | null>(null);
   const [refundDetails, setRefundDetails] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +59,8 @@ export default function CancelBookingPage() {
         if (typeof data?.refundHours === "number") setRefundHours(data.refundHours);
         if (data?.businessName) setBusinessName(data.businessName);
         if (data?.instagramHandle) setInstagramHandle(data.instagramHandle);
+        if (data?.businessAddress) setBusinessAddress(data.businessAddress);
+        if (data?.reschedule) setReschedule(data.reschedule);
         setState((data?.state as State) ?? "invalid");
       })
       .catch(() => setState("invalid"));
@@ -141,14 +154,39 @@ export default function CancelBookingPage() {
         <>
           <div>
             <h1 className="font-serif text-2xl md:text-3xl font-light text-slate-800 mb-3">
-              Cancel your booking
+              Change or cancel your booking
             </h1>
             <p className="text-slate-600 text-sm">
-              Hi {booking.customerName}, you&apos;re about to cancel the booking below.
+              Hi {booking.customerName}, here&apos;s your booking. You can move it to another time or
+              cancel it below.
             </p>
           </div>
 
           {bookingCard}
+
+          {reschedule?.allowed ? (
+            <RescheduleCard
+              id={id}
+              sig={sig}
+              minDate={reschedule.minDate}
+              maxDate={reschedule.maxDate}
+              onRescheduled={(moved) => {
+                setBooking((b) => (b ? { ...b, ...moved } : b));
+                setState("rescheduled");
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+            />
+          ) : reschedule && !reschedule.allowed ? (
+            <p className="text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 leading-relaxed">
+              {reschedule.reason === "already_rescheduled"
+                ? "This booking has already been moved once, so it can't be moved again online. If you need a different time, please contact us."
+                : reschedule.reason === "too_late"
+                  ? `Your appointment is less than ${refundHours} hours away, so it can't be moved online. If you need a different time, please contact us.`
+                  : "This booking can't be moved online. If you need a different time, please contact us."}
+            </p>
+          ) : null}
+
+          <p className="text-sm font-semibold text-slate-800 pt-2">Cancel instead</p>
 
           {state === "refundable" ? (
             <div className="rounded-lg border-2 border-emerald-300 bg-emerald-50 px-4 py-4 space-y-2">
@@ -156,9 +194,11 @@ export default function CancelBookingPage() {
                 {hasDeposit ? "Your deposit will be refunded" : "No deposit to refund"}
               </p>
               <p className="text-sm text-emerald-900/80 leading-relaxed">
-                {hasDeposit
-                  ? `You're cancelling more than ${refundHours} hours before your appointment, so your ${deposit} deposit will be refunded in full to your original payment method.`
-                  : "No deposit was taken for this booking."}
+                {!hasDeposit
+                  ? "No deposit was taken for this booking."
+                  : (booking.voucherAmount ?? 0) > 0
+                    ? `You're cancelling more than ${refundHours} hours before your appointment, so your ${deposit} deposit will be refunded in full — ${formatCurrency(booking.voucherAmount!)} goes back onto your gift voucher${booking.depositAmount - booking.voucherAmount! > 0.001 ? ` and ${formatCurrency(booking.depositAmount - booking.voucherAmount!)} to your card` : ""}.`
+                    : `You're cancelling more than ${refundHours} hours before your appointment, so your ${deposit} deposit will be refunded in full to your original payment method.`}
               </p>
             </div>
           ) : (
@@ -201,6 +241,39 @@ export default function CancelBookingPage() {
           {contactLine}
           {bookAgainLink}
         </>
+      )}
+
+      {state === "rescheduled" && booking && (
+        <div className="space-y-6">
+          <div className="text-center space-y-3">
+            <h1 className="font-serif text-2xl md:text-3xl font-light text-slate-800">
+              Your appointment has been moved
+            </h1>
+            <p className="text-sm text-slate-600 leading-relaxed">
+              Your deposit has been carried over. We&apos;ve sent you the new details — see you then!
+            </p>
+          </div>
+          {bookingCard}
+          <BookingCalendarButtons
+            booking={{
+              id: booking.id,
+              date: booking.date,
+              startTime: booking.startTime,
+              endTime: booking.endTime,
+              service: { name: booking.serviceName },
+              technician: booking.technicianName ? { name: booking.technicianName } : null,
+            }}
+            businessName={businessName}
+            businessAddress={businessAddress}
+          />
+          <p className="text-xs text-slate-500 leading-relaxed">
+            This booking can&apos;t be moved again online. You can still cancel it using the same
+            link — deposits are refunded for cancellations made more than {refundHours} hours before
+            your appointment.
+          </p>
+          {contactLine}
+          {bookAgainLink}
+        </div>
       )}
 
       {state === "cancelled" && (

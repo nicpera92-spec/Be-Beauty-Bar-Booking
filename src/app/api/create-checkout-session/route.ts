@@ -59,8 +59,8 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         );
       }
-      amountPence = Math.round(booking.depositAmount * 100);
-      
+      amountPence = Math.round((booking.depositAmount - booking.voucherAmount) * 100);
+
       // Get SMS fee from settings to show breakdown
       const settings = await prisma.businessSettings.findUnique({
         where: { id: "default" },
@@ -74,6 +74,9 @@ export async function POST(req: NextRequest) {
         productDesc = `Booking ${booking.date} ${booking.startTime}–${booking.endTime} (includes ${formatCurrency(baseDeposit)} deposit + ${formatCurrency(smsFee)} SMS fee)`;
       } else {
         productDesc = `Booking ${booking.date} ${booking.startTime}–${booking.endTime}`;
+      }
+      if (booking.voucherAmount > 0) {
+        productDesc += ` · ${formatCurrency(booking.voucherAmount)} paid by gift voucher`;
       }
     } else {
       if (booking.status !== "confirmed") {

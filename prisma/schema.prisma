@@ -100,6 +100,10 @@ model BusinessSettings {
   rebookReminderDaysAfter Int      @default(21)
   cancellationRefundHours Int      @default(48) // deposit refunded when customer cancels at least this many hours before
   cancellationPolicy   String? // one point per line; null = default policy
+  reviewRequestEnabled Boolean  @default(false)
+  googleReviewUrl      String?
+  dailyScheduleEnabled Boolean  @default(true)
+  dailyScheduleLastSentDate String? // UK date the 7pm schedule emails were last sent (yyyy-MM-dd)
   notificationMessages Json?
   updatedAt            DateTime @updatedAt
 }
@@ -136,6 +140,54 @@ model CustomerNotificationPreference {
   rebookReminderOptOut Boolean   @default(false)
   rebookOptOutAt       DateTime?
   updatedAt            DateTime  @updatedAt
+}
+
+model GiftVoucher {
+  id                    String              @id @default(cuid())
+  code                  String              @unique
+  initialAmount         Float
+  balance               Float
+  status                String              @default("pending_payment") // pending_payment | active | cancelled
+  purchaserName         String
+  purchaserEmail        String
+  recipientName         String?
+  recipientEmail        String?
+  message               String?
+  soldInSalon           Boolean             @default(false)
+  stripeSessionId       String?             @unique
+  stripePaymentIntentId String?
+  paidAt                DateTime?
+  expiresAt             DateTime?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  bookings              Booking[]
+  transactions          VoucherTransaction[]
+}
+
+// Ledger of voucher balance changes: negative = value used, positive = value returned
+model VoucherTransaction {
+  id        String      @id @default(cuid())
+  voucherId String
+  voucher   GiftVoucher @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  amount    Float
+  note      String
+  bookingId String?
+  createdAt DateTime    @default(now())
+
+  @@index([voucherId, createdAt])
+}
+
+// One-time codes for the customer "My bookings" page (contact = lowercased email or +44 phone)
+model CustomerLoginCode {
+  id        String    @id @default(cuid())
+  contact   String
+  codeHash  String
+  expiresAt DateTime
+  attempts  Int       @default(0)
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([contact, createdAt])
 }
 
 model AvailabilityBlock {
@@ -184,6 +236,13 @@ model Booking {
   balanceRefundedAt             DateTime?
   customerCancelledAt           DateTime? // set when the customer cancels via their confirmation link
   cancelCode                    String?        @unique // short code for the SMS cancel link (/c/<code>)
+  rescheduleCount               Int            @default(0) // times the customer moved this booking via their link
+  rescheduledAt                 DateTime?
+  reviewRequestSentAt           DateTime?
+  voucherId                     String?
+  voucher                       GiftVoucher?   @relation(fields: [voucherId], references: [id])
+  voucherAmount                 Float          @default(0) // part of depositAmount paid by gift voucher
+  voucherRestoredAt             DateTime?      // voucher part returned to the voucher (refund / expiry)
   reminderSentAt                DateTime?
   rebookReminderSentAt          DateTime?
   createdAt                     DateTime       @default(now())

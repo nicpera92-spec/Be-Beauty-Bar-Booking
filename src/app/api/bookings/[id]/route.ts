@@ -38,11 +38,18 @@ export async function PATCH(
     );
   }
 
+  const before = await prisma.booking.findUnique({ where: { id }, select: { status: true } });
   const booking = await prisma.booking.update({
     where: { id },
     data: { status },
     include: { service: true },
   });
+
+  // A deposit that was never paid by card means the voucher part was never "spent".
+  if (status === "cancelled" && before?.status === "pending_deposit") {
+    const { restoreVoucherForBooking } = await import("@/lib/giftVouchers");
+    await restoreVoucherForBooking(id, "Returned – booking cancelled before deposit was paid");
+  }
 
   if (status === "confirmed") {
     const r = await sendBookingConfirmationEmails(id);

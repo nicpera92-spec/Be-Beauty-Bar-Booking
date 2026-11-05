@@ -9,6 +9,9 @@ export type CalendarEvent = {
   date: string;
   startTime: string;
   endTime: string;
+  /** Bumped on every change so calendar apps replace the earlier copy of the same event. */
+  sequence?: number;
+  cancelled?: boolean;
 };
 
 function utcStamp(d: Date): string {
@@ -29,25 +32,33 @@ function escapeIcsText(text: string): string {
 /** iCalendar file content (Apple Calendar, Outlook, most phone calendars). */
 export function buildIcs(event: CalendarEvent, now: Date = new Date()): string {
   const { start, end } = eventTimes(event);
+  const title = event.cancelled ? `Cancelled: ${event.title}` : event.title;
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
     "PRODID:-//Be Beauty Bar//Booking//EN",
     "CALSCALE:GREGORIAN",
-    "METHOD:PUBLISH",
+    `METHOD:${event.cancelled ? "CANCEL" : "PUBLISH"}`,
     "BEGIN:VEVENT",
     `UID:${event.uid}`,
+    `SEQUENCE:${event.sequence ?? 0}`,
     `DTSTAMP:${utcStamp(now)}`,
+    `LAST-MODIFIED:${utcStamp(now)}`,
     `DTSTART:${start}`,
     `DTEND:${end}`,
-    `SUMMARY:${escapeIcsText(event.title)}`,
+    `STATUS:${event.cancelled ? "CANCELLED" : "CONFIRMED"}`,
+    `SUMMARY:${escapeIcsText(title)}`,
     `DESCRIPTION:${escapeIcsText(event.description)}`,
     ...(event.location ? [`LOCATION:${escapeIcsText(event.location)}`] : []),
-    "BEGIN:VALARM",
-    "TRIGGER:-PT2H",
-    "ACTION:DISPLAY",
-    `DESCRIPTION:${escapeIcsText(event.title)}`,
-    "END:VALARM",
+    ...(event.cancelled
+      ? []
+      : [
+          "BEGIN:VALARM",
+          "TRIGGER:-PT2H",
+          "ACTION:DISPLAY",
+          `DESCRIPTION:${escapeIcsText(event.title)}`,
+          "END:VALARM",
+        ]),
     "END:VEVENT",
     "END:VCALENDAR",
   ];
@@ -71,11 +82,14 @@ export function bookingCalendarEvent(
     endTime: string;
     service: { name: string };
     technician?: { name: string } | null;
+    rescheduleCount?: number;
+    status?: string;
   },
   businessName: string,
   bookingPageUrl: string,
   address?: string | null
 ): CalendarEvent {
+  const cancelled = booking.status === "cancelled";
   const withTech = booking.technician?.name ? ` with ${booking.technician.name}` : "";
   const location = address?.trim() ? `${businessName}, ${address.trim()}` : businessName;
   return {
@@ -90,6 +104,9 @@ export function bookingCalendarEvent(
     date: booking.date,
     startTime: booking.startTime,
     endTime: booking.endTime,
+    // Move = +1; cancelling must outrank every earlier version.
+    sequence: (booking.rescheduleCount ?? 0) + (cancelled ? 1 : 0),
+    cancelled,
   };
 }
 

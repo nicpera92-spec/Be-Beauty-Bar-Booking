@@ -120,15 +120,24 @@ export type BalanceRefundOutcome = "refunded" | "refund_failed" | "none";
 export type RefundOutcome = {
   deposit: DepositRefundOutcome;
   balance: BalanceRefundOutcome;
+  /** Deposit paid by card (the whole deposit unless a gift voucher paid part of it). */
   depositAmount: number;
   balanceAmount: number;
   refundHours: number;
+  /** Deposit paid by gift voucher, and how much of that went back onto the voucher. */
+  voucherAmount?: number;
+  voucherReturned?: number;
 };
+
+function totalDeposit(outcome: RefundOutcome): string {
+  return formatCurrency(outcome.depositAmount + (outcome.voucherAmount ?? 0));
+}
 
 export function describeRefundForCustomer(outcome: RefundOutcome): string {
   const deposit = formatCurrency(outcome.depositAmount);
   const parts: string[] = [];
-  switch (outcome.deposit) {
+  const paidByVoucherOnly = outcome.depositAmount <= 0 && (outcome.voucherAmount ?? 0) > 0;
+  switch (paidByVoucherOnly && outcome.deposit !== "forfeited" ? "voucher_only" : outcome.deposit) {
     case "refunded":
       parts.push(
         `Your deposit of ${deposit} has been refunded to your original payment method. Please allow 5–10 working days for it to appear.`
@@ -140,12 +149,15 @@ export function describeRefundForCustomer(outcome: RefundOutcome): string {
       break;
     case "forfeited":
       parts.push(
-        `As you cancelled within ${outcome.refundHours} hours of your appointment, your deposit of ${deposit} is non-refundable, in line with our cancellation policy.`
+        `As you cancelled within ${outcome.refundHours} hours of your appointment, your deposit of ${totalDeposit(outcome)} is non-refundable, in line with our cancellation policy.`
       );
       break;
     case "none":
       parts.push("No deposit was taken for this booking, so there is nothing to refund.");
       break;
+  }
+  if ((outcome.voucherReturned ?? 0) > 0) {
+    parts.push(`${formatCurrency(outcome.voucherReturned!)} has been returned to your gift voucher.`);
   }
   const balance = formatCurrency(outcome.balanceAmount);
   if (outcome.balance === "refunded") {
@@ -175,12 +187,15 @@ export function describeRefundForOwner(outcome: RefundOutcome): string {
       break;
     case "forfeited":
       parts.push(
-        `Cancelled within ${outcome.refundHours} hours of the appointment — deposit of ${deposit} kept (non-refundable).`
+        `Cancelled within ${outcome.refundHours} hours of the appointment — deposit of ${totalDeposit(outcome)} kept (non-refundable).`
       );
       break;
     case "none":
-      parts.push("No deposit was taken.");
+      if (!((outcome.voucherAmount ?? 0) > 0)) parts.push("No deposit was taken.");
       break;
+  }
+  if ((outcome.voucherReturned ?? 0) > 0) {
+    parts.push(`${formatCurrency(outcome.voucherReturned!)} returned to the customer's gift voucher.`);
   }
   const balance = formatCurrency(outcome.balanceAmount);
   if (outcome.balance === "refunded") {
@@ -254,12 +269,15 @@ export async function cancelBookingByCustomer(
   const smsFee = settings?.smsNotificationFee ?? 0.05;
   const baseDeposit = booking.depositAmount - (booking.notifyBySMS && booking.depositAmount > 0 ? smsFee : 0);
 
+  const cardDeposit = Math.round((booking.depositAmount - booking.voucherAmount) * 100) / 100;
   const refund: RefundOutcome = {
     deposit: "none",
     balance: "none",
-    depositAmount: booking.depositAmount,
+    depositAmount: Math.max(0, cardDeposit),
     balanceAmount: Math.max(0, booking.servicePrice - baseDeposit),
     refundHours,
+    voucherAmount: booking.voucherAmount,
+    voucherReturned: 0,
   };
 
   const needsBalanceRefund =
@@ -268,10 +286,18 @@ export async function cancelBookingByCustomer(
     Boolean(booking.stripeBalancePaymentIntentId);
   const stripe = getStripeInstance(settings?.stripeSecretKey);
 
-  if (booking.depositAmount > 0) {
-    if (state === "non_refundable") {
-      refund.deposit = "forfeited";
-    } else if (booking.depositRefundedAt) {
+  if (state === "refundable" && booking.voucherAmount > 0) {
+    const { restoreVoucherForBooking } = await import("@/lib/giftVouchers");
+    refund.voucherReturned = await restoreVoucherForBooking(
+      bookingId,
+      "Returned – customer cancelled with free cancellation"
+    );
+  }
+
+  if (state === "non_refundable" && booking.depositAmount > 0) {
+    refund.deposit = "forfeited";
+  } else if (cardDeposit > 0) {
+    if (booking.depositRefundedAt) {
       refund.deposit = "refunded";
     } else if (!booking.stripeDepositPaymentIntentId) {
       refund.deposit = "manual_refund";

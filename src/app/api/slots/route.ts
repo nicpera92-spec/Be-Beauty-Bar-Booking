@@ -1,15 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { parse } from "date-fns";
-import { getSlotsForDay } from "@/lib/slotUtils";
-import {
-  getCategoryCapacityRules,
-  getCategoryExclusionPairs,
-  maxConcurrentFromRules,
-} from "@/lib/bookingAvailability";
-import { hasWaitlistSameDayBookingAccess } from "@/lib/waitlist-booking-token";
-import { isBeforeMinBookableDate } from "@/lib/business-time";
-import { resolveHoursForDate } from "@/lib/workingHours";
+import { getAvailableSlotsForDay } from "@/lib/slotAvailability";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -25,100 +15,16 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const waitlistToken = searchParams.get("wl");
-    const [service, sameDayWaitlistAccess, settings, dayBookings, blocks, capacityRules, exclusionPairs] =
-      await Promise.all([
-        prisma.service.findUnique({
-          where: { id: serviceId },
-          include: { technician: { select: { id: true, active: true, workingHours: true } } },
-        }),
-        hasWaitlistSameDayBookingAccess(waitlistToken, { date, serviceId, technicianId }),
-        prisma.businessSettings.findUnique({
-          where: { id: "default" },
-          select: { openTime: true, closeTime: true, slotInterval: true },
-        }),
-        prisma.booking.findMany({
-          where: { date, status: { not: "cancelled" } },
-          select: {
-            technicianId: true,
-            startTime: true,
-            endTime: true,
-            service: { select: { category: true } },
-          },
-        }),
-        prisma.availabilityBlock.findMany({
-          where: {
-            startDate: { lte: date },
-            endDate: { gte: date },
-            technicianId,
-          },
-        }),
-        getCategoryCapacityRules(),
-        getCategoryExclusionPairs(),
-      ]);
-
-    if (!service) {
-      return NextResponse.json({ error: "Service not found" }, { status: 404 });
-    }
-    if (service.technicianId !== technicianId) {
-      return NextResponse.json(
-        { error: "This service does not belong to the selected technician" },
-        { status: 400 }
-      );
-    }
-    if (!service.technician?.active) {
-      return NextResponse.json({ error: "Technician is not available" }, { status: 400 });
-    }
-
-    const day = parse(date, "yyyy-MM-dd", new Date());
-    if (!sameDayWaitlistAccess && isBeforeMinBookableDate(date)) {
-      return NextResponse.json({ slots: [] });
-    }
-    const maxConcurrent = maxConcurrentFromRules(capacityRules, service.category);
-
-    const s = settings ?? { openTime: "09:00", closeTime: "17:00", slotInterval: 30 };
-    const dayHours = resolveHoursForDate(
+    const result = await getAvailableSlotsForDay({
       date,
-      service.technician.workingHours,
-      s.openTime,
-      s.closeTime
-    );
-    if (dayHours.isOff) {
-      return NextResponse.json({ slots: [] });
+      serviceId,
+      technicianId,
+      waitlistToken: searchParams.get("wl"),
+    });
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
     }
-
-    const now = new Date();
-
-    const technicianBookings = dayBookings
-      .filter((b) => b.technicianId === technicianId)
-      .map((b) => ({ startTime: b.startTime, endTime: b.endTime }));
-
-    const categoryBookings = dayBookings.map((b) => ({
-      startTime: b.startTime,
-      endTime: b.endTime,
-      service: { category: b.service.category },
-    }));
-
-    const slots = getSlotsForDay(
-      date,
-      day,
-      dayHours.openTime,
-      dayHours.closeTime,
-      s.slotInterval,
-      service.durationMin,
-      [],
-      blocks,
-      now,
-      {
-        technicianBookings,
-        categoryBookings,
-        serviceCategory: service.category,
-        maxConcurrentInCategory: maxConcurrent,
-        exclusionPairs,
-      }
-    );
-
-    return NextResponse.json({ slots });
+    return NextResponse.json({ slots: result.slots });
   } catch (e) {
     console.error(e);
     return NextResponse.json({ error: "Failed to fetch slots" }, { status: 500 });

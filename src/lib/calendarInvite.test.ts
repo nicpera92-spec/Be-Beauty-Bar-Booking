@@ -61,6 +61,28 @@ assert(
   "email renders a clean calendar link"
 );
 
+// --- keeping calendar entries in sync ---
+assert(ics.includes("SEQUENCE:0") && ics.includes("STATUS:CONFIRMED"), "new booking is version 0");
+const moved = buildIcs(
+  bookingCalendarEvent(
+    { id: "bk1", date: "2026-07-11", startTime: "10:00", endTime: "11:30", service: { name: "Gel Manicure, Classic" }, rescheduleCount: 1 },
+    "Be Beauty Bar",
+    "https://bbbar.co.uk/booking/bk1"
+  )
+);
+assert(moved.includes("UID:booking-bk1@bbbar.co.uk"), "moved booking keeps the same event ID");
+assert(moved.includes("SEQUENCE:1") && moved.includes("DTSTART:20260711T090000Z"), "moved version is newer with new time");
+const cancelledIcs = buildIcs(
+  bookingCalendarEvent(
+    { id: "bk1", date: "2026-07-11", startTime: "10:00", endTime: "11:30", service: { name: "Nails" }, rescheduleCount: 1, status: "cancelled" },
+    "Be Beauty Bar",
+    "https://bbbar.co.uk/booking/bk1"
+  )
+);
+assert(cancelledIcs.includes("METHOD:CANCEL") && cancelledIcs.includes("STATUS:CANCELLED"), "cancel file");
+assert(cancelledIcs.includes("SEQUENCE:2"), "cancellation outranks the moved version");
+assert(!cancelledIcs.includes("BEGIN:VALARM"), "no reminder on a cancelled event");
+
 const maps = googleMapsUrl("Be Beauty Bar", "33 Castle St, Swansea SA1 1HZ");
 assert(
   maps === "https://maps.google.com/?q=Be%20Beauty%20Bar%2C%2033%20Castle%20St%2C%20Swansea%20SA1%201HZ",

@@ -7,6 +7,7 @@ import { sendBookingCreatedEmails, sendBookingConfirmationEmails } from "@/lib/e
 import { isBookingSlotAvailable } from "@/lib/bookingAvailability";
 import { hasWaitlistSameDayBookingAccess } from "@/lib/waitlist-booking-token";
 import { isBeforeMinBookableDate } from "@/lib/business-time";
+import { claimVoucherForDeposit, recordVoucherTransaction } from "@/lib/giftVouchers";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -56,6 +57,7 @@ export async function POST(req: NextRequest) {
       notifyBySMS,
       waitlistToken,
       wl,
+      voucherCode,
     } = body;
 
     if (
@@ -217,31 +219,57 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const booking = await prisma.booking.create({
-      data: {
-        serviceId,
-        technicianId: validTechnicianId,
-        customerName,
-        customerEmail: customerEmail?.trim() || null,
-        customerPhone: customerPhone?.trim() || null,
-        date,
-        startTime,
-        endTime,
-        servicePrice,
-        depositAmount: deposit,
-        notes: notes ?? "",
-        status: requiresDeposit ? "pending_deposit" : "confirmed",
-        notifyByEmail: wantsEmail,
-        notifyBySMS: wantsSMS,
-      },
-      include: { service: true, technician: true },
-    });
+    let voucher: { voucherId: string; amount: number } | null = null;
+    if (typeof voucherCode === "string" && voucherCode.trim() && requiresDeposit && deposit > 0) {
+      const claimed = await claimVoucherForDeposit(voucherCode, deposit);
+      if (!claimed.ok) {
+        return NextResponse.json({ error: claimed.error }, { status: 400 });
+      }
+      voucher = { voucherId: claimed.voucherId, amount: claimed.amount };
+    }
+    const depositDueByCard = deposit - (voucher?.amount ?? 0);
+    const confirmedNow = !requiresDeposit || depositDueByCard <= 0.001;
 
-    // No deposit required → booking is already confirmed, so send the
+    let booking;
+    try {
+      booking = await prisma.booking.create({
+        data: {
+          serviceId,
+          technicianId: validTechnicianId,
+          customerName,
+          customerEmail: customerEmail?.trim() || null,
+          customerPhone: customerPhone?.trim() || null,
+          date,
+          startTime,
+          endTime,
+          servicePrice,
+          depositAmount: deposit,
+          notes: notes ?? "",
+          status: confirmedNow ? "confirmed" : "pending_deposit",
+          notifyByEmail: wantsEmail,
+          notifyBySMS: wantsSMS,
+          ...(voucher && { voucherId: voucher.voucherId, voucherAmount: voucher.amount }),
+        },
+        include: { service: true, technician: true },
+      });
+    } catch (e) {
+      if (voucher) {
+        await prisma.giftVoucher.update({
+          where: { id: voucher.voucherId },
+          data: { balance: { increment: voucher.amount } },
+        });
+      }
+      throw e;
+    }
+    if (voucher) {
+      await recordVoucherTransaction(voucher.voucherId, -voucher.amount, "Deposit for booking", booking.id);
+    }
+
+    // Confirmed straight away (no deposit, or a voucher covered it) → send the
     // confirmation email instead of the "pay your deposit" email.
-    const emailResult = requiresDeposit
-      ? await sendBookingCreatedEmails(booking.id)
-      : await sendBookingConfirmationEmails(booking.id);
+    const emailResult = confirmedNow
+      ? await sendBookingConfirmationEmails(booking.id)
+      : await sendBookingCreatedEmails(booking.id);
     if (!emailResult.ok) {
       console.error("Booking emails failed:", emailResult.error);
     }

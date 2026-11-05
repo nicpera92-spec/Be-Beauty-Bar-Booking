@@ -8,6 +8,7 @@ export const MAX_CANCELLATION_POLICY_LENGTH = 5000;
 /** "[hours]" is replaced with the refund window; **text** is shown in bold. */
 export const DEFAULT_CANCELLATION_POLICY = [
   "You can cancel using the link in your booking confirmation email or text message.",
+  "Need a different time? You can move your appointment **once**, free of charge, up to [hours] hours before — your deposit carries over.",
   "Cancel **more than [hours] hours** before your appointment and your deposit will be refunded in full.",
   "Deposits are **non-refundable** for cancellations made within [hours] hours of your appointment.",
   "Each booking can only be cancelled **once**. A cancelled booking can't be restored — to come back, please make a new booking.",

@@ -64,6 +64,18 @@ export const PLACEHOLDER_LABELS: Record<string, string> = {
   refundDetails: "Refund details",
   calendarLink: "Calendar link",
   directionsLink: "Directions link",
+  previousDate: "Previous date",
+  previousTime: "Previous time",
+  reviewLink: "Review link",
+  scheduleList: "Schedule",
+  appointmentCount: "Appointment count",
+  voucherCode: "Voucher code",
+  voucherAmount: "Voucher amount",
+  voucherMessage: "Voucher message",
+  voucherExpiry: "Voucher expiry",
+  buyerName: "Buyer name",
+  buyerEmail: "Buyer email",
+  recipientName: "Recipient name",
 };
 
 const LABEL_TO_VAR: Record<string, string> = {
@@ -81,6 +93,18 @@ const LABEL_TO_VAR: Record<string, string> = {
   "Refund details": "refundDetails",
   "Calendar link": "calendarLink",
   "Directions link": "directionsLink",
+  "Previous date": "previousDate",
+  "Previous time": "previousTime",
+  "Review link": "reviewLink",
+  Schedule: "scheduleList",
+  "Appointment count": "appointmentCount",
+  "Voucher code": "voucherCode",
+  "Voucher amount": "voucherAmount",
+  "Voucher message": "voucherMessage",
+  "Voucher expiry": "voucherExpiry",
+  "Buyer name": "buyerName",
+  "Buyer email": "buyerEmail",
+  "Recipient name": "recipientName",
 };
 
 export function friendlyToken(label: string): string {
@@ -99,51 +123,68 @@ function labelFromTokenMatch(match: RegExpExecArray): string {
 
 // Legacy highlight helper removed — editor uses contenteditable spans in messageEditorDom.ts
 
-/** Friendly labels — shown as buttons in Settings → Messages. */
-export const MESSAGE_INSERT_TAGS: { label: string; token: string; hint?: string }[] = [
-  { label: "Customer name", token: friendlyToken("Customer name") },
-  { label: "Service", token: friendlyToken("Service") },
-  { label: "Technician", token: friendlyToken("Technician") },
-  { label: "Date", token: friendlyToken("Date") },
-  { label: "Time", token: friendlyToken("Time") },
-  { label: "Salon name", token: friendlyToken("Salon name") },
-  { label: "Booking link", token: friendlyToken("Booking link"), hint: "Shows as bbbar.co.uk" },
-  {
-    label: "Pay deposit link",
-    token: friendlyToken("Pay deposit link"),
-    hint: "Link to pay deposit",
-  },
-  {
-    label: "Opt out link",
-    token: friendlyToken("Opt out link"),
-    hint: "Link to stop rebook reminders",
-  },
-  {
-    label: "Instagram link",
-    token: friendlyToken("Instagram link"),
-    hint: "Link to your Instagram profile",
-  },
-  {
-    label: "Cancel link",
-    token: friendlyToken("Cancel link"),
-    hint: "Link for the customer to cancel (booking confirmed only)",
-  },
-  {
-    label: "Refund details",
-    token: friendlyToken("Refund details"),
-    hint: "Whether the deposit was refunded (customer cancellation only)",
-  },
-  {
-    label: "Calendar link",
-    token: friendlyToken("Calendar link"),
-    hint: "Add the appointment to their calendar (booking confirmed only)",
-  },
-  {
-    label: "Directions link",
-    token: friendlyToken("Directions link"),
-    hint: "Google Maps directions to the salon",
-  },
+export type MessageInsertTag = {
+  label: string;
+  token: string;
+  hint?: string;
+  /** Message group ids where this detail is filled in; omitted = every group. */
+  groups?: string[];
+};
+
+function tag(label: string, hint?: string, groups?: string[]): MessageInsertTag {
+  return { label, token: friendlyToken(label), hint, groups };
+}
+
+const BOOKING_GROUPS = [
+  "booking-request",
+  "booking-confirmed",
+  "manual-cancel",
+  "customer-cancel",
+  "customer-reschedule",
+  "deposit-expired",
+  "reminder",
+  "waitlist",
+  "rebook-reminder",
+  "review-request",
 ];
+
+/** Friendly labels — shown as buttons in Settings → Messages. */
+export const MESSAGE_INSERT_TAGS: MessageInsertTag[] = [
+  tag("Customer name", undefined, BOOKING_GROUPS),
+  tag("Service", undefined, BOOKING_GROUPS),
+  tag("Technician", undefined, [...BOOKING_GROUPS, "daily-schedule"]),
+  tag("Date", undefined, [...BOOKING_GROUPS, "daily-schedule"]),
+  tag("Time", undefined, BOOKING_GROUPS),
+  tag("Salon name"),
+  tag("Booking link", "Shows as bbbar.co.uk"),
+  tag("Pay deposit link", "Link to pay deposit", ["booking-request"]),
+  tag("Opt out link", "Link to stop rebook reminders", ["rebook-reminder"]),
+  tag("Instagram link", "Link to your Instagram profile"),
+  tag("Cancel link", "Link to change or cancel the booking", ["booking-confirmed", "customer-reschedule"]),
+  tag("Refund details", "Whether the deposit was refunded", ["customer-cancel"]),
+  tag("Calendar link", "Add the appointment to their calendar", ["booking-confirmed", "customer-reschedule"]),
+  tag("Directions link", "Google Maps directions to the salon", [
+    "booking-confirmed",
+    "customer-reschedule",
+    "reminder",
+  ]),
+  tag("Previous date", "Original date before the customer moved it", ["customer-reschedule"]),
+  tag("Previous time", "Original time before the customer moved it", ["customer-reschedule"]),
+  tag("Review link", "Your Google review page", ["review-request"]),
+  tag("Schedule", "The list of appointments", ["daily-schedule"]),
+  tag("Appointment count", "e.g. 3 appointments", ["daily-schedule"]),
+  tag("Voucher code", "e.g. BB-ABCD-2345", ["gift-voucher"]),
+  tag("Voucher amount", "e.g. £50", ["gift-voucher"]),
+  tag("Voucher message", "The buyer's personal message", ["gift-voucher"]),
+  tag("Voucher expiry", "Date the voucher expires", ["gift-voucher"]),
+  tag("Buyer name", "Who bought the voucher", ["gift-voucher"]),
+  tag("Buyer email", "Buyer's email address", ["gift-voucher"]),
+  tag("Recipient name", "Who the voucher is for", ["gift-voucher"]),
+];
+
+export function insertTagsForGroup(groupId: string): MessageInsertTag[] {
+  return MESSAGE_INSERT_TAGS.filter((t) => !t.groups || t.groups.includes(groupId));
+}
 
 export function toFriendlyPlaceholders(template: string): string {
   let text = template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => {
@@ -183,6 +224,19 @@ export const MESSAGE_PREVIEW_SAMPLE: Record<string, string> = {
   cancelLink: "https://bbbar.co.uk/cancel/example/abc123",
   calendarLink: "https://bbbar.co.uk/booking/example#calendar",
   directionsLink: "https://maps.google.com/?q=Be%20Beauty%20Bar%2C%2033%20Castle%20St%2C%20Swansea%20SA1%201HZ",
+  previousDate: "Friday, 19 June 2026",
+  previousTime: "11:00 – 12:00",
+  reviewLink: "https://g.page/r/example/review",
+  scheduleList:
+    "09:30–11:30 · Alex Smith · Lash Extensions – Any Style · 07700 900123 · Confirmed\n14:00–15:00 · Sam Jones · Gel Manicure · 07700 900456 · Awaiting deposit\n    📝 Allergic to latex",
+  appointmentCount: "2 appointments",
+  voucherCode: "BB-ABCD-2345",
+  voucherAmount: "£50",
+  voucherMessage: "Happy birthday! Enjoy some pampering x",
+  voucherExpiry: "5 November 2027",
+  buyerName: "Jamie",
+  buyerEmail: "jamie@example.com",
+  recipientName: "Alex",
   refundDetails:
     "Your deposit of £20.00 has been refunded to your original payment method. Please allow 5–10 working days for it to appear.",
 };
@@ -220,7 +274,7 @@ export function htmlToPlainText(html: string): string {
 
 function linkifyEscapedHtml(escaped: string): string {
   const withLabels = escaped.replace(
-    /([^:\n<]+?):\s*(https?:\/\/[^\s<&]+)/g,
+    /([^:\n<>\s][^:\n<>]*?):\s*(https?:\/\/[^\s<&]+)/g,
     '<a href="$2">$1</a>'
   );
   const withHttps = withLabels.replace(
@@ -303,7 +357,7 @@ function ensureCancelLink(messages: NotificationMessages): NotificationMessages 
   };
   ensureInBody(calendarToken, `Add it to your calendar: ${calendarToken}`);
   ensureInBody(directionsToken, `Find us: ${directionsToken}`);
-  ensureInBody(token, `Cancel your booking: ${token}`);
+  ensureInBody(token, `Change or cancel your booking: ${token}`);
   if (!result.bookingConfirmedCustomerSms.includes(token)) {
     const sms = result.bookingConfirmedCustomerSms.trimEnd();
     result.bookingConfirmedCustomerSms = `${sms} Cancel here: ${token}`;

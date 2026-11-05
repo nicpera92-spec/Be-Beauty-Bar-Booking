@@ -167,6 +167,9 @@ type Settings = {
   rebookReminderDaysAfter?: number;
   cancellationRefundHours?: number;
   cancellationPolicy?: string | null;
+  reviewRequestEnabled?: boolean;
+  googleReviewUrl?: string | null;
+  dailyScheduleEnabled?: boolean;
 };
 
 type CategoryRule = {
@@ -282,6 +285,9 @@ function AdminSettingsPageInner() {
       rebookReminderDaysAfter: data.rebookReminderDaysAfter ?? 21,
       cancellationRefundHours: data.cancellationRefundHours ?? DEFAULT_CANCELLATION_REFUND_HOURS,
       cancellationPolicy: data.cancellationPolicy?.trim() || DEFAULT_CANCELLATION_POLICY,
+      reviewRequestEnabled: data.reviewRequestEnabled ?? false,
+      googleReviewUrl: data.googleReviewUrl ?? "",
+      dailyScheduleEnabled: data.dailyScheduleEnabled ?? true,
     });
     const primary = data.primaryColor ?? DEFAULT_PRIMARY;
     const secondary = data.secondaryColor ?? DEFAULT_SECONDARY;
@@ -343,6 +349,9 @@ function AdminSettingsPageInner() {
         form.cancellationPolicy.trim() === DEFAULT_CANCELLATION_POLICY
           ? null
           : form.cancellationPolicy,
+      reviewRequestEnabled: form.reviewRequestEnabled ?? false,
+      googleReviewUrl: form.googleReviewUrl ?? "",
+      dailyScheduleEnabled: form.dailyScheduleEnabled ?? true,
       primaryColor,
       secondaryColor,
       notificationMessages,
@@ -798,6 +807,37 @@ function AdminSettingsPageInner() {
                   <span className="text-xs text-charcoal/45">days (7–365)</span>
                 </div>
               </SettingsFeatureRow>
+
+              <SettingsFeatureRow
+                label="Google review requests"
+                info="The day after an appointment, customers get a short email or text (whichever they chose when booking) asking for a Google review. Each customer is asked at most once every 90 days. Edit the wording in Messages → Review request."
+                checked={form.reviewRequestEnabled ?? false}
+                onChange={(reviewRequestEnabled) => setForm((f) => ({ ...f, reviewRequestEnabled }))}
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-charcoal/60">Your Google review link</span>
+                    <SettingsInfoTip text="In Google Business Profile, choose “Ask for reviews” (or “Share review form”) and copy the link. It usually looks like https://g.page/r/…/review." />
+                  </div>
+                  <input
+                    type="url"
+                    value={form.googleReviewUrl ?? ""}
+                    onChange={(e) => setForm((f) => ({ ...f, googleReviewUrl: e.target.value }))}
+                    placeholder="https://g.page/r/…/review"
+                    className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-navy/10"
+                  />
+                  {!form.googleReviewUrl?.trim() && (
+                    <p className="text-xs text-amber-700">Add your link — no requests are sent without it.</p>
+                  )}
+                </div>
+              </SettingsFeatureRow>
+
+              <SettingsFeatureRow
+                label="Daily schedule email"
+                info="At 7pm each evening, every technician with bookings the next day gets an email listing them (time, customer, phone, service, deposit status and notes). Sent to the technician's login email; for the owner, the admin login or business email."
+                checked={form.dailyScheduleEnabled ?? true}
+                onChange={(dailyScheduleEnabled) => setForm((f) => ({ ...f, dailyScheduleEnabled }))}
+              />
             </div>
 
             <div className="pt-3 border-t border-slate-100 space-y-3">

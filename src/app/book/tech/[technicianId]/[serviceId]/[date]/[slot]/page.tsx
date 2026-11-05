@@ -6,6 +6,7 @@ import Link from "next/link";
 import { formatBookingDate, formatCurrency } from "@/lib/format";
 import CancellationPolicyList from "@/components/CancellationPolicyList";
 import { DEFAULT_CANCELLATION_REFUND_HOURS } from "@/lib/cancellationPolicy";
+import { voucherDepositSplit } from "@/lib/giftVoucherRules";
 
 type Service = {
   id: string;
@@ -44,6 +45,11 @@ export default function BookFormPage() {
   const [notes, setNotes] = useState("");
   const [notifyByEmail, setNotifyByEmail] = useState(false);
   const [notifyBySMS, setNotifyBySMS] = useState(true);
+  const [voucherInput, setVoucherInput] = useState("");
+  const [voucher, setVoucher] = useState<{ code: string; balance: number } | null>(null);
+  const [voucherError, setVoucherError] = useState<string | null>(null);
+  const [checkingVoucher, setCheckingVoucher] = useState(false);
+  const [showVoucher, setShowVoucher] = useState(false);
 
   const datePageHref = `/book/tech/${technicianId}/${serviceId}${
     waitlistToken ? `?wl=${encodeURIComponent(waitlistToken)}&date=${encodeURIComponent(date)}` : ""
@@ -86,6 +92,25 @@ export default function BookFormPage() {
   const totalDeposit = requiresDeposit
     ? (service?.depositAmount ?? 0) + (notifyBySMS ? smsFee : 0)
     : 0;
+
+  const voucherSplit = voucher && requiresDeposit ? voucherDepositSplit(totalDeposit, voucher.balance) : null;
+  const coveredByVoucher = Boolean(voucherSplit && voucherSplit.voucher > 0 && voucherSplit.card <= 0);
+
+  const applyVoucher = () => {
+    setVoucherError(null);
+    setCheckingVoucher(true);
+    fetch(`/api/vouchers/check?code=${encodeURIComponent(voucherInput)}`)
+      .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
+      .then(({ ok, data }) => {
+        if (ok) setVoucher({ code: data.code, balance: data.balance });
+        else {
+          setVoucher(null);
+          setVoucherError(data?.error ?? "We couldn't find that voucher code.");
+        }
+      })
+      .catch(() => setVoucherError("Could not check the voucher. Please try again."))
+      .finally(() => setCheckingVoucher(false));
+  };
 
   const dayLabel = formatBookingDate(date, "EEEE, dd/MM/yyyy");
 
@@ -134,6 +159,7 @@ export default function BookFormPage() {
         notifyByEmail,
         notifyBySMS,
         ...(waitlistToken ? { waitlistToken } : {}),
+        ...(voucher && voucherSplit && voucherSplit.voucher > 0 ? { voucherCode: voucher.code } : {}),
       }),
     })
       .then((r) => {
@@ -332,11 +358,79 @@ export default function BookFormPage() {
           </div>
         )}
 
+        {requiresDeposit && (
+          <div className="rounded-lg border border-slate-200 bg-white p-4">
+            {!showVoucher && !voucher ? (
+              <button
+                type="button"
+                onClick={() => setShowVoucher(true)}
+                className="text-sm text-navy font-medium hover:underline"
+              >
+                Have a gift voucher?
+              </button>
+            ) : voucher && voucherSplit ? (
+              <div className="flex items-start justify-between gap-3">
+                <div className="text-sm text-slate-700">
+                  <p className="font-medium text-emerald-700">Gift voucher {voucher.code} applied</p>
+                  <p className="text-slate-600 mt-0.5">
+                    {formatCurrency(voucherSplit.voucher)} of your deposit is paid by the voucher
+                    {voucherSplit.card > 0 && <> · {formatCurrency(voucherSplit.card)} left to pay by card</>}.
+                    {voucher.balance - voucherSplit.voucher > 0.001 && (
+                      <> {formatCurrency(voucher.balance - voucherSplit.voucher)} stays on the voucher to use at the salon.</>
+                    )}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVoucher(null);
+                    setVoucherInput("");
+                  }}
+                  className="text-xs text-slate-500 hover:text-slate-700 shrink-0"
+                >
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <label htmlFor="voucher" className="block text-sm font-medium text-slate-700">
+                  Gift voucher code
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    id="voucher"
+                    type="text"
+                    value={voucherInput}
+                    onChange={(e) => setVoucherInput(e.target.value.toUpperCase())}
+                    placeholder="BB-ABCD-2345"
+                    className="flex-1 min-w-0 px-4 py-3 rounded-lg border border-slate-200 bg-white text-slate-800 placeholder-slate-400 focus:border-navy outline-none text-base min-h-[48px] uppercase"
+                  />
+                  <button
+                    type="button"
+                    onClick={applyVoucher}
+                    disabled={checkingVoucher || !voucherInput.trim()}
+                    className="px-4 rounded-lg border border-slate-200 text-sm font-medium text-navy hover:bg-slate-50 disabled:opacity-50 min-h-[48px]"
+                  >
+                    {checkingVoucher ? "Checking…" : "Apply"}
+                  </button>
+                </div>
+                {voucherError && <p className="text-sm text-red-600">{voucherError}</p>}
+              </div>
+            )}
+          </div>
+        )}
+
         <p className="text-sm text-slate-600 leading-relaxed">
-          {requiresDeposit ? (
+          {requiresDeposit && coveredByVoucher ? (
+            <>
+              By submitting, your gift voucher pays the {formatCurrency(totalDeposit)} deposit and your
+              booking is confirmed straight away.
+            </>
+          ) : requiresDeposit ? (
             <>
               By submitting, you request this slot. You will pay the{" "}
-              {formatCurrency(totalDeposit)} deposit to confirm.
+              {formatCurrency(voucherSplit ? voucherSplit.card : totalDeposit)}
+              {voucherSplit && voucherSplit.voucher > 0 ? " remaining" : ""} deposit to confirm.
             </>
           ) : (
             <>
@@ -351,7 +445,11 @@ export default function BookFormPage() {
           disabled={submitting}
           className="w-full bg-navy text-white py-4 rounded-lg font-medium hover:bg-navy-light disabled:opacity-50 transition touch-manipulation min-h-[48px] shadow-sm"
         >
-          {submitting ? "Booking…" : requiresDeposit ? "Request booking" : "Confirm booking"}
+          {submitting
+            ? "Booking…"
+            : requiresDeposit && !coveredByVoucher
+              ? "Request booking"
+              : "Confirm booking"}
         </button>
       </form>
     </div>

@@ -13,6 +13,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
         startTime: true,
         endTime: true,
         status: true,
+        rescheduleCount: true,
         service: { select: { name: true } },
         technician: { select: { name: true } },
       },

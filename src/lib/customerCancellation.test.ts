@@ -16,6 +16,7 @@ import {
   verifyCancelSignature,
 } from "@/lib/customerCancellation";
 import { normalizeRefundHours, resolveCancellationPolicy } from "@/lib/cancellationPolicy";
+import { getRescheduleEligibility } from "@/lib/customerReschedule";
 import {
   applyTemplate,
   friendlyToken,
@@ -80,9 +81,13 @@ assert(normalizeRefundHours(-5) === 0, "hours floored at 0");
 
 // --- policy text ---
 const defaultPolicy = resolveCancellationPolicy(null, 48);
-assert(defaultPolicy.length === 5, "default policy has 5 points");
+assert(defaultPolicy.length === 6, "default policy has 6 points");
 assert(
-  defaultPolicy[1].some((s) => s.bold && s.text === "more than 48 hours"),
+  defaultPolicy[1].some((s) => s.bold && s.text === "once"),
+  "default policy explains moving an appointment once"
+);
+assert(
+  defaultPolicy[2].some((s) => s.bold && s.text === "more than 48 hours"),
   "default policy bolds the refund window with hours filled in"
 );
 const customPolicy = resolveCancellationPolicy("- First point\n\n**Bold** then [hours]h\n", 24);
@@ -156,7 +161,28 @@ assert(
 
 const link = buildCancelLink("booking_abc");
 const html = renderEmailBody(defaults.bookingConfirmedCustomerBody, { cancelLink: link, customerName: "Alex" });
-assert(html.includes(`<a href="${link}">Cancel your booking</a>`), "email renders a clean cancel link");
+assert(
+  html.includes(`<a href="${link}">Change or cancel your booking</a>`),
+  "email renders a clean cancel link"
+);
+const lineBreakHtml = renderEmailBody("Need help?\nCancel your booking: {{cancelLink}}", { cancelLink: link });
+assert(
+  lineBreakHtml.includes(`Need help?<br><a href="${link}">Cancel your booking</a>`),
+  "link on the line after other text renders without a stray br>"
+);
+
+// --- reschedule rules ---
+const movable = { ...confirmed, rescheduleCount: 0 };
+assert(
+  getRescheduleEligibility(movable, new Date(start - 72 * HOUR), 48).allowed,
+  "can move more than 48h before"
+);
+const late = getRescheduleEligibility(movable, new Date(start - 10 * HOUR), 48);
+assert(!late.allowed && late.reason === "too_late", "can't move within 48h");
+const twice = getRescheduleEligibility({ ...movable, rescheduleCount: 1 }, new Date(start - 72 * HOUR), 48);
+assert(!twice.allowed && twice.reason === "already_rescheduled", "can only move once");
+const gone = getRescheduleEligibility({ ...movable, status: "cancelled" }, new Date(start - 72 * HOUR), 48);
+assert(!gone.allowed && gone.reason === "not_available", "cancelled booking can't be moved");
 const sms = applyTemplate(defaults.bookingConfirmedCustomerSms, {
   cancelLink: formatShortCancelLink("Ab3dEf9h2K"),
 });

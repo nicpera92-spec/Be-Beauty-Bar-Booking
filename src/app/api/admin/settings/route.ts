@@ -52,6 +52,9 @@ export async function PATCH(req: NextRequest) {
     rebookReminderDaysAfter,
     cancellationRefundHours,
     cancellationPolicy,
+    reviewRequestEnabled,
+    googleReviewUrl,
+    dailyScheduleEnabled,
   } = body;
 
   const hexColor = /^#[0-9a-fA-F]{6}$/;
@@ -148,6 +151,18 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Cancellation policy is too long" }, { status: 400 });
     }
     data.cancellationPolicy = cancellationPolicy?.trim() ? cancellationPolicy.trim() : null;
+  }
+  if (reviewRequestEnabled !== undefined) data.reviewRequestEnabled = Boolean(reviewRequestEnabled);
+  if (dailyScheduleEnabled !== undefined) data.dailyScheduleEnabled = Boolean(dailyScheduleEnabled);
+  if (googleReviewUrl !== undefined) {
+    const url = typeof googleReviewUrl === "string" ? googleReviewUrl.trim() : "";
+    if (url && !/^https:\/\/\S+$/i.test(url)) {
+      return NextResponse.json(
+        { error: "Google review link must start with https://" },
+        { status: 400 }
+      );
+    }
+    data.googleReviewUrl = url || null;
   }
   if (notificationMessages !== undefined) {
     if (notificationMessages !== null && typeof notificationMessages !== "object") {

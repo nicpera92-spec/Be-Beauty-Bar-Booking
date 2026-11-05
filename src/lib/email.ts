@@ -15,7 +15,7 @@ import {
   resolveNotificationMessages,
 } from "@/lib/notificationTemplates";
 import { createWaitlistBookingToken } from "@/lib/waitlist-booking-token";
-import { googleMapsUrl } from "@/lib/calendarInvite";
+import { bookingCalendarEvent, buildIcs, googleMapsUrl } from "@/lib/calendarInvite";
 
 const resendClient = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const from = process.env.EMAIL_FROM || "Be Beauty Bar <onboarding@resend.dev>";
@@ -25,6 +25,7 @@ async function sendResendEmail(params: {
   to: string;
   subject: string;
   html: string;
+  attachments?: { filename: string; content: Buffer; contentType?: string }[];
 }): Promise<{ ok: boolean; error?: string }> {
   if (!resendClient) return { ok: false, error: "RESEND_API_KEY not set" };
   const { error } = await resendClient.emails.send(params);
@@ -34,6 +35,23 @@ async function sendResendEmail(params: {
     return { ok: false, error: msg };
   }
   return { ok: true };
+}
+
+/** Calendar file for a booking; same event ID every time so apps update rather than duplicate. */
+function bookingIcsAttachment(
+  booking: Parameters<typeof bookingCalendarEvent>[0],
+  businessName: string,
+  address: string | null | undefined
+) {
+  const event = bookingCalendarEvent(booking, businessName, bookingSiteUrl(`/booking/${booking.id}`), address);
+  const method = event.cancelled ? "CANCEL" : "PUBLISH";
+  return [
+    {
+      filename: "appointment.ics",
+      content: Buffer.from(buildIcs(event), "utf8"),
+      contentType: `text/calendar; charset=utf-8; method=${method}`,
+    },
+  ];
 }
 
 async function getMessages() {
@@ -75,6 +93,9 @@ function bookingVars(
     refundDetails: extra?.refundDetails ?? "",
     calendarLink: extra?.calendarLink ?? "",
     directionsLink: extra?.directionsLink ?? "",
+    previousDate: extra?.previousDate ?? "",
+    previousTime: extra?.previousTime ?? "",
+    reviewLink: extra?.reviewLink ?? "",
   };
 }
 
@@ -169,6 +190,7 @@ export async function sendBookingConfirmationEmails(bookingId: string): Promise<
         to: booking.customerEmail,
         subject: renderEmailSubject(messages.bookingConfirmedCustomerSubject, vars),
         html: renderEmailBody(messages.bookingConfirmedCustomerBody, vars),
+        attachments: bookingIcsAttachment(booking, businessName, settings?.businessAddress),
       });
       if (!r.ok) console.warn("Confirmation email failed:", r.error);
     }
@@ -272,6 +294,7 @@ export async function sendManualCancellationEmails(
         to: booking.customerEmail,
         subject: renderEmailSubject(messages.manualCancelCustomerSubject, vars),
         html: renderEmailBody(messages.manualCancelCustomerBody, vars),
+        attachments: bookingIcsAttachment(booking, businessName, settings?.businessAddress),
       });
     }
 
@@ -340,6 +363,7 @@ export async function sendCustomerCancellationEmails(
         to: booking.customerEmail,
         subject: renderEmailSubject(messages.customerCancelCustomerSubject, emailVars),
         html: renderEmailBody(messages.customerCancelCustomerBody, emailVars),
+        attachments: bookingIcsAttachment(booking, businessName, settings?.businessAddress),
       });
     }
 
@@ -369,6 +393,78 @@ export async function sendCustomerCancellationEmails(
     return { ok: true };
   } catch (e) {
     console.error("sendCustomerCancellationEmails:", e);
+    return { ok: false, error: String(e) };
+  }
+}
+
+export async function sendRescheduleEmails(
+  bookingId: string,
+  previous: { date: string; startTime: string; endTime: string }
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { service: true, technician: true },
+    });
+    if (!booking || booking.status !== "confirmed") {
+      return { ok: false, error: "Booking not found or not confirmed" };
+    }
+
+    const { settings, messages, businessName, instagramLink } = await getMessages();
+    const { buildCancelLink } = await import("@/lib/customerCancellation");
+    const vars = bookingVars(booking, businessName, {
+      technicianName: booking.technician.name,
+      instagramLink,
+      cancelLink: buildCancelLink(booking.id),
+      calendarLink: bookingSiteUrl(`/booking/${booking.id}#calendar`),
+      directionsLink: googleMapsUrl(businessName, settings?.businessAddress),
+      previousDate: formatBookingDate(previous.date, "EEEE, d MMMM yyyy"),
+      previousTime: `${previous.startTime} – ${previous.endTime}`,
+    });
+    const smsVars = {
+      ...vars,
+      date: formatBookingDate(booking.date, "dd/MM/yyyy"),
+      time: `${booking.startTime}-${booking.endTime}`,
+      previousDate: formatBookingDate(previous.date, "dd/MM/yyyy"),
+      previousTime: `${previous.startTime}-${previous.endTime}`,
+    };
+
+    if (booking.notifyByEmail && booking.customerEmail && resendClient) {
+      await sendResendEmail({
+        from,
+        to: booking.customerEmail,
+        subject: renderEmailSubject(messages.rescheduleCustomerSubject, vars),
+        html: renderEmailBody(messages.rescheduleCustomerBody, vars),
+        attachments: bookingIcsAttachment(booking, businessName, settings?.businessAddress),
+      });
+    }
+
+    if (booking.notifyBySMS && booking.customerPhone) {
+      const smsMessage = applyTemplate(messages.rescheduleCustomerSms, smsVars);
+      await sendSMS(formatUKPhoneToE164(booking.customerPhone), smsMessage);
+    }
+
+    if (resendClient && settings?.businessEmail?.trim()) {
+      await sendResendEmail({
+        from,
+        to: settings.businessEmail.trim(),
+        subject: renderEmailSubject(messages.rescheduleOwnerSubject, vars),
+        html: renderEmailBody(messages.rescheduleOwnerBody, vars),
+      });
+    }
+
+    const { notifyWaitlistForFreedSlot } = await import("@/lib/waitlist");
+    await notifyWaitlistForFreedSlot({
+      serviceId: booking.serviceId,
+      technicianId: booking.technicianId,
+      date: previous.date,
+      startTime: previous.startTime,
+      endTime: previous.endTime,
+    });
+
+    return { ok: true };
+  } catch (e) {
+    console.error("sendRescheduleEmails:", e);
     return { ok: false, error: String(e) };
   }
 }
@@ -481,6 +577,158 @@ export async function sendRebookReminderEmails(
     console.error("sendRebookReminderEmails:", e);
     return { ok: false, error: String(e) };
   }
+}
+
+export async function sendReviewRequest(
+  bookingId: string,
+  reviewUrl: string
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { service: true, technician: true },
+    });
+    if (!booking) return { ok: false, error: "Booking not found" };
+
+    const { messages, businessName, instagramLink } = await getMessages();
+    const vars = bookingVars(booking, businessName, {
+      technicianName: booking.technician.name,
+      instagramLink,
+      reviewLink: reviewUrl,
+    });
+
+    let sent = false;
+    if (booking.notifyByEmail && booking.customerEmail && resendClient) {
+      const r = await sendResendEmail({
+        from,
+        to: booking.customerEmail,
+        subject: renderEmailSubject(messages.reviewRequestCustomerSubject, vars),
+        html: renderEmailBody(messages.reviewRequestCustomerBody, vars),
+      });
+      if (r.ok) sent = true;
+    }
+    if (booking.notifyBySMS && booking.customerPhone) {
+      const r = await sendSMS(
+        formatUKPhoneToE164(booking.customerPhone),
+        applyTemplate(messages.reviewRequestCustomerSms, vars)
+      );
+      if (r.ok) sent = true;
+    }
+    return sent ? { ok: true } : { ok: false, error: "No notification channel available" };
+  } catch (e) {
+    console.error("sendReviewRequest:", e);
+    return { ok: false, error: String(e) };
+  }
+}
+
+export async function sendCustomerLoginCode(
+  contact: { type: "email" | "phone"; key: string },
+  code: string
+): Promise<{ ok: boolean; error?: string }> {
+  const { businessName } = await getMessages();
+  if (contact.type === "phone") {
+    return sendSMS(
+      contact.key,
+      `Your ${businessName} code is ${code}. It expires in 10 minutes. If you didn't ask for it, you can ignore this text.`
+    );
+  }
+  if (!resendClient) return { ok: false, error: "RESEND_API_KEY not set" };
+  return sendResendEmail({
+    from,
+    to: contact.key,
+    subject: `Your ${businessName} code: ${code}`,
+    html: `<p>Your code to view your bookings is:</p>
+<p style="font-size:28px;font-weight:bold;letter-spacing:6px">${code}</p>
+<p>It expires in 10 minutes. If you didn't ask for it, you can ignore this email.</p>
+<p>— ${escapeHtmlText(businessName)}</p>`,
+  });
+}
+
+export async function sendGiftVoucherEmails(voucherId: string): Promise<{ ok: boolean; error?: string }> {
+  if (!resendClient) return { ok: false, error: "RESEND_API_KEY not set" };
+  const voucher = await prisma.giftVoucher.findUnique({ where: { id: voucherId } });
+  if (!voucher || voucher.status !== "active") return { ok: false, error: "Voucher not active" };
+
+  const { settings, messages, businessName } = await getMessages();
+  const bookUrl = bookingSiteUrl("/book");
+  const vars = {
+    businessName,
+    ...bookingLinkEmailVars(bookUrl),
+    voucherCode: voucher.code,
+    voucherAmount: `£${voucher.initialAmount}`,
+    voucherMessage: voucher.message ?? "",
+    voucherExpiry: voucher.expiresAt
+      ? formatBookingDate(voucher.expiresAt.toISOString().slice(0, 10), "d MMMM yyyy")
+      : "",
+    buyerName: voucher.soldInSalon ? businessName : voucher.purchaserName,
+    buyerEmail: voucher.soldInSalon ? "" : voucher.purchaserEmail,
+    recipientName: voucher.recipientName?.trim() || "someone special",
+  };
+  const errors: string[] = [];
+
+  const recipientEmail = voucher.recipientEmail?.trim();
+  if (recipientEmail) {
+    const r = await sendResendEmail({
+      from,
+      to: recipientEmail,
+      subject: renderEmailSubject(messages.giftVoucherRecipientSubject, vars),
+      html: renderEmailBody(messages.giftVoucherRecipientBody, {
+        ...vars,
+        recipientName: voucher.recipientName?.trim() || "there",
+      }),
+    });
+    if (!r.ok) errors.push(r.error ?? "recipient email failed");
+  }
+
+  const purchaserEmail = voucher.purchaserEmail?.trim();
+  if (!voucher.soldInSalon && purchaserEmail && purchaserEmail !== recipientEmail) {
+    const r = await sendResendEmail({
+      from,
+      to: purchaserEmail,
+      subject: renderEmailSubject(messages.giftVoucherBuyerSubject, vars),
+      html: renderEmailBody(messages.giftVoucherBuyerBody, vars),
+    });
+    if (!r.ok) errors.push(r.error ?? "purchaser email failed");
+  }
+
+  if (!voucher.soldInSalon && settings?.businessEmail?.trim()) {
+    await sendResendEmail({
+      from,
+      to: settings.businessEmail.trim(),
+      subject: renderEmailSubject(messages.giftVoucherOwnerSubject, vars),
+      html: renderEmailBody(messages.giftVoucherOwnerBody, vars),
+    });
+  }
+
+  return errors.length ? { ok: false, error: errors.join("; ") } : { ok: true };
+}
+
+function escapeHtmlText(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+export async function sendDailyScheduleEmail(params: {
+  to: string;
+  greetingName: string;
+  date: string;
+  count: number;
+  scheduleText: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  if (!resendClient) return { ok: false, error: "RESEND_API_KEY not set" };
+  const { messages, businessName } = await getMessages();
+  const vars = {
+    businessName,
+    technicianName: params.greetingName,
+    date: formatBookingDate(params.date, "EEEE d MMMM"),
+    appointmentCount: `${params.count} appointment${params.count === 1 ? "" : "s"}`,
+    scheduleList: params.scheduleText,
+  };
+  return sendResendEmail({
+    from,
+    to: params.to,
+    subject: renderEmailSubject(messages.dailyScheduleSubject, vars),
+    html: renderEmailBody(messages.dailyScheduleBody, vars),
+  });
 }
 
 type WaitlistNotifyParams = {

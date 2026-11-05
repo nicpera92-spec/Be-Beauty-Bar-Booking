@@ -7,6 +7,7 @@ import {
   verifyCancelSignature,
 } from "@/lib/customerCancellation";
 import { DEFAULT_CANCELLATION_REFUND_HOURS, normalizeRefundHours } from "@/lib/cancellationPolicy";
+import { getRescheduleEligibility, rescheduleDateRange } from "@/lib/customerReschedule";
 
 async function loadBookingSummary(id: string) {
   const [booking, settings] = await Promise.all([
@@ -16,12 +17,18 @@ async function loadBookingSummary(id: string) {
     }),
     prisma.businessSettings.findUnique({
       where: { id: "default" },
-      select: { businessName: true, instagramHandle: true, cancellationRefundHours: true },
+      select: {
+        businessName: true,
+        businessAddress: true,
+        instagramHandle: true,
+        cancellationRefundHours: true,
+      },
     }),
   ]);
   return {
     booking,
     businessName: settings?.businessName ?? "Be Beauty Bar",
+    businessAddress: settings?.businessAddress ?? null,
     instagramHandle: settings?.instagramHandle ?? null,
     refundHours: normalizeRefundHours(
       settings?.cancellationRefundHours ?? DEFAULT_CANCELLATION_REFUND_HOURS
@@ -31,6 +38,7 @@ async function loadBookingSummary(id: string) {
 
 function summarize(booking: NonNullable<Awaited<ReturnType<typeof loadBookingSummary>>["booking"]>) {
   return {
+    id: booking.id,
     customerName: booking.customerName,
     serviceName: booking.service.name,
     technicianName: booking.technician?.name ?? null,
@@ -38,6 +46,7 @@ function summarize(booking: NonNullable<Awaited<ReturnType<typeof loadBookingSum
     startTime: booking.startTime,
     endTime: booking.endTime,
     depositAmount: booking.depositAmount,
+    voucherAmount: booking.voucherAmount,
   };
 }
 
@@ -47,17 +56,24 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json({ state: "invalid" }, { status: 404 });
   }
 
-  const { booking, businessName, instagramHandle, refundHours } = await loadBookingSummary(params.id);
+  const { booking, businessName, businessAddress, instagramHandle, refundHours } =
+    await loadBookingSummary(params.id);
   if (!booking) {
     return NextResponse.json({ state: "invalid" }, { status: 404 });
   }
 
+  const now = new Date();
+  const reschedule = getRescheduleEligibility(booking, now, refundHours);
   return NextResponse.json({
-    state: getCustomerCancelState(booking, new Date(), refundHours),
+    state: getCustomerCancelState(booking, now, refundHours),
     booking: summarize(booking),
     refundHours,
     businessName,
+    businessAddress,
     instagramHandle,
+    reschedule: reschedule.allowed
+      ? { allowed: true, ...rescheduleDateRange() }
+      : { allowed: false, reason: reschedule.reason },
   });
 }
 
