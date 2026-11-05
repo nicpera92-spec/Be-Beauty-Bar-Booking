@@ -147,11 +147,23 @@ function CertificateRow({ voucher, onChanged }: { voucher: Voucher; onChanged: (
       .finally(() => setBusy(false));
   };
 
+  const cancelled = voucher.status === "cancelled";
+
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
+    <div
+      className={`rounded-xl border p-4 ${
+        cancelled ? "border-red-200 bg-red-50/60 text-charcoal/70" : "border-slate-200 bg-white"
+      }`}
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="font-mono font-semibold text-charcoal tracking-wide">{voucher.code}</p>
+          <p
+            className={`font-mono font-semibold tracking-wide ${
+              cancelled ? "text-charcoal/50 line-through" : "text-charcoal"
+            }`}
+          >
+            {voucher.code}
+          </p>
           <p className="text-sm text-charcoal/70 mt-0.5">
             {voucher.recipientName ? `For ${voucher.recipientName}` : "No recipient name"}
             {voucher.soldInSalon ? " · sold in salon" : ` · bought by ${voucher.purchaserName}`}
@@ -164,10 +176,16 @@ function CertificateRow({ voucher, onChanged }: { voucher: Voucher; onChanged: (
           </p>
         </div>
         <div className="text-right shrink-0">
-          {!isCertificate && (
+          {!isCertificate && !cancelled && (
             <p className="text-lg font-semibold text-charcoal tabular-nums">{formatCurrency(voucher.balance)}</p>
           )}
-          <p className="text-xs text-charcoal/55">{statusLabel}</p>
+          {cancelled ? (
+            <span className="inline-block text-xs font-semibold uppercase tracking-wide text-red-700 bg-red-100 border border-red-200 rounded-full px-2.5 py-1">
+              Cancelled · code void
+            </span>
+          ) : (
+            <p className="text-xs text-charcoal/55">{statusLabel}</p>
+          )}
         </div>
       </div>
 
@@ -178,7 +196,10 @@ function CertificateRow({ voucher, onChanged }: { voucher: Voucher; onChanged: (
               <span className="text-charcoal min-w-0">
                 {item.serviceName}
                 {item.technicianName && <span className="text-charcoal/55"> · {item.technicianName}</span>}
-                <span className="text-charcoal/55"> · {itemStatus(item, today)}</span>
+                <span className="text-charcoal/55">
+                  {" "}
+                  · {cancelled && item.status === "available" ? "Void (not used)" : itemStatus(item, today)}
+                </span>
               </span>
               {voucher.status === "active" && item.status === "available" && !expired && (
                 <button
@@ -192,7 +213,7 @@ function CertificateRow({ voucher, onChanged }: { voucher: Voucher; onChanged: (
                   Used in salon
                 </button>
               )}
-              {item.status === "used" && !item.bookingId && (
+              {item.status === "used" && !item.bookingId && !cancelled && (
                 <button
                   type="button"
                   disabled={busy}
@@ -732,11 +753,33 @@ export default function AdminVouchersPage() {
       ) : filtered.length === 0 ? (
         <p className="text-sm text-charcoal/60">{term ? "Nothing matches." : "No gift certificates yet."}</p>
       ) : (
-        <div className="space-y-3">
-          {filtered.map((v) => (
-            <CertificateRow key={v.id} voucher={v} onChanged={load} />
-          ))}
-        </div>
+        <>
+          <div className="space-y-3">
+            {filtered
+              .filter((v) => v.status !== "cancelled")
+              .map((v) => (
+                <CertificateRow key={v.id} voucher={v} onChanged={load} />
+              ))}
+            {filtered.every((v) => v.status === "cancelled") && (
+              <p className="text-sm text-charcoal/60">No active gift certificates.</p>
+            )}
+          </div>
+          {filtered.some((v) => v.status === "cancelled") && (
+            <section className="mt-10 pt-6 border-t-2 border-dashed border-red-200">
+              <h2 className="text-sm font-semibold text-red-700 uppercase tracking-wide mb-1">
+                Cancelled ({filtered.filter((v) => v.status === "cancelled").length})
+              </h2>
+              <p className="text-xs text-charcoal/55 mb-3">These codes no longer work. Kept here for your records.</p>
+              <div className="space-y-3">
+                {filtered
+                  .filter((v) => v.status === "cancelled")
+                  .map((v) => (
+                    <CertificateRow key={v.id} voucher={v} onChanged={load} />
+                  ))}
+              </div>
+            </section>
+          )}
+        </>
       )}
     </div>
   );
