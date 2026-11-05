@@ -10,6 +10,7 @@ import { resolveNotificationMessages } from "@/lib/notificationTemplates";
 import { DEFAULT_PRIMARY, DEFAULT_SECONDARY } from "@/lib/themePalettes";
 import { publishThemeUpdate } from "@/lib/themeClient";
 import CancellationPolicyList from "@/components/CancellationPolicyList";
+import NumberField from "@/components/NumberField";
 import {
   DEFAULT_CANCELLATION_POLICY,
   DEFAULT_CANCELLATION_REFUND_HOURS,
@@ -768,19 +769,13 @@ function AdminSettingsPageInner() {
               >
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <span className="text-xs text-charcoal/60">Days after last visit</span>
-                  <input
-                    type="number"
+                  <NumberField
+                    integer
                     min={7}
                     max={365}
                     value={form.rebookReminderDaysAfter ?? 21}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        rebookReminderDaysAfter: Math.min(
-                          365,
-                          Math.max(7, Number(e.target.value) || 21)
-                        ),
-                      }))
+                    onValueChange={(rebookReminderDaysAfter) =>
+                      setForm((f) => ({ ...f, rebookReminderDaysAfter }))
                     }
                     className="w-16 rounded-lg border border-slate-200 px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-navy/10"
                   />
@@ -797,16 +792,13 @@ function AdminSettingsPageInner() {
 
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <span className="text-xs text-charcoal/60">Full deposit refund if cancelled at least</span>
-                <input
-                  type="number"
+                <NumberField
+                  integer
                   min={MIN_CANCELLATION_REFUND_HOURS}
                   max={MAX_CANCELLATION_REFUND_HOURS}
                   value={form.cancellationRefundHours ?? DEFAULT_CANCELLATION_REFUND_HOURS}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      cancellationRefundHours: normalizeRefundHours(e.target.value),
-                    }))
+                  onValueChange={(hours) =>
+                    setForm((f) => ({ ...f, cancellationRefundHours: normalizeRefundHours(hours) }))
                   }
                   className="w-16 rounded-lg border border-slate-200 px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-navy/10"
                 />
@@ -896,17 +888,12 @@ function AdminSettingsPageInner() {
                 </div>
                 <div>
                   <label className={compactLabelClass}>SMS fee (£)</label>
-                  <input
-                    type="number"
+                  <NumberField
                     min={0}
                     step={0.01}
                     value={form.smsNotificationFee ?? 0.05}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        smsNotificationFee:
-                          e.target.value === "" ? 0.05 : parseFloat(e.target.value) || 0.05,
-                      }))
+                    onValueChange={(smsNotificationFee) =>
+                      setForm((f) => ({ ...f, smsNotificationFee }))
                     }
                     className={compactInputClass}
                     placeholder="0.05"
@@ -942,18 +929,13 @@ function AdminSettingsPageInner() {
                 </div>
                 <div>
                   <label className={compactLabelClass}>Slot length (min)</label>
-                  <input
-                    type="number"
+                  <NumberField
+                    integer
                     min={5}
                     max={120}
                     step={5}
                     value={form.slotInterval ?? 30}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        slotInterval: parseInt(e.target.value, 10) || 30,
-                      }))
-                    }
+                    onValueChange={(slotInterval) => setForm((f) => ({ ...f, slotInterval }))}
                     className={compactInputClass}
                   />
                 </div>
@@ -977,17 +959,16 @@ function AdminSettingsPageInner() {
                       <span className="text-sm font-medium text-charcoal">{rule.label}</span>
                       <label className="flex items-center gap-1.5 text-xs text-charcoal/65">
                         Max at once
-                        <input
-                          type="number"
+                        <NumberField
+                          integer
                           min={1}
                           max={20}
                           value={rule.maxConcurrent}
-                          onChange={(e) => {
-                            const val = Number(e.target.value);
+                          onValueChange={(val) =>
                             setCategoryRules((prev) =>
                               prev.map((x, idx) => (idx === i ? { ...x, maxConcurrent: val } : x))
-                            );
-                          }}
+                            )
+                          }
                           className="w-14 rounded-lg border border-slate-200 px-2 py-1 text-sm bg-white"
                         />
                       </label>

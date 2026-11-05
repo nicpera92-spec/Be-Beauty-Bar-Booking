@@ -6,6 +6,7 @@ import { formatCurrency } from "@/lib/format";
 import { useRouter } from "next/navigation";
 import { orderCategories } from "@/lib/categoryOrder";
 import { depositFromPercent, formatDepositPercent, isValidDepositPercent } from "@/lib/deposit";
+import NumberField from "@/components/NumberField";
 
 const ADMIN_TOKEN_KEY = "admin-token";
 
@@ -94,17 +95,16 @@ function DepositField({
           </button>
         </div>
       </div>
-      <input
-        type="number"
+      <NumberField
+        key={form.depositMode}
         min={0}
         max={percentMode ? 100 : undefined}
         step={percentMode ? 1 : 0.01}
         value={percentMode ? form.depositPercent : form.depositAmount}
         disabled={!form.requiresDeposit}
-        onChange={(e) => {
-          const value = parseFloat(e.target.value) || 0;
-          onChange(percentMode ? { depositPercent: value } : { depositAmount: value });
-        }}
+        onValueChange={(value) =>
+          onChange(percentMode ? { depositPercent: value } : { depositAmount: value })
+        }
         className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white disabled:bg-slate-100 disabled:text-charcoal/40"
       />
       {percentMode && form.requiresDeposit && (
@@ -566,16 +566,11 @@ function AdminServiceRow({
               <label className="block text-xs text-charcoal/60 mb-1">
                 Duration (min)
               </label>
-              <input
-                type="number"
+              <NumberField
+                integer
                 min={5}
                 value={form.durationMin}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    durationMin: parseInt(e.target.value, 10) || 30,
-                  }))
-                }
+                onValueChange={(durationMin) => setForm((f) => ({ ...f, durationMin }))}
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white"
               />
             </div>
@@ -583,17 +578,11 @@ function AdminServiceRow({
               <label className="block text-xs text-charcoal/60 mb-1">
                 Full price (£)
               </label>
-              <input
-                type="number"
+              <NumberField
                 min={0}
                 step={0.01}
                 value={form.price}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    price: parseFloat(e.target.value) || 0,
-                  }))
-                }
+                onValueChange={(price) => setForm((f) => ({ ...f, price }))}
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white"
               />
             </div>
@@ -1040,32 +1029,21 @@ function AddServiceForm({
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block text-xs text-charcoal/60 mb-1">Duration (min)</label>
-              <input
-                type="number"
+              <NumberField
+                integer
                 min={5}
                 value={form.durationMin}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    durationMin: parseInt(e.target.value, 10) || 30,
-                  }))
-                }
+                onValueChange={(durationMin) => setForm((f) => ({ ...f, durationMin }))}
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white"
               />
             </div>
             <div>
               <label className="block text-xs text-charcoal/60 mb-1">Full price (£)</label>
-              <input
-                type="number"
+              <NumberField
                 min={0}
                 step={0.01}
                 value={form.price}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    price: parseFloat(e.target.value) || 0,
-                  }))
-                }
+                onValueChange={(price) => setForm((f) => ({ ...f, price }))}
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-400 outline-none bg-white"
               />
             </div>
