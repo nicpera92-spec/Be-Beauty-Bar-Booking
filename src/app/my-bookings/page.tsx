@@ -214,8 +214,9 @@ export default function MyBookingsPage() {
             required
             value={code}
             onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-            placeholder="123456"
-            className={`${inputClass} tracking-[0.4em] text-center text-lg`}
+            placeholder="------"
+            aria-label="6-digit code"
+            className={`${inputClass} tracking-[0.6em] text-center text-lg placeholder:text-slate-300`}
           />
           {error && <p className="text-sm text-red-600">{error}</p>}
           <button type="submit" disabled={busy || code.length !== 6} className={primaryButton}>
