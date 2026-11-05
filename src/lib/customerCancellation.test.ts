@@ -15,6 +15,7 @@ import {
   getCustomerCancelState,
   verifyCancelSignature,
 } from "@/lib/customerCancellation";
+import { normalizeRefundHours, resolveCancellationPolicy } from "@/lib/cancellationPolicy";
 import {
   applyTemplate,
   friendlyToken,
@@ -60,6 +61,36 @@ assert(
   "pending booking not cancellable"
 );
 
+// --- owner-configured refund window ---
+assert(
+  getCustomerCancelState(confirmed, new Date(start - 30 * HOUR), 24) === "refundable",
+  "30h before refundable with a 24h window"
+);
+assert(
+  getCustomerCancelState(confirmed, new Date(start - 60 * HOUR), 72) === "non_refundable",
+  "60h before non-refundable with a 72h window"
+);
+assert(
+  getCustomerCancelState(confirmed, new Date(start - HOUR), 0) === "refundable",
+  "0h window always refundable before start"
+);
+assert(normalizeRefundHours("abc") === 48, "invalid hours fall back to 48");
+assert(normalizeRefundHours(999) === 336, "hours capped at 336");
+assert(normalizeRefundHours(-5) === 0, "hours floored at 0");
+
+// --- policy text ---
+const defaultPolicy = resolveCancellationPolicy(null, 48);
+assert(defaultPolicy.length === 5, "default policy has 5 points");
+assert(
+  defaultPolicy[1].some((s) => s.bold && s.text === "more than 48 hours"),
+  "default policy bolds the refund window with hours filled in"
+);
+const customPolicy = resolveCancellationPolicy("- First point\n\n**Bold** then [hours]h\n", 24);
+assert(customPolicy.length === 2, "blank lines skipped");
+assert(customPolicy[0][0].text === "First point", "leading bullet characters stripped");
+assert(customPolicy[1][0].bold && customPolicy[1][0].text === "Bold", "**text** becomes bold");
+assert(customPolicy[1][1].text === " then 24h", "[hours] replaced in custom policy");
+
 // --- signed link ---
 const sig = createCancelSignature("booking_abc");
 assert(sig.length === 16, "signature is short for SMS");
@@ -75,7 +106,11 @@ assert(
 assert(formatShortCancelLink("Ab3dEf9h2K") === "bbbar.co.uk/c/Ab3dEf9h2K", "short SMS link has no protocol");
 
 // --- refund wording ---
-const base = { depositAmount: 20.05, balanceAmount: 30, balance: "none" as const };
+const base = { depositAmount: 20.05, balanceAmount: 30, balance: "none" as const, refundHours: 48 };
+assert(
+  describeRefundForCustomer({ ...base, deposit: "forfeited", refundHours: 72 }).includes("within 72 hours"),
+  "forfeited wording uses configured hours"
+);
 assert(
   describeRefundForCustomer({ ...base, deposit: "refunded" }).includes("£20.05 has been refunded"),
   "customer refunded wording"

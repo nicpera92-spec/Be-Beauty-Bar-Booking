@@ -4,6 +4,8 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { formatBookingDate, formatCurrency } from "@/lib/format";
+import CancellationPolicyList from "@/components/CancellationPolicyList";
+import { DEFAULT_CANCELLATION_REFUND_HOURS } from "@/lib/cancellationPolicy";
 
 type Service = {
   id: string;
@@ -31,6 +33,8 @@ export default function BookFormPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [smsFee, setSmsFee] = useState<number>(0.05);
+  const [cancellationPolicy, setCancellationPolicy] = useState<string | null>(null);
+  const [refundHours, setRefundHours] = useState(DEFAULT_CANCELLATION_REFUND_HOURS);
   const [acceptedPolicy, setAcceptedPolicy] = useState(false);
   const [policyError, setPolicyError] = useState(false);
 
@@ -63,6 +67,8 @@ export default function BookFormPage() {
         setService(s ?? null);
         setSlots(slotsRes.slots ?? []);
         setSmsFee(settingsRes?.smsNotificationFee ?? 0.05);
+        setCancellationPolicy(settingsRes?.cancellationPolicy ?? null);
+        setRefundHours(settingsRes?.cancellationRefundHours ?? DEFAULT_CANCELLATION_REFUND_HOURS);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -292,28 +298,11 @@ export default function BookFormPage() {
             ⚠ Please read this cancellation policy carefully!
           </p>
           <p className="text-sm font-semibold text-slate-800 mb-2 underline">Cancellation policy</p>
-          <ul className="text-sm text-slate-700 leading-relaxed list-disc list-outside pl-5 ml-1 space-y-1.5 mb-2">
-            <li>
-              You can cancel using the link in your booking confirmation email or text message.
-            </li>
-            <li>
-              Cancel <strong>more than 48 hours</strong> before your appointment and your deposit will
-              be refunded in full.
-            </li>
-            <li>
-              Deposits are <strong>non-refundable</strong> for cancellations made within 48 hours of
-              your appointment.
-            </li>
-            <li>
-              Each booking can only be cancelled <strong>once</strong>. A cancelled booking can&apos;t
-              be restored — to come back, please make a new booking.
-            </li>
-            <li>
-              If you arrive more than 20 minutes late, we may need to shorten your service or
-              reschedule your appointment. In some cases, this may be treated as a no-show and your
-              deposit may be retained.
-            </li>
-          </ul>
+          <CancellationPolicyList
+            policy={cancellationPolicy}
+            refundHours={refundHours}
+            className="text-sm text-slate-700 leading-relaxed list-disc list-outside pl-5 ml-1 space-y-1.5 mb-2"
+          />
           <label className="flex items-start gap-3 cursor-pointer mt-3">
             <input
               type="checkbox"

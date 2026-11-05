@@ -4,9 +4,16 @@ import { fromZonedTime } from "date-fns-tz";
 import { prisma } from "@/lib/prisma";
 import { BUSINESS_TIMEZONE } from "@/lib/business-time";
 import { formatCurrency } from "@/lib/format";
+import { DEFAULT_CANCELLATION_REFUND_HOURS, normalizeRefundHours } from "@/lib/cancellationPolicy";
 
 /** Cancellations at least this many hours before the appointment get the deposit refunded. */
-export const CUSTOMER_CANCEL_REFUND_HOURS = 48;
+export async function getCancellationRefundHours(): Promise<number> {
+  const settings = await prisma.businessSettings.findUnique({
+    where: { id: "default" },
+    select: { cancellationRefundHours: true },
+  });
+  return normalizeRefundHours(settings?.cancellationRefundHours ?? DEFAULT_CANCELLATION_REFUND_HOURS);
+}
 
 const SIGNATURE_LENGTH = 16;
 
@@ -93,13 +100,14 @@ export type CustomerCancelState =
 
 export function getCustomerCancelState(
   booking: { status: string; date: string; startTime: string },
-  now: Date = new Date()
+  now: Date = new Date(),
+  refundHours: number = DEFAULT_CANCELLATION_REFUND_HOURS
 ): CustomerCancelState {
   if (booking.status === "cancelled") return "already_cancelled";
   if (booking.status !== "confirmed") return "not_confirmed";
   const msUntilStart = appointmentStartUtc(booking.date, booking.startTime).getTime() - now.getTime();
   if (msUntilStart <= 0) return "appointment_passed";
-  return msUntilStart >= CUSTOMER_CANCEL_REFUND_HOURS * 60 * 60 * 1000
+  return msUntilStart >= refundHours * 60 * 60 * 1000
     ? "refundable"
     : "non_refundable";
 }
@@ -118,6 +126,7 @@ export type RefundOutcome = {
   balance: BalanceRefundOutcome;
   depositAmount: number;
   balanceAmount: number;
+  refundHours: number;
 };
 
 export function describeRefundForCustomer(outcome: RefundOutcome): string {
@@ -135,7 +144,7 @@ export function describeRefundForCustomer(outcome: RefundOutcome): string {
       break;
     case "forfeited":
       parts.push(
-        `As you cancelled within ${CUSTOMER_CANCEL_REFUND_HOURS} hours of your appointment, your deposit of ${deposit} is non-refundable, in line with our cancellation policy.`
+        `As you cancelled within ${outcome.refundHours} hours of your appointment, your deposit of ${deposit} is non-refundable, in line with our cancellation policy.`
       );
       break;
     case "none":
@@ -170,7 +179,7 @@ export function describeRefundForOwner(outcome: RefundOutcome): string {
       break;
     case "forfeited":
       parts.push(
-        `Cancelled within ${CUSTOMER_CANCEL_REFUND_HOURS} hours of the appointment — deposit of ${deposit} kept (non-refundable).`
+        `Cancelled within ${outcome.refundHours} hours of the appointment — deposit of ${deposit} kept (non-refundable).`
       );
       break;
     case "none":
@@ -223,10 +232,19 @@ export async function cancelBookingByCustomer(
   bookingId: string,
   now: Date = new Date()
 ): Promise<CustomerCancelResult> {
-  const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+  const [booking, settings] = await Promise.all([
+    prisma.booking.findUnique({ where: { id: bookingId } }),
+    prisma.businessSettings.findUnique({
+      where: { id: "default" },
+      select: { stripeSecretKey: true, smsNotificationFee: true, cancellationRefundHours: true },
+    }),
+  ]);
   if (!booking) return { ok: false, state: "not_found" };
 
-  const state = getCustomerCancelState(booking, now);
+  const refundHours = normalizeRefundHours(
+    settings?.cancellationRefundHours ?? DEFAULT_CANCELLATION_REFUND_HOURS
+  );
+  const state = getCustomerCancelState(booking, now, refundHours);
   if (state !== "refundable" && state !== "non_refundable") {
     return { ok: false, state };
   }
@@ -237,10 +255,6 @@ export async function cancelBookingByCustomer(
   });
   if (claimed.count === 0) return { ok: false, state: "already_cancelled" };
 
-  const settings = await prisma.businessSettings.findUnique({
-    where: { id: "default" },
-    select: { stripeSecretKey: true, smsNotificationFee: true },
-  });
   const smsFee = settings?.smsNotificationFee ?? 0.05;
   const baseDeposit = booking.depositAmount - (booking.notifyBySMS && booking.depositAmount > 0 ? smsFee : 0);
 
@@ -249,6 +263,7 @@ export async function cancelBookingByCustomer(
     balance: "none",
     depositAmount: booking.depositAmount,
     balanceAmount: Math.max(0, booking.servicePrice - baseDeposit),
+    refundHours,
   };
 
   const needsBalanceRefund =

@@ -3,6 +3,11 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { verifyAdminRequest, requireMaster } from "@/lib/auth";
 import { toAdminClientSettings } from "@/lib/publicSettings";
+import {
+  MAX_CANCELLATION_POLICY_LENGTH,
+  MAX_CANCELLATION_REFUND_HOURS,
+  MIN_CANCELLATION_REFUND_HOURS,
+} from "@/lib/cancellationPolicy";
 
 export async function GET(req: NextRequest) {
   const staff = await verifyAdminRequest(req);
@@ -43,6 +48,8 @@ export async function PATCH(req: NextRequest) {
     waitlistEnabled,
     rebookReminderEnabled,
     rebookReminderDaysAfter,
+    cancellationRefundHours,
+    cancellationPolicy,
   } = body;
 
   const hexColor = /^#[0-9a-fA-F]{6}$/;
@@ -107,6 +114,31 @@ export async function PATCH(req: NextRequest) {
       );
     }
     data.rebookReminderDaysAfter = Math.round(days);
+  }
+  if (cancellationRefundHours != null) {
+    const hours = Number(cancellationRefundHours);
+    if (
+      !Number.isFinite(hours) ||
+      hours < MIN_CANCELLATION_REFUND_HOURS ||
+      hours > MAX_CANCELLATION_REFUND_HOURS
+    ) {
+      return NextResponse.json(
+        {
+          error: `Refund window must be between ${MIN_CANCELLATION_REFUND_HOURS} and ${MAX_CANCELLATION_REFUND_HOURS} hours`,
+        },
+        { status: 400 }
+      );
+    }
+    data.cancellationRefundHours = Math.round(hours);
+  }
+  if (cancellationPolicy !== undefined) {
+    if (cancellationPolicy !== null && typeof cancellationPolicy !== "string") {
+      return NextResponse.json({ error: "Invalid cancellation policy" }, { status: 400 });
+    }
+    if (typeof cancellationPolicy === "string" && cancellationPolicy.length > MAX_CANCELLATION_POLICY_LENGTH) {
+      return NextResponse.json({ error: "Cancellation policy is too long" }, { status: 400 });
+    }
+    data.cancellationPolicy = cancellationPolicy?.trim() ? cancellationPolicy.trim() : null;
   }
   if (notificationMessages !== undefined) {
     if (notificationMessages !== null && typeof notificationMessages !== "object") {

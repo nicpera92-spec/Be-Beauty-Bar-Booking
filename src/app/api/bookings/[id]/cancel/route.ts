@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
-  CUSTOMER_CANCEL_REFUND_HOURS,
   cancelBookingByCustomer,
   describeRefundForCustomer,
   getCustomerCancelState,
   verifyCancelSignature,
 } from "@/lib/customerCancellation";
+import { DEFAULT_CANCELLATION_REFUND_HOURS, normalizeRefundHours } from "@/lib/cancellationPolicy";
 
 async function loadBookingSummary(id: string) {
   const [booking, settings] = await Promise.all([
@@ -16,13 +16,16 @@ async function loadBookingSummary(id: string) {
     }),
     prisma.businessSettings.findUnique({
       where: { id: "default" },
-      select: { businessName: true, instagramHandle: true },
+      select: { businessName: true, instagramHandle: true, cancellationRefundHours: true },
     }),
   ]);
   return {
     booking,
     businessName: settings?.businessName ?? "Be Beauty Bar",
     instagramHandle: settings?.instagramHandle ?? null,
+    refundHours: normalizeRefundHours(
+      settings?.cancellationRefundHours ?? DEFAULT_CANCELLATION_REFUND_HOURS
+    ),
   };
 }
 
@@ -44,15 +47,15 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json({ state: "invalid" }, { status: 404 });
   }
 
-  const { booking, businessName, instagramHandle } = await loadBookingSummary(params.id);
+  const { booking, businessName, instagramHandle, refundHours } = await loadBookingSummary(params.id);
   if (!booking) {
     return NextResponse.json({ state: "invalid" }, { status: 404 });
   }
 
   return NextResponse.json({
-    state: getCustomerCancelState(booking),
+    state: getCustomerCancelState(booking, new Date(), refundHours),
     booking: summarize(booking),
-    refundHours: CUSTOMER_CANCEL_REFUND_HOURS,
+    refundHours,
     businessName,
     instagramHandle,
   });

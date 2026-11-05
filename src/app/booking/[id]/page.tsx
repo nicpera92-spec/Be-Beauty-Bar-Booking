@@ -28,6 +28,7 @@ type Settings = {
   businessName: string;
   instagramHandle?: string | null;
   smsNotificationFee?: number | null;
+  cancellationRefundHours?: number;
 };
 
 export default function BookingPage() {
@@ -306,7 +307,8 @@ export default function BookingPage() {
             </p>
             <p className="text-slate-500 text-sm leading-relaxed mt-3">
               Need to cancel? Use the link in your confirmation email or text. Deposits are
-              refunded for cancellations made more than 48 hours before your appointment.
+              refunded for cancellations made more than {settings?.cancellationRefundHours ?? 48}{" "}
+              hours before your appointment.
             </p>
           </div>
 

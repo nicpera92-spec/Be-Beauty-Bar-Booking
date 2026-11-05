@@ -9,6 +9,15 @@ import { type NotificationMessages } from "@/lib/notificationDefaults";
 import { resolveNotificationMessages } from "@/lib/notificationTemplates";
 import { DEFAULT_PRIMARY, DEFAULT_SECONDARY } from "@/lib/themePalettes";
 import { publishThemeUpdate } from "@/lib/themeClient";
+import CancellationPolicyList from "@/components/CancellationPolicyList";
+import {
+  DEFAULT_CANCELLATION_POLICY,
+  DEFAULT_CANCELLATION_REFUND_HOURS,
+  MAX_CANCELLATION_POLICY_LENGTH,
+  MAX_CANCELLATION_REFUND_HOURS,
+  MIN_CANCELLATION_REFUND_HOURS,
+  normalizeRefundHours,
+} from "@/lib/cancellationPolicy";
 
 const ADMIN_TOKEN_KEY = "admin-token";
 
@@ -154,6 +163,8 @@ type Settings = {
   waitlistEnabled?: boolean;
   rebookReminderEnabled?: boolean;
   rebookReminderDaysAfter?: number;
+  cancellationRefundHours?: number;
+  cancellationPolicy?: string | null;
 };
 
 type CategoryRule = {
@@ -266,6 +277,8 @@ function AdminSettingsPageInner() {
       waitlistEnabled: data.waitlistEnabled ?? true,
       rebookReminderEnabled: data.rebookReminderEnabled ?? false,
       rebookReminderDaysAfter: data.rebookReminderDaysAfter ?? 21,
+      cancellationRefundHours: data.cancellationRefundHours ?? DEFAULT_CANCELLATION_REFUND_HOURS,
+      cancellationPolicy: data.cancellationPolicy?.trim() || DEFAULT_CANCELLATION_POLICY,
     });
     const primary = data.primaryColor ?? DEFAULT_PRIMARY;
     const secondary = data.secondaryColor ?? DEFAULT_SECONDARY;
@@ -320,6 +333,12 @@ function AdminSettingsPageInner() {
       waitlistEnabled: form.waitlistEnabled ?? true,
       rebookReminderEnabled: form.rebookReminderEnabled ?? false,
       rebookReminderDaysAfter: form.rebookReminderDaysAfter ?? 21,
+      cancellationRefundHours: form.cancellationRefundHours ?? DEFAULT_CANCELLATION_REFUND_HOURS,
+      cancellationPolicy:
+        !form.cancellationPolicy?.trim() ||
+        form.cancellationPolicy.trim() === DEFAULT_CANCELLATION_POLICY
+          ? null
+          : form.cancellationPolicy,
       primaryColor,
       secondaryColor,
       notificationMessages,
@@ -768,6 +787,73 @@ function AdminSettingsPageInner() {
                   <span className="text-xs text-charcoal/45">days (7–365)</span>
                 </div>
               </SettingsFeatureRow>
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 space-y-3">
+              <div className="flex items-center gap-1.5">
+                <p className="text-sm font-medium text-charcoal">Cancellation policy</p>
+                <SettingsInfoTip text="Shown to customers before they book, under “Please read this cancellation policy carefully!”. The refund window also controls the cancel link: customers who cancel at least this many hours before get their deposit refunded automatically; later cancellations keep the deposit. If you change the hours, also update the wording in Messages → Booking confirmed." />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="text-xs text-charcoal/60">Full deposit refund if cancelled at least</span>
+                <input
+                  type="number"
+                  min={MIN_CANCELLATION_REFUND_HOURS}
+                  max={MAX_CANCELLATION_REFUND_HOURS}
+                  value={form.cancellationRefundHours ?? DEFAULT_CANCELLATION_REFUND_HOURS}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      cancellationRefundHours: normalizeRefundHours(e.target.value),
+                    }))
+                  }
+                  className="w-16 rounded-lg border border-slate-200 px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-navy/10"
+                />
+                <span className="text-xs text-charcoal/60">hours before the appointment</span>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <div className="flex items-center gap-1.5">
+                    <label htmlFor="cancellation-policy" className="text-xs text-charcoal/55">
+                      Policy points (one per line)
+                    </label>
+                    <SettingsInfoTip text="Each line becomes a bullet point. Type [hours] to show your refund window (e.g. 48). Wrap words in ** to make them bold, e.g. **non-refundable**." />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm((f) => ({ ...f, cancellationPolicy: DEFAULT_CANCELLATION_POLICY }))
+                    }
+                    className="text-xs text-navy hover:underline"
+                  >
+                    Reset to default
+                  </button>
+                </div>
+                <textarea
+                  id="cancellation-policy"
+                  rows={7}
+                  maxLength={MAX_CANCELLATION_POLICY_LENGTH}
+                  value={form.cancellationPolicy ?? DEFAULT_CANCELLATION_POLICY}
+                  onChange={(e) => setForm((f) => ({ ...f, cancellationPolicy: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm bg-white leading-relaxed focus:outline-none focus:ring-2 focus:ring-navy/10"
+                />
+              </div>
+
+              <div className="rounded-lg border-2 border-red-400 bg-red-50/40 px-3 py-3">
+                <p className="text-[11px] uppercase tracking-wide text-charcoal/45 mb-1.5">
+                  Customer preview
+                </p>
+                <p className="text-sm font-bold text-red-700 uppercase tracking-wide mb-1">
+                  ⚠ Please read this cancellation policy carefully!
+                </p>
+                <CancellationPolicyList
+                  policy={form.cancellationPolicy}
+                  refundHours={form.cancellationRefundHours ?? DEFAULT_CANCELLATION_REFUND_HOURS}
+                  className="text-xs text-slate-700 leading-relaxed list-disc list-outside pl-5 space-y-1"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">

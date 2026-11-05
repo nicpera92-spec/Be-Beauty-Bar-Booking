@@ -96,6 +96,8 @@ model BusinessSettings {
   waitlistEnabled      Boolean  @default(true)
   rebookReminderEnabled   Boolean  @default(false)
   rebookReminderDaysAfter Int      @default(21)
+  cancellationRefundHours Int      @default(48) // deposit refunded when customer cancels at least this many hours before
+  cancellationPolicy   String? // one point per line; null = default policy
   notificationMessages Json?
   updatedAt            DateTime @updatedAt
 }

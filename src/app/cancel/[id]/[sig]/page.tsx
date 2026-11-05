@@ -45,7 +45,7 @@ export default function CancelBookingPage() {
       .then((r) => r.json())
       .then((data) => {
         if (data?.booking) setBooking(data.booking);
-        if (data?.refundHours) setRefundHours(data.refundHours);
+        if (typeof data?.refundHours === "number") setRefundHours(data.refundHours);
         if (data?.businessName) setBusinessName(data.businessName);
         if (data?.instagramHandle) setInstagramHandle(data.instagramHandle);
         setState((data?.state as State) ?? "invalid");
