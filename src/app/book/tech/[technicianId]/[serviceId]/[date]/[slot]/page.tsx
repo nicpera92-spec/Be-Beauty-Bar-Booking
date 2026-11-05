@@ -284,16 +284,29 @@ export default function BookFormPage() {
         </div>
 
         <div
-          className={`rounded-lg border-2 px-4 py-3 ${
-            policyError ? "border-red-400 bg-red-50" : "border-black bg-slate-50/30"
+          className={`rounded-lg border-2 px-4 py-4 ${
+            policyError ? "border-red-500 bg-red-50" : "border-red-400 bg-red-50/40"
           }`}
         >
-          <p className="text-sm font-medium text-slate-700 mb-1.5 underline">Cancellation policy</p>
-          <ul className="text-xs text-slate-600 leading-relaxed list-disc list-outside pl-5 ml-1 space-y-1 mb-2">
-            <li>Please provide at least 24 hours&apos; notice if you need to cancel or reschedule.</li>
+          <p className="text-base font-bold text-red-700 uppercase tracking-wide mb-1">
+            ⚠ Please read this cancellation policy carefully!
+          </p>
+          <p className="text-sm font-semibold text-slate-800 mb-2 underline">Cancellation policy</p>
+          <ul className="text-sm text-slate-700 leading-relaxed list-disc list-outside pl-5 ml-1 space-y-1.5 mb-2">
             <li>
-              Deposits are non-refundable for cancellations made less than 24 hours before your
-              appointment.
+              You can cancel using the link in your booking confirmation email or text message.
+            </li>
+            <li>
+              Cancel <strong>more than 48 hours</strong> before your appointment and your deposit will
+              be refunded in full.
+            </li>
+            <li>
+              Deposits are <strong>non-refundable</strong> for cancellations made within 48 hours of
+              your appointment.
+            </li>
+            <li>
+              Each booking can only be cancelled <strong>once</strong>. A cancelled booking can&apos;t
+              be restored — to come back, please make a new booking.
             </li>
             <li>
               If you arrive more than 20 minutes late, we may need to shorten your service or
@@ -311,7 +324,7 @@ export default function BookFormPage() {
               }}
               className="mt-0.5 w-4 h-4 rounded border border-slate-300 text-navy focus:ring-navy/20"
             />
-            <span className="text-xs text-slate-700">
+            <span className="text-sm font-medium text-slate-800">
               I confirm that I have read and agree to the cancellation policy.
             </span>
           </label>

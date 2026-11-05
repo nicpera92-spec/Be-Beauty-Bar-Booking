@@ -39,6 +39,7 @@ type Booking = {
   stripeBalancePaymentIntentId: string | null;
   depositRefundedAt: string | null;
   balanceRefundedAt: string | null;
+  customerCancelledAt: string | null;
   createdAt: string;
 };
 
@@ -830,6 +831,7 @@ function AdminBookingRow({
           {booking.balancePaidOnline && " · balance paid online"}
           {booking.depositRefundedAt && " · deposit refunded"}
           {booking.balanceRefundedAt && " · balance refunded"}
+          {booking.customerCancelledAt && " · cancelled by customer"}
         </p>
         {booking.notes && booking.notes.trim() && (
           <p className="text-sm text-navy mt-2 italic">

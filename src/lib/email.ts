@@ -70,6 +70,8 @@ function bookingVars(
     bookLink: extra?.bookLink ?? "",
     optOutLink: extra?.optOutLink ?? "",
     instagramLink: extra?.instagramLink ?? "",
+    cancelLink: extra?.cancelLink ?? "",
+    refundDetails: extra?.refundDetails ?? "",
   };
 }
 
@@ -141,7 +143,11 @@ export async function sendBookingConfirmationEmails(bookingId: string): Promise<
     }
 
     const { settings, messages, businessName, instagramLink } = await getMessages();
-    const vars = bookingVars(booking, businessName, { instagramLink });
+    const { buildCancelLink } = await import("@/lib/customerCancellation");
+    const vars = bookingVars(booking, businessName, {
+      instagramLink,
+      cancelLink: buildCancelLink(booking.id),
+    });
     const smsVars = {
       ...vars,
       date: formatBookingDate(booking.date, "dd/MM/yyyy"),
@@ -286,6 +292,74 @@ export async function sendManualCancellationEmails(
     return { ok: true };
   } catch (e) {
     console.error("sendManualCancellationEmails:", e);
+    return { ok: false, error: String(e) };
+  }
+}
+
+export async function sendCustomerCancellationEmails(
+  bookingId: string,
+  refundDetails: { customer: string; owner: string }
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { service: true, technician: true },
+    });
+    if (!booking || booking.status !== "cancelled") {
+      return { ok: false, error: "Booking not found or not cancelled" };
+    }
+
+    const { settings, messages, businessName, instagramLink } = await getMessages();
+    const bookingUrl = bookingSiteUrl("/");
+    const vars = bookingVars(booking, businessName, {
+      technicianName: booking.technician.name,
+      ...bookingLinkMessageVars(bookingUrl),
+      instagramLink,
+      refundDetails: refundDetails.customer,
+    });
+    const emailVars = { ...vars, ...bookingLinkEmailVars(bookingUrl) };
+    const smsVars = {
+      ...vars,
+      date: formatBookingDate(booking.date, "dd/MM/yyyy"),
+      time: `${booking.startTime}-${booking.endTime}`,
+    };
+    const ownerVars = { ...emailVars, refundDetails: refundDetails.owner };
+
+    if (booking.notifyByEmail && booking.customerEmail && resendClient) {
+      await sendResendEmail({
+        from,
+        to: booking.customerEmail,
+        subject: renderEmailSubject(messages.customerCancelCustomerSubject, emailVars),
+        html: renderEmailBody(messages.customerCancelCustomerBody, emailVars),
+      });
+    }
+
+    if (booking.notifyBySMS && booking.customerPhone) {
+      const smsMessage = applyTemplate(messages.customerCancelCustomerSms, smsVars);
+      await sendSMS(formatUKPhoneToE164(booking.customerPhone), smsMessage);
+    }
+
+    if (resendClient && settings?.businessEmail?.trim()) {
+      await sendResendEmail({
+        from,
+        to: settings.businessEmail.trim(),
+        subject: renderEmailSubject(messages.customerCancelOwnerSubject, ownerVars),
+        html: renderEmailBody(messages.customerCancelOwnerBody, ownerVars),
+      });
+    }
+
+    const { notifyWaitlistForFreedSlot } = await import("@/lib/waitlist");
+    await notifyWaitlistForFreedSlot({
+      serviceId: booking.serviceId,
+      technicianId: booking.technicianId,
+      date: booking.date,
+      startTime: booking.startTime,
+      endTime: booking.endTime,
+    });
+
+    return { ok: true };
+  } catch (e) {
+    console.error("sendCustomerCancellationEmails:", e);
     return { ok: false, error: String(e) };
   }
 }

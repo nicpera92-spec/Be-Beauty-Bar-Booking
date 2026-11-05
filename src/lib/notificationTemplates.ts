@@ -60,6 +60,8 @@ export const PLACEHOLDER_LABELS: Record<string, string> = {
   depositLink: "Pay deposit link",
   optOutLink: "Opt out link",
   instagramLink: "Instagram link",
+  cancelLink: "Cancel link",
+  refundDetails: "Refund details",
 };
 
 const LABEL_TO_VAR: Record<string, string> = {
@@ -73,6 +75,8 @@ const LABEL_TO_VAR: Record<string, string> = {
   "Pay deposit link": "depositLink",
   "Opt out link": "optOutLink",
   "Instagram link": "instagramLink",
+  "Cancel link": "cancelLink",
+  "Refund details": "refundDetails",
 };
 
 export function friendlyToken(label: string): string {
@@ -115,6 +119,16 @@ export const MESSAGE_INSERT_TAGS: { label: string; token: string; hint?: string 
     token: friendlyToken("Instagram link"),
     hint: "Link to your Instagram profile",
   },
+  {
+    label: "Cancel link",
+    token: friendlyToken("Cancel link"),
+    hint: "Link for the customer to cancel (booking confirmed only)",
+  },
+  {
+    label: "Refund details",
+    token: friendlyToken("Refund details"),
+    hint: "Whether the deposit was refunded (customer cancellation only)",
+  },
 ];
 
 export function toFriendlyPlaceholders(template: string): string {
@@ -152,6 +166,9 @@ export const MESSAGE_PREVIEW_SAMPLE: Record<string, string> = {
   depositLink: "https://bbbar.co.uk/booking/example",
   optOutLink: "https://bbbar.co.uk/rebook-reminder/opt-out?token=example",
   instagramLink: "https://instagram.com/bebeauty.bar",
+  cancelLink: "https://bbbar.co.uk/cancel/example/abc123",
+  refundDetails:
+    "Your deposit of £20.00 has been refunded to your original payment method. Please allow 5–10 working days for it to appear.",
 };
 
 function escapeHtml(text: string): string {
@@ -246,14 +263,29 @@ function normalizeAllNotificationMessages(
   return normalized;
 }
 
+/** Confirmation messages must always carry the customer's cancel link. */
+function ensureCancelLink(messages: NotificationMessages): NotificationMessages {
+  const token = friendlyToken("Cancel link");
+  const result = { ...messages };
+  if (!result.bookingConfirmedCustomerBody.includes(token)) {
+    const body = result.bookingConfirmedCustomerBody.trimEnd();
+    result.bookingConfirmedCustomerBody = `${body}\n\nCancel your booking: ${token}`;
+  }
+  if (!result.bookingConfirmedCustomerSms.includes(token)) {
+    const sms = result.bookingConfirmedCustomerSms.trimEnd();
+    result.bookingConfirmedCustomerSms = `${sms} Need to cancel? ${token}`;
+  }
+  return result;
+}
+
 export function resolveNotificationMessages(stored: unknown): NotificationMessages {
   const defaults = { ...DEFAULT_NOTIFICATION_MESSAGES };
   if (!stored || typeof stored !== "object") {
-    return normalizeAllNotificationMessages(defaults);
+    return ensureCancelLink(normalizeAllNotificationMessages(defaults));
   }
   const partial = stored as Partial<NotificationMessages>;
   const merged = { ...defaults, ...partial };
-  return normalizeAllNotificationMessages(merged);
+  return ensureCancelLink(normalizeAllNotificationMessages(merged));
 }
 
 export function buildBookLink(

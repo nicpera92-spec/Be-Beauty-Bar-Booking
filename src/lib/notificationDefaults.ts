@@ -13,6 +13,11 @@ export type NotificationMessages = {
   manualCancelCustomerSms: string;
   manualCancelOwnerSubject: string;
   manualCancelOwnerBody: string;
+  customerCancelCustomerSubject: string;
+  customerCancelCustomerBody: string;
+  customerCancelCustomerSms: string;
+  customerCancelOwnerSubject: string;
+  customerCancelOwnerBody: string;
   depositExpiredCustomerSubject: string;
   depositExpiredCustomerBody: string;
   depositExpiredCustomerSms: string;
@@ -64,9 +69,13 @@ Time: **Time**
 
 We look forward to seeing you!
 
+Need to cancel? Cancellations made more than 48 hours before your appointment receive a full deposit refund. Cancellations within 48 hours of your appointment are non-refundable. Each booking can only be cancelled once.
+
+Cancel your booking: **Cancel link**
+
 — **Salon name**`,
   bookingConfirmedCustomerSms:
-    "Hi **Customer name**, your booking at **Salon name** is confirmed. **Service** on **Date** at **Time**. We look forward to seeing you!",
+    "Hi **Customer name**, your booking at **Salon name** is confirmed. **Service** on **Date** at **Time**. We look forward to seeing you! Need to cancel? **Cancel link** (deposit non-refundable within 48hrs)",
 
   bookingConfirmedOwnerSubject: "Booking confirmed – **Customer name**",
   bookingConfirmedOwnerBody: `A deposit has been received.
@@ -98,6 +107,37 @@ Customer: **Customer name**
 Service: **Service**
 Date: **Date**
 Time: **Time**
+
+— **Salon name**`,
+
+  customerCancelCustomerSubject: "Your booking has been cancelled – **Salon name**",
+  customerCancelCustomerBody: `Hi **Customer name**,
+
+Your booking has been cancelled as requested.
+
+Service: **Service**
+Date: **Date**
+Time: **Time**
+
+**Refund details**
+
+We're sorry we won't see you this time and hope to see you again soon.
+
+Book again: **Booking link**
+
+— **Salon name**`,
+  customerCancelCustomerSms:
+    "Hi **Customer name**, your **Service** booking at **Salon name** on **Date** at **Time** has been cancelled. **Refund details** We hope to see you again soon: **Booking link**",
+
+  customerCancelOwnerSubject: "Customer cancelled – **Customer name**",
+  customerCancelOwnerBody: `A customer cancelled their booking using the link in their confirmation.
+
+Customer: **Customer name**
+Service: **Service**
+Date: **Date**
+Time: **Time**
+
+Refund: **Refund details**
 
 — **Salon name**`,
 
@@ -217,7 +257,8 @@ export const NOTIFICATION_MESSAGE_GROUPS: NotificationMessageGroup[] = [
   {
     id: "booking-confirmed",
     title: "Booking confirmed",
-    description: "When a deposit is received and the booking is confirmed.",
+    description:
+      "When a deposit is received and the booking is confirmed. The customer email and text always include their cancel link.",
     sections: [
       {
         title: "Customer email",
@@ -260,6 +301,32 @@ export const NOTIFICATION_MESSAGE_GROUPS: NotificationMessageGroup[] = [
         fields: [
           { key: "manualCancelOwnerSubject", label: "Subject", kind: "subject" },
           { key: "manualCancelOwnerBody", label: "Message", kind: "email" },
+        ],
+      },
+    ],
+  },
+  {
+    id: "customer-cancel",
+    title: "Booking cancelled (by customer)",
+    description:
+      "When a customer cancels using the link in their confirmation. Refund details explain whether their deposit was refunded (48+ hours' notice) or kept.",
+    sections: [
+      {
+        title: "Customer email",
+        fields: [
+          { key: "customerCancelCustomerSubject", label: "Subject", kind: "subject" },
+          { key: "customerCancelCustomerBody", label: "Message", kind: "email" },
+        ],
+      },
+      {
+        title: "Customer text",
+        fields: [{ key: "customerCancelCustomerSms", label: "Message", kind: "sms" }],
+      },
+      {
+        title: "Your email",
+        fields: [
+          { key: "customerCancelOwnerSubject", label: "Subject", kind: "subject" },
+          { key: "customerCancelOwnerBody", label: "Message", kind: "email" },
         ],
       },
     ],

@@ -178,6 +178,7 @@ model Booking {
   stripeBalancePaymentIntentId  String?
   depositRefundedAt             DateTime?
   balanceRefundedAt             DateTime?
+  customerCancelledAt           DateTime? // set when the customer cancels via their confirmation link
   reminderSentAt                DateTime?
   rebookReminderSentAt          DateTime?
   createdAt                     DateTime       @default(now())

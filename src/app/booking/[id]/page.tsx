@@ -304,6 +304,10 @@ export default function BookingPage() {
               {businessName} has also received a confirmation. We look forward to seeing
               you!
             </p>
+            <p className="text-slate-500 text-sm leading-relaxed mt-3">
+              Need to cancel? Use the link in your confirmation email or text. Deposits are
+              refunded for cancellations made more than 48 hours before your appointment.
+            </p>
           </div>
 
           {hasRemaining && !booking.balancePaidOnline && (
