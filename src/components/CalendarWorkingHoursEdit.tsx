@@ -12,12 +12,15 @@ type CalendarWorkingHoursEditProps = {
   technicianId?: string | null;
   isMaster?: boolean;
   getAuthHeaders: () => Record<string, string>;
+  /** Called with the saved schedule so the calendar can show it straight away. */
+  onSaved?: (hours: WeeklyWorkingHours) => void;
 };
 
 export default function CalendarWorkingHoursEdit({
   technicianId,
   isMaster,
   getAuthHeaders,
+  onSaved,
 }: CalendarWorkingHoursEditProps) {
   const [open, setOpen] = useState(false);
   const [hours, setHours] = useState<WeeklyWorkingHours>(defaultWeeklyHours);
@@ -94,7 +97,9 @@ export default function CalendarWorkingHoursEdit({
       .then(async (r) => {
         const data = await r.json();
         if (!r.ok) throw new Error(data?.error ?? "Could not save hours");
-        if (data.workingHours) setHours(data.workingHours);
+        const savedHours: WeeklyWorkingHours = data.workingHours ?? hours;
+        setHours(savedHours);
+        onSaved?.(savedHours);
         setSaved(true);
       })
       .catch((err) => setError(err?.message ?? "Could not save hours"))

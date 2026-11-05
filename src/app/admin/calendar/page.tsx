@@ -8,6 +8,7 @@ import { CopyPhoneButton } from "@/components/CopyPhoneButton";
 import CalendarTimeOffAdd from "@/components/CalendarTimeOffAdd";
 import CalendarWorkingHoursEdit from "@/components/CalendarWorkingHoursEdit";
 import { getCustomerBookableRange } from "@/lib/booking-calendar-range";
+import { resolveHoursForDate, type WeeklyWorkingHours } from "@/lib/workingHours";
 
 const ADMIN_TOKEN_KEY = "admin-token";
 
@@ -51,6 +52,7 @@ type Technician = {
   name: string;
   active: boolean;
   role?: string;
+  workingHours?: WeeklyWorkingHours;
 };
 
 export default function AdminCalendarPage() {
@@ -63,6 +65,8 @@ export default function AdminCalendarPage() {
   const [technicianFilter, setTechnicianFilter] = useState<string | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [timeOffBlocks, setTimeOffBlocks] = useState<TimeOffBlock[]>([]);
+  /** Weekly hours of a technician who can't load the staff list (non-owner login). */
+  const [myWorkingHours, setMyWorkingHours] = useState<WeeklyWorkingHours | null>(null);
   const [loading, setLoading] = useState(true);
   const [sessionReady, setSessionReady] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -129,6 +133,12 @@ export default function AdminCalendarPage() {
             setMyTechnicianId(data.technicianId);
             setTechnicianFilter(data.technicianId);
             setSessionReady(true);
+            fetch("/api/admin/my-working-hours", { headers: getAuthHeaders(), cache: "no-store" })
+              .then((r) => (r.ok ? r.json() : null))
+              .then((mine) => {
+                if (mine?.workingHours) setMyWorkingHours(mine.workingHours);
+              })
+              .catch(() => {});
           } else {
             setSessionReady(true);
           }
@@ -354,6 +364,28 @@ export default function AdminCalendarPage() {
 
   const hasTimeOff = (date: Date) => timeOffByDate[format(date, "yyyy-MM-dd")] === true;
 
+  // Weekly working hours of whoever's calendar is shown ("Everyone" = only days nobody works).
+  const scheduleHours = (techId: string | null | undefined): WeeklyWorkingHours | null =>
+    (techId && technicians.find((t) => t.id === techId)?.workingHours) ||
+    (techId && techId === myTechnicianId ? myWorkingHours : null) ||
+    null;
+  const shownSchedules: WeeklyWorkingHours[] = (
+    resolvedTechnicianFilter === "all" && isMaster
+      ? technicians.filter((t) => t.active).map((t) => scheduleHours(t.id))
+      : [scheduleHours(isMaster ? resolvedTechnicianFilter : myTechnicianId)]
+  ).filter((h): h is WeeklyWorkingHours => h !== null);
+  const hoursForDate = (dateStr: string) =>
+    shownSchedules.map((week) => resolveHoursForDate(dateStr, week, salonOpen, salonClose));
+  const isNotWorking = (dateStr: string) => {
+    const days = hoursForDate(dateStr);
+    return days.length > 0 && days.every((d) => d.isOff);
+  };
+  const workingHoursLabel = (dateStr: string): string | null => {
+    if (shownSchedules.length !== 1) return null;
+    const day = hoursForDate(dateStr)[0];
+    return day && !day.isOff ? `${day.openTime}–${day.closeTime}` : null;
+  };
+
   const getBlocksForDate = (dateStr: string): TimeOffBlock[] => {
     return timeOffBlocks.filter((block) => {
       const sel = parse(dateStr, "yyyy-MM-dd", new Date());
@@ -434,6 +466,12 @@ export default function AdminCalendarPage() {
               technicianId={myTechnicianId}
               isMaster={isMaster}
               getAuthHeaders={getAuthHeaders}
+              onSaved={(workingHours) => {
+                setMyWorkingHours(workingHours);
+                setTechnicians((list) =>
+                  list.map((t) => (t.id === myTechnicianId ? { ...t, workingHours } : t))
+                );
+              }}
             />
           )}
         </div>
@@ -461,6 +499,7 @@ export default function AdminCalendarPage() {
                   const isSelected = selectedDate === dateStr;
                   const isCurrentMonth = day >= monthStart && day <= monthEnd;
                   const dayHasTimeOff = hasTimeOff(day);
+                  const dayOff = isNotWorking(dateStr);
 
                   return (
                     <button
@@ -472,7 +511,8 @@ export default function AdminCalendarPage() {
                         ${isToday(day) ? "border-navy bg-navy/5" : "border-slate-200"}
                         ${isPast(day) ? "bg-slate-300 text-slate-500 hover:bg-slate-300" : ""}
                         ${!isPast(day) && !isCurrentMonth ? "bg-slate-50/50 text-slate-400" : ""}
-                        ${dayHasTimeOff && !isPast(day) ? "bg-violet-50/80 border-violet-200/60" : ""}
+                        ${dayOff && !isPast(day) ? "bg-slate-100 border-dashed border-slate-300" : ""}
+                        ${dayHasTimeOff && !dayOff && !isPast(day) ? "bg-violet-50/80 border-violet-200/60" : ""}
                         ${isSelected ? "ring-2 ring-navy ring-offset-2" : ""}
                         ${isCurrentMonth && !isPast(day) && isCustomerBookableDate(day) ? "hover:border-navy/50 hover:bg-slate-50" : ""}
                         ${isCurrentMonth && !isPast(day) && !isCustomerBookableDate(day) ? "opacity-70" : ""}
@@ -482,10 +522,16 @@ export default function AdminCalendarPage() {
                         <div className={`text-sm font-medium mb-1 ${isToday(day) ? "text-navy" : isPast(day) ? "text-slate-500" : !isCurrentMonth ? "text-slate-400" : "text-charcoal"}`}>
                           {format(day, "d")}
                         </div>
-                        {dayHasTimeOff && (
-                          <div className="text-[10px] sm:text-xs text-violet-600 font-medium truncate" title="Time off">
-                            Time off
+                        {dayOff ? (
+                          <div className="text-[10px] sm:text-xs text-slate-500 font-medium truncate" title="Not working (weekly hours)">
+                            Off
                           </div>
+                        ) : (
+                          dayHasTimeOff && (
+                            <div className="text-[10px] sm:text-xs text-violet-600 font-medium truncate" title="Time off">
+                              Time off
+                            </div>
+                          )
                         )}
                         {dayBookings.length > 0 && (
                           <div className="flex-1 flex flex-col gap-0.5 overflow-hidden">
@@ -536,6 +582,16 @@ export default function AdminCalendarPage() {
                   Close
                 </button>
               </div>
+
+              {isNotWorking(selectedDate) ? (
+                <p className="text-sm text-slate-600 bg-slate-100 border border-dashed border-slate-300 rounded-lg px-3 py-2">
+                  Not working — this day is off in the weekly Hours, so customers can&apos;t book it.
+                </p>
+              ) : (
+                workingHoursLabel(selectedDate) && (
+                  <p className="text-sm text-charcoal/60">Working hours {workingHoursLabel(selectedDate)}</p>
+                )
+              )}
 
               {selectedBlocks.length > 0 && (
                 <div>

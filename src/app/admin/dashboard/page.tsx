@@ -103,7 +103,9 @@ function BarList({
 export default function AdminDashboardPage() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
-  const [period, setPeriod] = useState<PeriodId>("this_month");
+  const [period, setPeriod] = useState<PeriodId>("today");
+  const [technicians, setTechnicians] = useState<{ id: string; name: string; active: boolean }[]>([]);
+  const [technicianId, setTechnicianId] = useState("all");
   const [customFrom, setCustomFrom] = useState(() => format(startOfMonth(new Date()), "yyyy-MM-dd"));
   const [customTo, setCustomTo] = useState(() => format(new Date(), "yyyy-MM-dd"));
   const [stats, setStats] = useState<DashboardResponse | null>(null);
@@ -136,10 +138,18 @@ export default function AdminDashboardPage() {
   }, [router]);
 
   useEffect(() => {
+    if (!ready) return;
+    fetch("/api/admin/technicians", { headers: getAuthHeaders(), cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((list) => setTechnicians(Array.isArray(list) ? list : []))
+      .catch(() => {});
+  }, [ready]);
+
+  useEffect(() => {
     if (!ready || !range) return;
     setLoading(true);
     setError(null);
-    fetch(`/api/admin/dashboard?from=${range.from}&to=${range.to}`, {
+    fetch(`/api/admin/dashboard?from=${range.from}&to=${range.to}&technicianId=${encodeURIComponent(technicianId)}`, {
       headers: getAuthHeaders(),
       cache: "no-store",
     })
@@ -150,7 +160,7 @@ export default function AdminDashboardPage() {
       })
       .catch((e) => setError(e?.message ?? "Could not load stats"))
       .finally(() => setLoading(false));
-  }, [ready, range]);
+  }, [ready, range, technicianId]);
 
   const upcoming = Boolean(range && range.from >= todayStr);
   const includesFuture = Boolean(range && range.to > todayStr);
@@ -166,6 +176,23 @@ export default function AdminDashboardPage() {
           ← Admin
         </Link>
       </div>
+
+      {technicians.length > 1 && (
+        <select
+          value={technicianId}
+          onChange={(e) => setTechnicianId(e.target.value)}
+          aria-label="Technician"
+          className="mb-3 h-[40px] min-w-[180px] rounded-lg border border-slate-200 bg-white px-3 text-sm text-charcoal"
+        >
+          <option value="all">All technicians</option>
+          {technicians.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
+              {!t.active ? " (hidden)" : ""}
+            </option>
+          ))}
+        </select>
+      )}
 
       <div className="flex flex-wrap gap-1 p-1 mb-4 rounded-xl border border-slate-200 bg-white">
         {PERIODS.map((p) => (
