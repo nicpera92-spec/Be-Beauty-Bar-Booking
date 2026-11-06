@@ -27,6 +27,24 @@ export function formatBookingDateFriendly(dateStr: string): string {
   return formatBookingDate(dateStr, "MMMM do");
 }
 
+/** When something happened, in UK time: "Fri 6 Nov 2026, 12:31". */
+export function formatMadeAt(iso: string | Date): string {
+  const d = typeof iso === "string" ? new Date(iso) : iso;
+  if (Number.isNaN(d.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("weekday")} ${get("day")} ${get("month")} ${get("year")}, ${get("hour")}:${get("minute")}`;
+}
+
 /** Format date string (yyyy-MM-dd) for display; returns dateStr on parse error */
 export function formatBookingDate(dateStr: string, formatStr: string): string {
   try {

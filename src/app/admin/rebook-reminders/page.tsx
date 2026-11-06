@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { formatBookingDate } from "@/lib/format";
+import { formatBookingDate, formatMadeAt } from "@/lib/format";
 
 const ADMIN_TOKEN_KEY = "admin-token";
 
@@ -138,11 +138,11 @@ export default function RebookRemindersPage() {
                       <p className="text-xs text-emerald-700 font-medium">Rebooked</p>
                     </div>
                     <p className="text-xs text-charcoal/60 mt-0.5">
-                      Reminded {when(s.sentAt)} after {s.serviceName} on {day(s.visitDate)}
+                      Reminded {formatMadeAt(s.sentAt)} after {s.serviceName} on {day(s.visitDate)}
                     </p>
                     <p className="text-xs text-emerald-700 mt-1">
                       Booked for {day(s.bookedAfterDate!)}
-                      {s.bookedAfterMadeOn && ` (booked on ${when(s.bookedAfterMadeOn)})`}
+                      {s.bookedAfterMadeOn && ` · booked on ${formatMadeAt(s.bookedAfterMadeOn)}`}
                     </p>
                   </div>
                 ))}

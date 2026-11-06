@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { formatCurrency, formatBookingDateFriendly } from "@/lib/format";
+import { formatCurrency, formatBookingDateFriendly, formatMadeAt } from "@/lib/format";
 import { formatWaitlistDateRange } from "@/lib/waitlistDates";
 import AdminNav from "@/components/AdminNav";
 
@@ -94,9 +94,12 @@ function WaitlistBookingStatus({ entry }: { entry: WaitlistEntry }) {
     entry.lastNotifiedAt && booking.createdAt >= entry.lastNotifiedAt;
   return (
     <p className="text-xs font-medium text-green-700 mt-1.5">
-      ✓ Booked {when} · {booking.serviceName}
+      ✓ Booked for {when} · {booking.serviceName}
       {booking.status === "pending_deposit" && " · deposit pending"}
       {afterNotification && " · after being notified"}
+      <span className="block font-normal text-charcoal/60 mt-0.5">
+        Booked on {formatMadeAt(booking.createdAt)}
+      </span>
     </p>
   );
 }
@@ -928,6 +931,9 @@ function AdminBookingRow({
           {reviewed === "owner" && " · ⭐ reviewed on Google"}
           {reviewed === "link" && " · ⭐ opened the review link"}
         </p>
+        {booking.createdAt && (
+          <p className="text-xs text-charcoal/45 mt-0.5">Booked on {formatMadeAt(booking.createdAt)}</p>
+        )}
         {booking.notes && booking.notes.trim() && (
           <p className="text-sm text-navy mt-2 italic">
             📝 Special request: {booking.notes}
