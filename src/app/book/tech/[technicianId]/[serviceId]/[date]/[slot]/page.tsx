@@ -337,7 +337,10 @@ export default function BookFormPage() {
         </div>
 
         <div className={`lux-policy ${policyError ? "lux-policy-error" : ""}`}>
-          <p className="lux-eyebrow !text-[#dfe4ea] mb-3">⚠ Please read this cancellation policy carefully!</p>
+          <p className="lux-alert mb-4">
+            <span aria-hidden="true">⚠</span>
+            <span>Please read this cancellation policy carefully!</span>
+          </p>
           <CancellationPolicyList
             policy={cancellationPolicy}
             refundHours={refundHours}
