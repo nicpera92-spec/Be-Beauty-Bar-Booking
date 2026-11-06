@@ -10,27 +10,7 @@ import {
 
 type Settings = {
   businessName: string;
-  businessAddress?: string | null;
 };
-
-/** "33 Castle St, Swansea SA1 1HZ" → "Swansea" (town before the postcode). */
-function townFromAddress(address: string | null | undefined): string | null {
-  const last = address?.split(",").pop()?.trim();
-  if (!last) return null;
-  const town = last.replace(/\s*[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/i, "").trim();
-  return town || null;
-}
-
-/** "Be Beauty Bar" → Be <i>Beauty</i> Bar, with the middle word in silver italics. */
-function BusinessName({ name }: { name: string }) {
-  const words = name.split(" ");
-  if (words.length !== 3) return <>{name}</>;
-  return (
-    <>
-      {words[0]} <span className="italic lux-silver">{words[1]}</span> {words[2]}
-    </>
-  );
-}
 
 export default function HomePage() {
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -57,7 +37,6 @@ export default function HomePage() {
   }, []);
 
   const businessName = settings?.businessName ?? "Be Beauty Bar";
-  const town = townFromAddress(settings?.businessAddress) ?? "Swansea";
   const displayCategories = sortHomeCategories(
     categories.length > 0 ? categories : DEFAULT_HOME_CATEGORIES
   );
@@ -75,9 +54,8 @@ export default function HomePage() {
       />
 
       <div className="relative flex flex-1 flex-col items-center justify-center text-center px-6 py-20">
-        <p className="lux-eyebrow">{town}</p>
-        <h1 className="font-serif font-normal text-white leading-none mt-4 text-[3.25rem] sm:text-[4.5rem] md:text-[5.25rem] tracking-[0.01em]">
-          <BusinessName name={businessName} />
+        <h1 className="font-serif font-normal text-white leading-none text-[3.25rem] sm:text-[4.5rem] md:text-[5.25rem] tracking-[0.01em]">
+          {businessName}
         </h1>
 
         <ul
