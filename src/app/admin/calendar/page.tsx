@@ -5,6 +5,7 @@ import Link from "next/link";
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, parse, endOfMonth, startOfDay, addDays } from "date-fns";
 import { formatCurrency } from "@/lib/format";
 import { CopyPhoneButton } from "@/components/CopyPhoneButton";
+import { RescheduledNote } from "@/components/RescheduledNote";
 import CalendarTimeOffAdd from "@/components/CalendarTimeOffAdd";
 import CalendarWorkingHoursEdit from "@/components/CalendarWorkingHoursEdit";
 import { getCustomerBookableRange } from "@/lib/booking-calendar-range";
@@ -35,6 +36,8 @@ type Booking = {
   notifyByEmail: boolean;
   notifyBySMS: boolean;
   notes: string | null;
+  rescheduleCount?: number;
+  rescheduledAt?: string | null;
 };
 
 type TimeOffBlock = {
@@ -507,7 +510,7 @@ export default function AdminCalendarPage() {
                       type="button"
                       onClick={() => selectDate(isSelected ? null : dateStr)}
                       className={`
-                        aspect-square overflow-hidden p-1.5 sm:p-2 rounded-lg border-2 transition-all touch-manipulation min-h-[44px]
+                        relative aspect-square overflow-hidden p-1.5 sm:p-2 rounded-lg border-2 transition-all touch-manipulation min-h-[44px]
                         ${isToday(day) ? "border-navy bg-navy/5" : "border-slate-200"}
                         ${isPast(day) ? "bg-slate-300 text-slate-500 hover:bg-slate-300" : ""}
                         ${!isPast(day) && !isCurrentMonth ? "bg-slate-50/50 text-slate-400" : ""}
@@ -534,28 +537,22 @@ export default function AdminCalendarPage() {
                           )
                         )}
                         {dayBookings.length > 0 && (
-                          <div className="flex-1 flex flex-col gap-0.5 overflow-hidden">
-                            {dayBookings.slice(0, 3).map((booking) => (
-                              <div
-                                key={booking.id}
-                                className={`
-                                  text-xs px-1.5 py-0.5 rounded truncate
-                                  ${booking.status === "confirmed" ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"}
-                                `}
-                                title={`${booking.customerName} - ${booking.service.name} ${booking.startTime}${booking.technician?.name ? ` (${booking.technician.name})` : ""}`}
-                              >
-                                {booking.startTime}{" "}
-                                {showAllTechnicians && booking.technician?.name
-                                  ? `${booking.technician.name.split(" ")[0]} `
-                                  : ""}
-                                {booking.customerName.split(" ")[0]}
-                              </div>
-                            ))}
-                            {dayBookings.length > 3 && (
-                              <div className="text-xs text-charcoal/60 font-medium">
-                                +{dayBookings.length - 3} more
-                              </div>
-                            )}
+                          <div
+                            className={`absolute bottom-1 left-1/2 -translate-x-1/2 inline-flex items-center gap-0.5 text-[10px] sm:text-xs leading-none font-semibold px-1.5 py-0.5 sm:py-1 rounded-full whitespace-nowrap ${
+                              dayBookings.some((b) => b.status !== "confirmed")
+                                ? "bg-amber-100 text-amber-800"
+                                : "bg-green-100 text-green-800"
+                            }`}
+                            title={[...dayBookings]
+                              .sort((a, b) => a.startTime.localeCompare(b.startTime))
+                              .map(
+                                (b) =>
+                                  `${b.startTime} ${b.customerName}${showAllTechnicians && b.technician?.name ? ` (${b.technician.name})` : ""}${b.status !== "confirmed" ? " · deposit pending" : ""}${(b.rescheduleCount ?? 0) > 0 ? " · rescheduled" : ""}`
+                              )
+                              .join("\n")}
+                          >
+                            {dayBookings.length}
+                            {dayBookings.some((b) => (b.rescheduleCount ?? 0) > 0) && <span aria-label="includes a rescheduled booking">↻</span>}
                           </div>
                         )}
                       </div>
@@ -688,6 +685,7 @@ export default function AdminCalendarPage() {
                               ? "Paid in full by gift certificate"
                               : `${formatCurrency(booking.depositAmount)} deposit`}
                           </p>
+                          <RescheduledNote booking={booking} />
                           {booking.notes && booking.notes.trim() && (
                             <p className="text-sm text-navy mt-2 italic border-l-2 border-navy/30 pl-2">
                               📝 Special request: {booking.notes}

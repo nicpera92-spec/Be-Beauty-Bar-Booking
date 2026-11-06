@@ -83,6 +83,7 @@ const config: Config = {
         },
         sky: {
           50: themeable("sky-50", "240 249 255"),
+          100: themeable("sky-100", "224 242 254"),
           200: themeable("sky-200", "186 230 253"),
           400: themeable("sky-400", "56 189 248"),
           600: themeable("sky-600", "2 132 199"),

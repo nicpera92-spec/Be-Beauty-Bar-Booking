@@ -18,6 +18,7 @@ function getAuthHeaders(): Record<string, string> {
 }
 
 import { CopyPhoneButton } from "@/components/CopyPhoneButton";
+import { RescheduledNote } from "@/components/RescheduledNote";
 
 type Booking = {
   id: string;
@@ -44,6 +45,7 @@ type Booking = {
   balanceRefundedAt: string | null;
   customerCancelledAt: string | null;
   rescheduleCount?: number;
+  rescheduledAt?: string | null;
   createdAt: string;
 };
 
@@ -961,13 +963,13 @@ function AdminBookingRow({
           {booking.depositRefundedAt && " · deposit refunded"}
           {booking.balanceRefundedAt && " · balance refunded"}
           {booking.customerCancelledAt && " · cancelled by customer"}
-          {(booking.rescheduleCount ?? 0) > 0 && " · moved by customer"}
           {reviewed === "owner" && " · ⭐ reviewed on Google"}
           {reviewed === "link" && " · ⭐ opened the review link"}
         </p>
         {booking.createdAt && (
           <p className="text-xs text-charcoal/45 mt-0.5">Booked on {formatMadeAt(booking.createdAt)}</p>
         )}
+        <RescheduledNote booking={booking} />
         {booking.notes && booking.notes.trim() && (
           <p className="text-sm text-navy mt-2 italic">
             📝 Special request: {booking.notes}
