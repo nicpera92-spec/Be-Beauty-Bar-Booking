@@ -25,6 +25,8 @@ export default function BookPage() {
 
   useEffect(() => {
     let active = true;
+    // With one technician we go straight to her services; keep "Loading…" up until we get there.
+    let redirecting = false;
 
     fetch(`/api/technicians?_=${Date.now()}`, { cache: "no-store" })
       .then((r) => {
@@ -36,6 +38,7 @@ export default function BookPage() {
         const techs = Array.isArray(data) ? data : [];
         setLoadError(false);
         if (techs.length === 1) {
+          redirecting = true;
           router.replace(`/book/tech/${techs[0].id}`);
           return;
         }
@@ -47,7 +50,7 @@ export default function BookPage() {
         setTechnicians([]);
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (active && !redirecting) setLoading(false);
       });
 
     return () => {
