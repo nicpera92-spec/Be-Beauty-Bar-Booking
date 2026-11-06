@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   }
   const techId = ownerTechnicianId(staff);
   const services = await prisma.service.findMany({
-    where: techId ? { technicianId: techId } : undefined,
+    where: { ...(techId ? { technicianId: techId } : {}), technician: { removedAt: null } },
     include: { technician: { select: { id: true, name: true, role: true, active: true } } },
     orderBy: [{ position: "asc" }, { category: "asc" }, { name: "asc" }],
   });

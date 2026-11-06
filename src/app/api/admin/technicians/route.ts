@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
   }
   const [technicians, settings] = await Promise.all([
     prisma.technician.findMany({
+      where: { removedAt: null },
       orderBy: [{ position: "asc" }, { name: "asc" }],
       select: {
         id: true,

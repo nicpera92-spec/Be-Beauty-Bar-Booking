@@ -370,7 +370,7 @@ function AdminTechnicianRow({
   const remove = () => {
     if (
       !confirm(
-        `Remove ${technician.name}? Existing bookings will be kept but no longer linked to this technician.`
+        `Remove ${technician.name}? They'll be taken off the site, their services removed and their login turned off. Past bookings and stats are kept.`
       )
     ) {
       return;
@@ -381,7 +381,11 @@ function AdminTechnicianRow({
       method: "DELETE",
       headers: getAuthHeaders(),
     })
-      .then((r) => (r.ok ? onUpdate() : Promise.reject()))
+      .then(async (r) => {
+        if (r.ok) return onUpdate();
+        const data = await r.json().catch(() => null);
+        setError(data?.error ?? "Could not remove technician");
+      })
       .catch(() => setError("Could not remove technician"))
       .finally(() => setBusy(false));
   };

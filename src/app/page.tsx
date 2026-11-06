@@ -53,7 +53,7 @@ export default function HomePage() {
         aria-hidden
       />
 
-      <div className="relative flex flex-1 flex-col items-center justify-center text-center px-6 py-20">
+      <div className="relative flex flex-1 flex-col items-center justify-center text-center px-6 pt-12 pb-32 sm:pt-16 sm:pb-28">
         <h1 className="font-serif font-normal text-white leading-none text-[3.25rem] sm:text-[4.5rem] md:text-[5.25rem] tracking-[0.01em]">
           {businessName}
         </h1>

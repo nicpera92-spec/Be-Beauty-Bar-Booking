@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { requireMaster, hashPassword } from "@/lib/auth";
 import { normalizeInstagramHandle } from "@/lib/instagram";
 import { parseWorkingHours, validateWorkingHoursPayload } from "@/lib/workingHours";
+import { businessDateStr } from "@/lib/business-time";
+import { formatBookingDateFriendly } from "@/lib/format";
 
 async function salonDefaults() {
   const settings = await prisma.businessSettings.findUnique({ where: { id: "default" } });
@@ -165,30 +167,57 @@ export async function DELETE(
   const { id } = params;
 
   const target = await prisma.technician.findUnique({ where: { id } });
-  if (target?.role === "master") {
+  if (!target || target.removedAt) {
+    return NextResponse.json({ error: "Technician not found" }, { status: 404 });
+  }
+  if (target.role === "master") {
     return NextResponse.json(
       { error: "The master (business owner) profile cannot be removed." },
       { status: 400 }
     );
   }
 
-  const activeBookings = await prisma.booking.count({
+  const upcoming = await prisma.booking.findMany({
     where: {
       technicianId: id,
       status: { in: ["pending_deposit", "confirmed"] },
+      date: { gte: businessDateStr() },
     },
+    orderBy: [{ date: "asc" }, { startTime: "asc" }],
+    select: { date: true, startTime: true },
   });
-  if (activeBookings > 0) {
+  if (upcoming.length > 0) {
+    const next = upcoming[0];
     return NextResponse.json(
-      { error: "Cannot remove a technician with active bookings. Hide them instead." },
+      {
+        error: `${target.name} still has ${upcoming.length} upcoming appointment${upcoming.length === 1 ? "" : "s"} (next: ${formatBookingDateFriendly(next.date)} at ${next.startTime}). Move or cancel ${upcoming.length === 1 ? "it" : "them"} first, or hide ${target.name} instead.`,
+      },
       { status: 400 }
     );
   }
 
-  await prisma.booking.deleteMany({
-    where: { technicianId: id, status: "cancelled" },
-  });
-  await prisma.service.deleteMany({ where: { technicianId: id } });
-  await prisma.technician.delete({ where: { id } });
-  return NextResponse.json({ ok: true });
+  // Past bookings and sold gift certificates point at this technician's services,
+  // so a technician with any history is archived rather than deleted.
+  const [bookingCount, certificateCount] = await Promise.all([
+    prisma.booking.count({ where: { technicianId: id } }),
+    prisma.giftCertificateItem.count({ where: { service: { technicianId: id } } }),
+  ]);
+
+  if (bookingCount === 0 && certificateCount === 0) {
+    await prisma.technician.delete({ where: { id } });
+    return NextResponse.json({ ok: true, archived: false });
+  }
+
+  await prisma.$transaction([
+    prisma.waitingListEntry.updateMany({
+      where: { technicianId: id, status: "active" },
+      data: { status: "expired" },
+    }),
+    prisma.service.updateMany({ where: { technicianId: id }, data: { active: false } }),
+    prisma.technician.update({
+      where: { id },
+      data: { removedAt: new Date(), active: false, loginEmail: null, passwordHash: null },
+    }),
+  ]);
+  return NextResponse.json({ ok: true, archived: true });
 }

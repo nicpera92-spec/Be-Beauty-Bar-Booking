@@ -52,6 +52,7 @@ model Technician {
   categoryOrder String?  // JSON array of category slugs controlling booking-page order
   // Weekly schedule JSON: 7 DaySchedule (index = JS getDay, Sun=0). null = salon open/close every day.
   workingHours Json?
+  removedAt    DateTime? // set = removed but kept for past bookings/stats; hidden in admin
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   services     Service[]
