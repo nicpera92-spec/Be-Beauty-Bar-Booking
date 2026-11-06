@@ -25,19 +25,26 @@ type Upcoming = {
   nextBookingDate: string | null;
 };
 
-type Sent = {
+type Reminded = {
   bookingId: string;
   customerName: string;
   contact: string;
   serviceName: string;
   visitDate: string;
   sentAt: string;
-  alreadyBookedDate: string | null;
-  alreadyBookedMadeOn: string | null;
   bookedAfterDate: string | null;
+  bookedAfterMadeOn: string | null;
 };
 
-type Data = { enabled: boolean; daysAfter: number; today: string; upcoming: Upcoming[]; sent: Sent[] };
+type Data = {
+  enabled: boolean;
+  daysAfter: number;
+  today: string;
+  upcoming: Upcoming[];
+  waiting: Reminded[];
+  rebooked: Reminded[];
+  rebookedShownDays: number;
+};
 
 const day = (d: string) => formatBookingDate(d, "EEE d MMM yyyy");
 const when = (iso: string) => formatBookingDate(iso.slice(0, 10), "d MMM yyyy");
@@ -57,7 +64,18 @@ function skipLabel(u: Upcoming): string {
   }
 }
 
-export default function RebookRemindersCheckPage() {
+function Section({ title, hint, tone, children }: { title: string; hint?: string; tone: "navy" | "green" | "grey"; children: React.ReactNode }) {
+  const colour = tone === "green" ? "text-emerald-700" : tone === "navy" ? "text-navy" : "text-charcoal/70";
+  return (
+    <section>
+      <h2 className={`text-sm font-semibold uppercase tracking-wide mb-1 ${colour}`}>{title}</h2>
+      {hint && <p className="text-xs text-charcoal/55 mb-3">{hint}</p>}
+      {children}
+    </section>
+  );
+}
+
+export default function RebookRemindersPage() {
   const router = useRouter();
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -76,14 +94,12 @@ export default function RebookRemindersCheckPage() {
       .catch((e) => setError(e?.message ?? "Could not load"));
   }, [router]);
 
-  const mistakes = data?.sent.filter((s) => s.alreadyBookedDate) ?? [];
-  const worked = data?.sent.filter((s) => !s.alreadyBookedDate && s.bookedAfterDate) ?? [];
   const willSend = data?.upcoming.filter((u) => u.send) ?? [];
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
       <div className="flex items-center justify-between gap-3 mb-4">
-        <h1 className="font-serif text-2xl font-semibold text-charcoal">Rebook reminder check</h1>
+        <h1 className="font-serif text-2xl font-semibold text-charcoal">Rebook reminders</h1>
         <Link
           href="/admin/settings"
           className="text-sm text-charcoal/70 hover:text-navy px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50"
@@ -93,85 +109,78 @@ export default function RebookRemindersCheckPage() {
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
-      {!data && !error && <p className="text-sm text-charcoal/60">Checking…</p>}
+      {!data && !error && <p className="text-sm text-charcoal/60">Loading…</p>}
 
       {data && (
-        <div className="space-y-8">
+        <div className="space-y-10">
           <p className="text-sm text-charcoal/65 leading-relaxed">
             Reminders are <strong>{data.enabled ? "on" : "off"}</strong> and go out at 9am,{" "}
             <strong>{data.daysAfter} days</strong> after a customer&apos;s most recent visit — only if they
             have no later booking (matched by email or phone, including bookings still awaiting a deposit).
+            This is checked again the moment before each reminder is sent.
           </p>
 
-          <section>
-            <h2 className="text-sm font-semibold text-charcoal uppercase tracking-wide mb-2">
-              Sent in the last 6 months ({data.sent.length})
-            </h2>
-            {mistakes.length > 0 ? (
-              <div className="rounded-xl border-2 border-red-300 bg-red-50 p-4 mb-3">
-                <p className="text-sm font-semibold text-red-700">
-                  {mistakes.length} reminder{mistakes.length === 1 ? "" : "s"} went to customers who had already
-                  rebooked
-                </p>
-                <p className="text-xs text-red-800/80 mt-1">
-                  These were sent before today&apos;s fix. Shown in red below.
-                </p>
-              </div>
-            ) : (
-              data.sent.length > 0 && (
-                <p className="text-sm text-emerald-700 mb-3">
-                  No mistakes found — nobody who had already rebooked was sent a reminder.
-                </p>
-              )
-            )}
-            {worked.length > 0 && (
-              <p className="text-sm text-charcoal/70 mb-3">
-                {worked.length} customer{worked.length === 1 ? "" : "s"} booked again after their reminder.
-              </p>
-            )}
-            {data.sent.length === 0 ? (
-              <p className="text-sm text-charcoal/55">No reminders sent yet.</p>
+          <Section
+            title={`Rebooked after their reminder (${data.rebooked.length})`}
+            tone="green"
+            hint={`Shown for ${data.rebookedShownDays} days after they book, then removed from this page.`}
+          >
+            {data.rebooked.length === 0 ? (
+              <p className="text-sm text-charcoal/55">Nobody has rebooked in the last {data.rebookedShownDays} days.</p>
             ) : (
               <div className="space-y-2">
-                {data.sent.map((s) => (
-                  <div
-                    key={s.bookingId}
-                    className={`rounded-xl border p-3 text-sm ${
-                      s.alreadyBookedDate ? "border-red-300 bg-red-50" : "border-slate-200 bg-white"
-                    }`}
-                  >
+                {data.rebooked.map((s) => (
+                  <div key={s.bookingId} className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 text-sm">
                     <div className="flex flex-wrap justify-between gap-2">
                       <p className="font-medium text-charcoal">
                         {s.customerName} <span className="font-normal text-charcoal/55">· {s.contact}</span>
                       </p>
-                      <p className="text-xs text-charcoal/55">Sent {when(s.sentAt)}</p>
+                      <p className="text-xs text-emerald-700 font-medium">Rebooked</p>
                     </div>
                     <p className="text-xs text-charcoal/60 mt-0.5">
-                      After {s.serviceName} on {day(s.visitDate)}
+                      Reminded {when(s.sentAt)} after {s.serviceName} on {day(s.visitDate)}
                     </p>
-                    {s.alreadyBookedDate ? (
-                      <p className="text-xs font-semibold text-red-700 mt-1">
-                        Mistake — they already had a booking for {day(s.alreadyBookedDate)}
-                        {s.alreadyBookedMadeOn && ` (made ${when(s.alreadyBookedMadeOn)})`}
-                      </p>
-                    ) : s.bookedAfterDate ? (
-                      <p className="text-xs text-emerald-700 mt-1">Booked again for {day(s.bookedAfterDate)}</p>
-                    ) : (
-                      <p className="text-xs text-charcoal/50 mt-1">Hasn&apos;t booked again yet</p>
-                    )}
+                    <p className="text-xs text-emerald-700 mt-1">
+                      Booked for {day(s.bookedAfterDate!)}
+                      {s.bookedAfterMadeOn && ` (booked on ${when(s.bookedAfterMadeOn)})`}
+                    </p>
                   </div>
                 ))}
               </div>
             )}
-          </section>
+          </Section>
 
-          <section>
-            <h2 className="text-sm font-semibold text-charcoal uppercase tracking-wide mb-2">
-              Due in the next 14 days ({willSend.length} will be sent)
-            </h2>
-            <p className="text-xs text-charcoal/55 mb-3">
-              Based on today&apos;s bookings — if someone books in the meantime, they&apos;re skipped automatically.
-            </p>
+          <Section
+            title={`Reminded — not rebooked yet (${data.waiting.length})`}
+            tone="navy"
+            hint="Reminders sent in the last 6 months where the customer hasn't booked again."
+          >
+            {data.waiting.length === 0 ? (
+              <p className="text-sm text-charcoal/55">Nobody is waiting to rebook.</p>
+            ) : (
+              <div className="space-y-2">
+                {data.waiting.map((s) => (
+                  <div key={s.bookingId} className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
+                    <div className="flex flex-wrap justify-between gap-2">
+                      <p className="font-medium text-charcoal">
+                        {s.customerName} <span className="font-normal text-charcoal/55">· {s.contact}</span>
+                      </p>
+                      <p className="text-xs text-charcoal/55">Reminded {when(s.sentAt)}</p>
+                    </div>
+                    <p className="text-xs text-charcoal/60 mt-0.5">
+                      Last visit: {s.serviceName} on {day(s.visitDate)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Section>
+
+          <Section
+            title={`Due in the next 14 days (${willSend.length} will be sent)`}
+            tone="grey"
+            hint="Based on today's bookings — if someone books in the meantime, they're skipped automatically."
+          >
             {data.upcoming.length === 0 ? (
               <p className="text-sm text-charcoal/55">Nobody is due in the next 14 days.</p>
             ) : (
@@ -194,7 +203,7 @@ export default function RebookRemindersCheckPage() {
                 ))}
               </div>
             )}
-          </section>
+          </Section>
         </div>
       )}
     </div>

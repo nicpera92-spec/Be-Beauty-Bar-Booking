@@ -293,6 +293,15 @@ export async function getRebookReminderPlan(from: string, to: string, daysAfter:
   return planRebookReminders({ visits, liveBookings, daysAfter, from, to, isOptedOut });
 }
 
+/** Fresh database check: does this customer (email or phone) have any live booking after the visit? */
+async function hasLiveBookingAfter(visit: ContactBooking): Promise<boolean> {
+  const later = await prisma.booking.findMany({
+    where: { status: { in: ["confirmed", "pending_deposit"] }, date: { gt: visit.date } },
+    select: { date: true, customerEmail: true, customerPhone: true },
+  });
+  return hasLaterBooking(visit, indexLatestBookingDates(later));
+}
+
 export async function processRebookReminders(): Promise<{
   sent: number;
   failed: number;
@@ -318,6 +327,11 @@ export async function processRebookReminders(): Promise<{
   for (const decision of plan) {
     if (!decision.send) {
       if (decision.reason !== "already_sent") skipped++;
+      continue;
+    }
+    // Last check right before sending, in case they booked while this run was going.
+    if (await hasLiveBookingAfter(decision.visit)) {
+      skipped++;
       continue;
     }
     // Claim first so two overlapping runs can never both send to the same visit.
@@ -354,6 +368,7 @@ export type SentReminderCheck = {
   alreadyBookedMadeOn: string | null;
   /** First booking made after the reminder (the reminder worked). */
   bookedAfterDate: string | null;
+  bookedAfterMadeOn: string | null;
 };
 
 type HistoryBooking = ContactBooking & {
@@ -404,6 +419,7 @@ export function checkSentReminders(
         alreadyBookedDate: existing?.date ?? null,
         alreadyBookedMadeOn: existing ? existing.createdAt.toISOString() : null,
         bookedAfterDate: after?.date ?? null,
+        bookedAfterMadeOn: after ? after.createdAt.toISOString() : null,
       };
     })
     .sort((a, b) => b.sentAt.localeCompare(a.sentAt));

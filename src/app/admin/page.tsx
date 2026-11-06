@@ -31,6 +31,8 @@ type Booking = {
   endTime: string;
   depositAmount: number;
   certificateItemId?: string | null;
+  /** Already reviewed on Google: opened our review link, or marked by the owner. */
+  customerReviewed?: "link" | "owner" | null;
   balancePaidOnline: boolean;
   status: string;
   notifyByEmail: boolean;
@@ -386,6 +388,8 @@ export default function AdminPage() {
 
   const activeWaitlist = waitlistEntries.filter((e) => e.status === "active");
   const inactiveWaitlist = waitlistEntries.filter((e) => e.status !== "active");
+  const bookedFromWaitlist = inactiveWaitlist.filter((e) => e.status === "fulfilled");
+  const expiredWaitlist = inactiveWaitlist.filter((e) => e.status !== "fulfilled");
 
   const waitlistFiltered = activeWaitlist
     .filter((e) => {
@@ -589,31 +593,6 @@ export default function AdminPage() {
                 ))
               )}
 
-              {inactiveWaitlist.length > 0 && (
-                <div className="pt-2">
-                  <p className="text-xs font-medium uppercase tracking-wide text-charcoal/45 mb-2">
-                    Expired / inactive
-                  </p>
-                  <div className="space-y-2 opacity-70">
-                    {inactiveWaitlist.map((entry) => (
-                      <div
-                        key={entry.id}
-                        className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-charcoal/70 flex justify-between gap-2"
-                      >
-                        <div>
-                          {entry.customerName} · {entry.service.name} ·{" "}
-                          {formatBookingDateFriendly(entry.preferredDate)}
-                          <WaitlistBookingStatus entry={entry} />
-                        </div>
-                        <span className="text-xs capitalize shrink-0">
-                          {entry.status === "fulfilled" ? "Booked" : entry.status}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {waitlistFiltered.length > 0 && totalPages > 1 && (
                 <div className="flex items-center justify-center gap-2 pt-3">
                   <button
@@ -635,6 +614,52 @@ export default function AdminPage() {
                   >
                     Next
                   </button>
+                </div>
+              )}
+
+              {bookedFromWaitlist.length > 0 && (
+                <div className="pt-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-emerald-700 mb-2">
+                    Booked from the waiting list ({bookedFromWaitlist.length})
+                  </p>
+                  <div className="space-y-2">
+                    {bookedFromWaitlist.map((entry) => (
+                      <div
+                        key={entry.id}
+                        className="rounded-lg border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-sm text-charcoal flex justify-between gap-2"
+                      >
+                        <div>
+                          {entry.customerName} · {entry.service.name} ·{" "}
+                          {formatBookingDateFriendly(entry.preferredDate)}
+                          <WaitlistBookingStatus entry={entry} />
+                        </div>
+                        <span className="text-xs font-medium text-emerald-700 shrink-0">Booked</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {expiredWaitlist.length > 0 && (
+                <div className="pt-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-charcoal/45 mb-2">
+                    Expired / inactive
+                  </p>
+                  <div className="space-y-2 opacity-70">
+                    {expiredWaitlist.map((entry) => (
+                      <div
+                        key={entry.id}
+                        className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-charcoal/70 flex justify-between gap-2"
+                      >
+                        <div>
+                          {entry.customerName} · {entry.service.name} ·{" "}
+                          {formatBookingDateFriendly(entry.preferredDate)}
+                          <WaitlistBookingStatus entry={entry} />
+                        </div>
+                        <span className="text-xs capitalize shrink-0">{entry.status}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -845,6 +870,27 @@ function AdminBookingRow({
       .finally(() => setRefunding(null));
   };
 
+  const [reviewed, setReviewed] = useState(booking.customerReviewed ?? null);
+  useEffect(() => setReviewed(booking.customerReviewed ?? null), [booking.customerReviewed]);
+  const toggleReviewed = () => {
+    const next = !reviewed;
+    setUpdating(true);
+    setRefundError(null);
+    fetch("/api/admin/reviewed", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify({ bookingId: booking.id, reviewed: next }),
+    })
+      .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
+      .then(({ ok, data }) => {
+        if (!ok) throw new Error(data?.error ?? "Could not update");
+        setReviewed(next ? "owner" : null);
+        onUpdate();
+      })
+      .catch((err) => setRefundError(err?.message ?? "Could not update"))
+      .finally(() => setUpdating(false));
+  };
+
   const canRefundDeposit =
     booking.status === "confirmed" &&
     booking.stripeDepositPaymentIntentId &&
@@ -879,6 +925,8 @@ function AdminBookingRow({
           {booking.balanceRefundedAt && " · balance refunded"}
           {booking.customerCancelledAt && " · cancelled by customer"}
           {(booking.rescheduleCount ?? 0) > 0 && " · moved by customer"}
+          {reviewed === "owner" && " · ⭐ reviewed on Google"}
+          {reviewed === "link" && " · ⭐ opened the review link"}
         </p>
         {booking.notes && booking.notes.trim() && (
           <p className="text-sm text-navy mt-2 italic">
@@ -940,6 +988,21 @@ function AdminBookingRow({
               className="px-3 py-1.5 rounded-lg bg-navy text-white text-sm font-medium hover:bg-navy-light disabled:opacity-50"
             >
               Mark deposit paid
+            </button>
+          )}
+          {booking.status === "confirmed" && (booking.customerEmail || booking.customerPhone) && (
+            <button
+              type="button"
+              onClick={toggleReviewed}
+              disabled={updating}
+              title={
+                reviewed
+                  ? "They won't be sent review requests. Click to allow them again."
+                  : "Mark that they've left a Google review, so they're never asked again."
+              }
+              className="px-3 py-1.5 rounded-lg border border-slate-200 text-charcoal/70 text-sm hover:bg-slate-50 disabled:opacity-50"
+            >
+              {reviewed ? "Undo reviewed" : "Mark reviewed"}
             </button>
           )}
           {booking.status !== "cancelled" && (

@@ -20,6 +20,7 @@ import {
   indexLatestBookingDates,
   planRebookReminders,
 } from "@/lib/rebookReminder";
+import { buildReviewTrackingLink, verifyReviewToken } from "@/lib/reviewTracking";
 
 function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(message);
@@ -304,5 +305,12 @@ assert(
   "booking made after the reminder counts as it working, not a mistake"
 );
 assert(check("cancelled-first").alreadyBookedDate === null, "a booking cancelled before the reminder isn't a mistake");
+
+// --- review link tracking ---
+const reviewLink = buildReviewTrackingLink("cmbooking123");
+const reviewToken = reviewLink.split("/r/")[1];
+assert(verifyReviewToken(reviewToken) === "cmbooking123", "review link identifies the booking");
+assert(verifyReviewToken(reviewToken.slice(0, -1) + "x") === null, "tampered review link rejected");
+assert(verifyReviewToken("cmotherbooking." + reviewToken.split(".")[1]) === null, "signature is per booking");
 
 console.log("automations: all checks passed");

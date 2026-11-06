@@ -806,14 +806,14 @@ function AdminSettingsPageInner() {
                   />
                   <span className="text-xs text-charcoal/45">days (7–365)</span>
                   <Link href="/admin/rebook-reminders" className="text-xs text-navy hover:underline ml-auto">
-                    Check who&apos;s been reminded →
+                    Who&apos;s been reminded &amp; who rebooked →
                   </Link>
                 </div>
               </SettingsFeatureRow>
 
               <SettingsFeatureRow
                 label="Google review requests"
-                info="The day after an appointment, customers get a short email or text (whichever they chose when booking) asking for a Google review. Each customer is asked at most once every 90 days. Edit the wording in Messages → Review request."
+                info="The day after an appointment, customers get a short email or text (whichever they chose when booking) asking for a Google review. Each customer is asked at most once every 90 days, and never again once they've tapped the review link (or you click 'Mark reviewed' on their booking). Edit the wording in Messages → Review request."
                 checked={form.reviewRequestEnabled ?? false}
                 onChange={(reviewRequestEnabled) => setForm((f) => ({ ...f, reviewRequestEnabled }))}
               >

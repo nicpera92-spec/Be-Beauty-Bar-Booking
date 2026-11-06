@@ -7,6 +7,7 @@ import { sendBookingCreatedEmails, sendBookingConfirmationEmails } from "@/lib/e
 import { isBookingSlotAvailable } from "@/lib/bookingAvailability";
 import { hasWaitlistSameDayBookingAccess } from "@/lib/waitlist-booking-token";
 import { isBeforeMinBookableDate } from "@/lib/business-time";
+import { loadReviewedLookup } from "@/lib/reviewTracking";
 import {
   attachCertificateItemToBooking,
   claimCertificateItem,
@@ -44,7 +45,8 @@ export async function GET(req: NextRequest) {
     include: { service: true, technician: true },
     orderBy: [{ date: "asc" }, { startTime: "asc" }],
   });
-  return NextResponse.json(bookings);
+  const reviewed = await loadReviewedLookup();
+  return NextResponse.json(bookings.map((b) => ({ ...b, customerReviewed: reviewed(b) })));
 }
 
 export async function POST(req: NextRequest) {

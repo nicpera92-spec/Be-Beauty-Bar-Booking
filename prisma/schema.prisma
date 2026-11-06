@@ -140,6 +140,8 @@ model CustomerNotificationPreference {
   phone                String?   @unique
   rebookReminderOptOut Boolean   @default(false)
   rebookOptOutAt       DateTime?
+  reviewedAt           DateTime? // set = never send a Google review request again
+  reviewSource         String?   // link (tapped the review link) | owner (marked in admin)
   updatedAt            DateTime  @updatedAt
 }
 

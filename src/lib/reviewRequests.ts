@@ -2,6 +2,7 @@ import { addDays, format, parse } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { businessDateStr } from "@/lib/business-time";
 import { contactKeyForBooking } from "@/lib/rebookReminder";
+import { buildReviewTrackingLink, loadReviewedLookup } from "@/lib/reviewTracking";
 
 /** Don't ask the same customer for a review more often than this. */
 export const REVIEW_REQUEST_COOLDOWN_DAYS = 90;
@@ -56,7 +57,7 @@ export async function processReviewRequests(now: Date = new Date()): Promise<{
   }
 
   const today = businessDateStr(now);
-  const [visits, recentlyAsked] = await Promise.all([
+  const [allVisits, recentlyAsked, reviewed] = await Promise.all([
     prisma.booking.findMany({
       where: {
         status: "confirmed",
@@ -69,7 +70,10 @@ export async function processReviewRequests(now: Date = new Date()): Promise<{
       where: { reviewRequestSentAt: { gte: addDays(now, -REVIEW_REQUEST_COOLDOWN_DAYS) } },
       select: { customerEmail: true, customerPhone: true },
     }),
+    loadReviewedLookup(),
   ]);
+  // Anyone who already opened the review link, or the owner marked as reviewed, is never asked again.
+  const visits = allVisits.filter((v) => !reviewed(v));
 
   const askedKeys = new Set(
     recentlyAsked.map((b) => contactKeyForBooking(b)).filter((k): k is string => Boolean(k))
@@ -80,7 +84,7 @@ export async function processReviewRequests(now: Date = new Date()): Promise<{
   let sent = 0;
   let failed = 0;
   for (const booking of candidates) {
-    const result = await sendReviewRequest(booking.id, reviewUrl);
+    const result = await sendReviewRequest(booking.id, buildReviewTrackingLink(booking.id));
     if (result.ok) {
       sent++;
     } else {
@@ -93,5 +97,5 @@ export async function processReviewRequests(now: Date = new Date()): Promise<{
     });
   }
 
-  return { enabled: true, sent, failed, skipped: visits.length - candidates.length };
+  return { enabled: true, sent, failed, skipped: allVisits.length - candidates.length };
 }
