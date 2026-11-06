@@ -59,7 +59,7 @@ export default function HomePage() {
         </h1>
 
         <ul
-          className="flex flex-wrap justify-center gap-x-6 gap-y-2.5 mt-6 list-none p-0 text-[11px] tracking-[0.34em] uppercase lux-muted"
+          className="flex flex-wrap justify-center gap-x-6 gap-y-3.5 mt-9 sm:mt-10 list-none p-0 text-[11px] tracking-[0.34em] uppercase lux-muted"
           aria-label="Services"
         >
           {displayCategories.map((category) => (
@@ -74,7 +74,7 @@ export default function HomePage() {
 
         <div className="lux-line" aria-hidden />
 
-        <p className="lux-muted max-w-[430px] mx-auto leading-[1.8] mb-10 text-[15px] sm:text-base">
+        <p className="lux-muted max-w-[430px] mx-auto leading-[1.8] mb-12 text-[15px] sm:text-base">
           Book your appointment online. Choose your technician, choose your service, pick a date
           and time, and secure your slot with a deposit.
         </p>
@@ -84,7 +84,7 @@ export default function HomePage() {
         </Link>
         <Link
           href="/gift-vouchers"
-          className="mt-5 text-[13px] lux-muted border-b border-white/15 pb-0.5 hover:text-white transition"
+          className="mt-7 text-[13px] lux-muted border-b border-white/15 pb-0.5 hover:text-white transition"
         >
           Give a gift certificate
         </Link>

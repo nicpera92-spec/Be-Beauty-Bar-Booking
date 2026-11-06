@@ -280,7 +280,7 @@ html[data-design="midnight"] input[type="radio"] {
 .lux-line {
   height: 1px;
   width: 120px;
-  margin: 28px auto;
+  margin: 36px auto;
   background: linear-gradient(90deg, transparent, #c9d0da, transparent);
 }
 .lux-btn {
