@@ -340,6 +340,7 @@ export default function BookFormPage() {
           <p className="lux-alert mb-4">
             <span aria-hidden="true">⚠</span>
             <span>Please read this cancellation policy carefully!</span>
+            <span aria-hidden="true">⚠</span>
           </p>
           <CancellationPolicyList
             policy={cancellationPolicy}
