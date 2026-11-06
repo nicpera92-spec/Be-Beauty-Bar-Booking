@@ -44,6 +44,7 @@ type Data = {
   waiting: Reminded[];
   rebooked: Reminded[];
   rebookedShownDays: number;
+  waitingShownDays: number;
 };
 
 const day = (d: string) => formatBookingDate(d, "EEE d MMM yyyy");
@@ -153,7 +154,7 @@ export default function RebookRemindersPage() {
           <Section
             title={`Reminded — not rebooked yet (${data.waiting.length})`}
             tone="navy"
-            hint="Reminders sent in the last 6 months where the customer hasn't booked again."
+            hint={`Reminders sent in the last ${data.waitingShownDays} days where the customer hasn't booked again. Older ones drop off this list.`}
           >
             {data.waiting.length === 0 ? (
               <p className="text-sm text-charcoal/55">Nobody is waiting to rebook.</p>

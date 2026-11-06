@@ -12,6 +12,7 @@ export const dynamic = "force-dynamic";
 
 const PREVIEW_DAYS = 14;
 const REBOOKED_SHOWN_DAYS = 5;
+const WAITING_SHOWN_DAYS = 30;
 
 /** Rebook reminders: who's been reminded and not booked yet, who rebooked (recently), and who's due next. */
 export async function GET(req: NextRequest) {
@@ -26,7 +27,9 @@ export async function GET(req: NextRequest) {
   // Rebooked customers stay on the page for a few days after booking, then drop off.
   const rebookedShownSince = addDays(new Date(), -REBOOKED_SHOWN_DAYS).toISOString();
   const sentProperly = sent.filter((s) => !s.alreadyBookedDate);
-  const waiting = sentProperly.filter((s) => !s.bookedAfterDate);
+  // Reminders that have gone stale without a rebooking drop off too.
+  const waitingShownSince = addDays(new Date(), -WAITING_SHOWN_DAYS).toISOString();
+  const waiting = sentProperly.filter((s) => !s.bookedAfterDate && s.sentAt >= waitingShownSince);
   const rebooked = sentProperly.filter(
     (s) => s.bookedAfterDate && s.bookedAfterMadeOn && s.bookedAfterMadeOn >= rebookedShownSince
   );
@@ -50,6 +53,7 @@ export async function GET(req: NextRequest) {
       waiting,
       rebooked,
       rebookedShownDays: REBOOKED_SHOWN_DAYS,
+      waitingShownDays: WAITING_SHOWN_DAYS,
     },
     { headers: { "Cache-Control": "no-store" } }
   );

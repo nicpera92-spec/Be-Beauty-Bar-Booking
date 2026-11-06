@@ -124,6 +124,7 @@ export default function AdminPage() {
   const [pageSize, setPageSize] = useState(10);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [dateFilter, setDateFilter] = useState<string>(""); // yyyy-MM-dd; empty = all dates
+  const [search, setSearch] = useState("");
   const [monthFilter] = useState<string>("all"); // bookings list shows all time
   const [staffRole, setStaffRole] = useState<"master" | "technician">("master");
   const [staffName, setStaffName] = useState<string | null>(null);
@@ -264,7 +265,7 @@ export default function AdminPage() {
   useEffect(() => {
     // Reset pagination when switching sorting or date filter
     setPage(1);
-  }, [sortDir, dateFilter]);
+  }, [sortDir, dateFilter, search]);
 
   useEffect(() => {
     // Reset pagination when switching month
@@ -373,7 +374,19 @@ export default function AdminPage() {
   const rangeStartStr = monthFilter === "all" ? null : `${monthFilter}-01`;
   const rangeEndStr = monthFilter === "all" ? null : nextMonthStart(monthFilter);
 
+  // Search by customer name, email or phone (phone ignores spaces and +44/0 differences).
+  const searchTerm = search.trim().toLowerCase();
+  const searchDigits = searchTerm.replace(/\D/g, "").replace(/^(44|0)/, "");
+  const matchesSearch = (p: { customerName: string; customerEmail: string | null; customerPhone: string | null }) => {
+    if (!searchTerm) return true;
+    if (p.customerName.toLowerCase().includes(searchTerm)) return true;
+    if (p.customerEmail?.toLowerCase().includes(searchTerm)) return true;
+    const phone = (p.customerPhone ?? "").replace(/\D/g, "");
+    return searchDigits.length >= 3 && phone.includes(searchDigits);
+  };
+
   const inVisibleRange = (b: Booking) => {
+    if (!matchesSearch(b)) return false;
     if (dateFilter) return b.date === dateFilter;
     if (!rangeStartStr || !rangeEndStr) return true;
     return b.date >= rangeStartStr && b.date < rangeEndStr;
@@ -389,8 +402,9 @@ export default function AdminPage() {
     (b) => b.status === "cancelled" && inVisibleRange(b)
   );
 
-  const activeWaitlist = waitlistEntries.filter((e) => e.status === "active");
-  const inactiveWaitlist = waitlistEntries.filter((e) => e.status !== "active");
+  const searchedWaitlist = waitlistEntries.filter(matchesSearch);
+  const activeWaitlist = searchedWaitlist.filter((e) => e.status === "active");
+  const inactiveWaitlist = searchedWaitlist.filter((e) => e.status !== "active");
   const bookedFromWaitlist = inactiveWaitlist.filter((e) => e.status === "fulfilled");
   const expiredWaitlist = inactiveWaitlist.filter((e) => e.status !== "fulfilled");
 
@@ -475,6 +489,26 @@ export default function AdminPage() {
                 </button>
               );
             })}
+          </div>
+
+          <div className="relative mb-2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+              aria-hidden
+            >
+              <path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM2 9a7 7 0 1 1 12.45 4.39l3.08 3.08a.75.75 0 1 1-1.06 1.06l-3.08-3.08A7 7 0 0 1 2 9Z" clipRule="evenodd" />
+            </svg>
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name, phone or email"
+              aria-label="Search bookings by name, phone or email"
+              className="w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 py-2 text-sm text-charcoal placeholder-charcoal/45"
+            />
           </div>
 
           {/* Compact controls: sort · date · per page */}
