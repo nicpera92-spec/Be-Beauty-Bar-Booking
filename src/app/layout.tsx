@@ -1,18 +1,20 @@
 import type { Metadata, Viewport } from "next";
-import { Playfair_Display, DM_Sans } from "next/font/google";
+import { Cormorant_Garamond, Jost } from "next/font/google";
 import "./globals.css";
 import ColorThemeProvider from "@/components/ColorThemeProvider";
 import Footer from "@/components/Footer";
 import SiteTopLinks from "@/components/SiteTopLinks";
 import { getSavedTheme } from "@/lib/getSavedTheme";
 
-const playfair = Playfair_Display({
+// Font CSS variable names are kept from the previous fonts so Tailwind's font-serif / font-sans still map.
+const playfair = Cormorant_Garamond({
   subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
   variable: "--font-playfair",
   display: "swap",
 });
 
-const dmSans = DM_Sans({
+const dmSans = Jost({
   subsets: ["latin"],
   variable: "--font-dm-sans",
   display: "swap",
@@ -63,6 +65,7 @@ export default async function RootLayout({
       className={`${playfair.variable} ${dmSans.variable}`}
       style={themeStyle}
       data-theme-surface={themeSurface}
+      data-design="midnight"
     >
       <body className="relative font-sans min-h-screen flex flex-col antialiased">
         <ColorThemeProvider />

@@ -29,6 +29,9 @@ for (let h = 0; h < 24; h++) {
 
 type SettingsTab = "business" | "theme" | "bookings" | "messages" | "payments";
 
+/** Matches data-design="midnight" in the root layout; the colour picker is hidden while it's on. */
+const MIDNIGHT_DESIGN = true;
+
 const TABS: { id: SettingsTab; label: string; shortLabel: string }[] = [
   { id: "business", label: "Business", shortLabel: "Business" },
   { id: "theme", label: "Theme", shortLabel: "Theme" },
@@ -755,17 +758,20 @@ function AdminSettingsPageInner() {
             <div>
               <h2 className="text-lg font-semibold text-navy mb-1">Theme</h2>
               <p className="text-sm text-charcoal/55">
-                Colours and gradients for your booking site and admin area.
+                Your booking site and admin area use the Midnight design — black, white, silver and dark
+                blue. Your previous colour choice is still saved but isn&apos;t shown while Midnight is on.
               </p>
             </div>
-            <ThemeEditor
-              primary={primaryColor}
-              secondary={secondaryColor}
-              onChange={(primary, secondary) => {
-                setPrimaryColor(primary);
-                setSecondaryColor(secondary);
-              }}
-            />
+            {!MIDNIGHT_DESIGN && (
+              <ThemeEditor
+                primary={primaryColor}
+                secondary={secondaryColor}
+                onChange={(primary, secondary) => {
+                  setPrimaryColor(primary);
+                  setSecondaryColor(secondary);
+                }}
+              />
+            )}
           </>
         )}
 

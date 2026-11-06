@@ -85,6 +85,169 @@ body {
   color: rgb(30 41 59);
 }
 
+/* ------------------------------------------------------------------
+   Midnight design: black, white, silver and dark blue, on every page.
+   Only colours, fonts and glow change here; layout and behaviour don't.
+   !important beats the saved-theme variables set inline on <html>.
+   ------------------------------------------------------------------ */
+html[data-design="midnight"] {
+  color-scheme: dark;
+  --navy: #d6dce5 !important;
+  --navy-light: #ffffff !important;
+  --navy-rgb: 214 220 229 !important;
+  --theme-on-primary: #0b0e14 !important;
+  --theme-link: #c9d6ea !important;
+  --theme-bg: #07080b !important;
+  --theme-bg-rgb: 22 28 40 !important;
+  --theme-text: #f1f4f8 !important;
+  --theme-text-rgb: 241 244 248 !important;
+  --theme-text-muted: #a0aaba !important;
+  --theme-text-muted-rgb: 160 170 186 !important;
+  --theme-page-gradient: none !important;
+  --surface-rgb: 17 22 33;
+
+  --c-slate-100: 26 33 48;
+  --c-slate-200: 46 55 74;
+  --c-slate-300: 68 78 98;
+  --c-gray-50: 22 28 40;
+  --c-gray-200: 46 55 74;
+
+  --c-emerald-50: 6 46 36;
+  --c-emerald-100: 8 62 47;
+  --c-emerald-200: 18 94 71;
+  --c-emerald-300: 34 134 101;
+  --c-emerald-600: 52 211 153;
+  --c-emerald-700: 110 231 183;
+  --c-emerald-800: 167 243 208;
+  --c-emerald-900: 209 250 229;
+
+  --c-green-50: 7 44 26;
+  --c-green-100: 10 58 34;
+  --c-green-200: 22 92 52;
+  --c-green-600: 74 222 128;
+  --c-green-700: 134 239 172;
+  --c-green-800: 187 247 208;
+  --c-green-900: 220 252 231;
+
+  --c-red-50: 52 14 18;
+  --c-red-100: 72 18 23;
+  --c-red-200: 112 30 37;
+  --c-red-300: 150 42 49;
+  --c-red-400: 200 62 68;
+  --c-red-500: 239 68 68;
+  --c-red-600: 248 113 113;
+  --c-red-700: 252 165 165;
+  --c-red-800: 254 202 202;
+  --c-red-900: 254 226 226;
+
+  --c-amber-50: 52 36 8;
+  --c-amber-100: 72 50 10;
+  --c-amber-200: 112 78 16;
+  --c-amber-600: 251 191 36;
+  --c-amber-700: 252 211 77;
+  --c-amber-800: 253 230 138;
+  --c-amber-900: 254 243 199;
+
+  --c-violet-50: 38 26 72;
+  --c-violet-200: 82 58 142;
+  --c-violet-600: 167 139 250;
+  --c-violet-700: 196 181 253;
+  --c-violet-900: 221 214 254;
+
+  --c-sky-50: 12 34 54;
+  --c-sky-200: 32 80 122;
+  --c-sky-400: 96 150 240;
+  --c-sky-600: 125 185 255;
+  --c-sky-700: 160 205 255;
+  --c-sky-800: 190 222 255;
+}
+
+html[data-design="midnight"] body {
+  background-color: #07080b;
+  background-image:
+    radial-gradient(70% 55% at 50% -8%, rgba(45, 91, 179, 0.5), transparent 70%),
+    radial-gradient(45% 45% at 100% 100%, rgba(27, 58, 116, 0.4), transparent 70%),
+    radial-gradient(35% 40% at 0% 60%, rgba(27, 58, 116, 0.25), transparent 70%);
+  background-attachment: fixed;
+  background-size: auto;
+  color: #f1f4f8;
+}
+
+/* Cards and panels: deep blue-black instead of white. */
+html[data-design="midnight"] .bg-white,
+html[data-design="midnight"] .bg-white\/95,
+html[data-design="midnight"] .bg-white\/90,
+html[data-design="midnight"] .bg-white\/80,
+html[data-design="midnight"] .bg-white\/70 {
+  --theme-text-rgb: 241 244 248;
+  --theme-text-muted-rgb: 160 170 186;
+  background-color: rgb(var(--surface-rgb) / 0.92);
+  color: #f1f4f8;
+}
+html[data-design="midnight"] .hover\:bg-white\/80:hover {
+  background-color: rgb(var(--c-slate-100) / 0.9);
+}
+
+/* Main buttons: polished silver with a soft blue glow. */
+html[data-design="midnight"] .bg-navy {
+  background-image: linear-gradient(180deg, #ffffff 0%, #d5dbe3 45%, #a7b0bd 100%);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.55) inset, 0 10px 28px -12px rgba(45, 91, 179, 0.75);
+}
+html[data-design="midnight"] .bg-navy:hover {
+  filter: brightness(1.06);
+}
+html[data-design="midnight"] .bg-navy .text-white,
+html[data-design="midnight"] .bg-navy [class*="text-white\/"] {
+  color: rgb(11 14 20 / 0.72) !important;
+}
+html[data-design="midnight"] .bg-slate-800.text-white,
+html[data-design="midnight"] .bg-slate-800 {
+  background-color: #d6dce5;
+  background-image: linear-gradient(180deg, #ffffff 0%, #d5dbe3 45%, #a7b0bd 100%);
+  color: #0b0e14 !important;
+}
+html[data-design="midnight"] .hover\:bg-slate-700:hover {
+  filter: brightness(1.06);
+}
+/* Red "cancel" buttons keep a solid red that white text reads on. */
+html[data-design="midnight"] .bg-red-600 {
+  background-color: #c62828;
+}
+html[data-design="midnight"] .hover\:bg-red-700:hover {
+  background-color: #a61f1f;
+}
+
+/* Admin calendar: past days recede. */
+html[data-design="midnight"] .bg-slate-300 {
+  background-color: rgb(12 15 22);
+}
+
+/* Booking calendar: fully booked days fade back so free days stand out. */
+html[data-design="midnight"] .bg-slate-100\/90 {
+  background-color: transparent;
+  border-color: transparent;
+  color: rgb(96 106 124);
+}
+
+/* Headings get the soft blue glow. */
+html[data-design="midnight"] h1,
+html[data-design="midnight"] h2 {
+  text-shadow: 0 0 22px rgba(70, 120, 220, 0.5), 0 0 48px rgba(45, 91, 179, 0.3);
+}
+
+/* Home page: drifting blue light instead of the light gradient. */
+html[data-design="midnight"] .home-theme-gradient {
+  background-image: none;
+}
+html[data-design="midnight"] .home-theme-orb {
+  background-color: rgba(45, 91, 179, 0.32);
+}
+
+html[data-design="midnight"] ::selection {
+  background: rgba(45, 91, 179, 0.6);
+  color: #ffffff;
+}
+
 .date-input-empty::-webkit-datetime-edit,
 .date-input-empty::-webkit-datetime-edit-fields-wrapper,
 .date-input-empty::-webkit-datetime-edit-text,
