@@ -45,7 +45,10 @@ export async function GET(req: NextRequest) {
     include: { service: true, technician: true },
     orderBy: [{ date: "asc" }, { startTime: "asc" }],
   });
-  const reviewed = await loadReviewedLookup();
+  const reviewed = await loadReviewedLookup().catch((e) => {
+    console.error("Could not load reviewed customers:", e);
+    return () => null;
+  });
   return NextResponse.json(bookings.map((b) => ({ ...b, customerReviewed: reviewed(b) })));
 }
 
