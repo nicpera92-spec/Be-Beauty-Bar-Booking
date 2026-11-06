@@ -13,18 +13,6 @@ function getAuthHeaders(): Record<string, string> {
   return t ? { Authorization: `Bearer ${t}` } : {};
 }
 
-type Upcoming = {
-  bookingId: string;
-  customerName: string;
-  contact: string;
-  serviceName: string;
-  visitDate: string;
-  dueDate: string;
-  send: boolean;
-  reason: "already_booked" | "already_sent" | "no_contact" | "opted_out" | null;
-  nextBookingDate: string | null;
-};
-
 type Reminded = {
   bookingId: string;
   customerName: string;
@@ -40,7 +28,6 @@ type Data = {
   enabled: boolean;
   daysAfter: number;
   today: string;
-  upcoming: Upcoming[];
   waiting: Reminded[];
   rebooked: Reminded[];
   rebookedShownDays: number;
@@ -49,21 +36,6 @@ type Data = {
 
 const day = (d: string) => formatBookingDate(d, "EEE d MMM yyyy");
 const when = (iso: string) => formatBookingDate(iso.slice(0, 10), "d MMM yyyy");
-
-function skipLabel(u: Upcoming): string {
-  switch (u.reason) {
-    case "already_booked":
-      return `Won't send — already booked for ${u.nextBookingDate ? day(u.nextBookingDate) : "a later date"}`;
-    case "already_sent":
-      return "Already sent";
-    case "no_contact":
-      return "Won't send — no email/SMS chosen on their booking";
-    case "opted_out":
-      return "Won't send — they opted out";
-    default:
-      return "";
-  }
-}
 
 function Section({ title, hint, tone, children }: { title: string; hint?: string; tone: "navy" | "green" | "grey"; children: React.ReactNode }) {
   const colour = tone === "green" ? "text-emerald-700" : tone === "navy" ? "text-navy" : "text-charcoal/70";
@@ -94,8 +66,6 @@ export default function RebookRemindersPage() {
       })
       .catch((e) => setError(e?.message ?? "Could not load"));
   }, [router]);
-
-  const willSend = data?.upcoming.filter((u) => u.send) ?? [];
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
@@ -170,35 +140,6 @@ export default function RebookRemindersPage() {
                     </div>
                     <p className="text-xs text-charcoal/60 mt-0.5">
                       Last visit: {s.serviceName} on {day(s.visitDate)}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Section>
-
-          <Section
-            title={`Due in the next 14 days (${willSend.length} will be sent)`}
-            tone="grey"
-            hint="Based on today's bookings — if someone books in the meantime, they're skipped automatically."
-          >
-            {data.upcoming.length === 0 ? (
-              <p className="text-sm text-charcoal/55">Nobody is due in the next 14 days.</p>
-            ) : (
-              <div className="space-y-2">
-                {data.upcoming.map((u) => (
-                  <div key={u.bookingId} className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
-                    <div className="flex flex-wrap justify-between gap-2">
-                      <p className="font-medium text-charcoal">
-                        {u.customerName} <span className="font-normal text-charcoal/55">· {u.contact}</span>
-                      </p>
-                      <p className="text-xs text-charcoal/55">{day(u.dueDate)}</p>
-                    </div>
-                    <p className="text-xs text-charcoal/60 mt-0.5">
-                      Last visit: {u.serviceName} on {day(u.visitDate)}
-                    </p>
-                    <p className={`text-xs mt-1 ${u.send ? "text-navy font-medium" : "text-charcoal/55"}`}>
-                      {u.send ? "Will be sent" : skipLabel(u)}
                     </p>
                   </div>
                 ))}
