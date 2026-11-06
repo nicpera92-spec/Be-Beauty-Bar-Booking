@@ -1,0 +1,26 @@
+---
+description: Waitlist, rebook reminders, and notification sending logic
+globs: src/lib/waitlist.ts,src/lib/waitlist.test.ts,src/lib/rebookReminder.ts,src/lib/email.ts,src/app/api/cron/**
+alwaysApply: false
+---
+
+# Waitlist notifications
+
+On cancellation or when time off is removed (`notifyWaitlistForTechnicianOnDate`):
+
+1. Find active waitlist entries for **that technician** (all services), matching preferred date or “earlier date” opt-in
+2. If **any** slot is bookable on that date for the entry’s service, send **one** notification for the **date** (not a specific time)
+3. Booking link opens the date picker with that day pre-selected; customer chooses a time
+4. Each entry is notified at most once per date (`notifiedSlotDate`)
+
+Cron (`processWaitlistNotifications`, every 30 min): same date-based scan for earliest and preferred-date entries.
+
+# Rebook reminders
+
+- Due exactly on `visitDate + N days` (default 21); no backfill when toggle was off
+- Channel from last booking `notifyByEmail` / `notifyBySMS`
+- Opt-out after first reminder; rebooking resets timer
+
+# Email vars
+
+- Include `instagramLink` from `buildInstagramLink(settings.instagramHandle)` wherever template vars are built

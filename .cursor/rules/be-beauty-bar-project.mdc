@@ -1,0 +1,28 @@
+---
+description: Be Beauty Bar booking app — stack, domains, and conventions
+alwaysApply: true
+---
+
+# Be Beauty Bar — project context
+
+Next.js 14 app (port 3001), Prisma/PostgreSQL, Tailwind, Resend email, Stripe deposits, SMS.
+
+## Key domains
+
+- **Bookings**: customer flow `/book`, admin calendar `/admin/calendar`, statuses `pending_deposit | confirmed | cancelled`
+- **Messages**: Settings → Messages tab; templates in `notificationDefaults.ts`, editor in `NotificationMessagesEditor.tsx`, storage uses zero-width tokens via `messageEditorDom.ts`
+- **Waitlist**: `waitlist.ts` — notify when cancellations free a bookable slot for the waitlisted service duration; cross-service for same technician; same-day OK until slot start time passes
+- **Rebook reminders**: `rebookReminder.ts`, cron, opt-out link, Bookings settings toggle
+- **Time off**: per-technician `AvailabilityBlock`; calendar shows names in day detail panel only (month grid stays generic “Time off”)
+
+## Code style
+
+- Match existing patterns; minimal diffs
+- Run `npm run test:messages` / `npm run test:waitlist` when touching those libs
+- Run `npx tsc --noEmit` before finishing substantive changes
+- Windows/PowerShell: use `;` not `&&` in shell commands
+
+## Do not
+
+- Reintroduce transparent textarea + highlight overlay for message editing (use contenteditable spans)
+- Commit or push unless the user explicitly asks

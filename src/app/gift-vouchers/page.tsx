@@ -26,8 +26,8 @@ type GiftPackage = {
 };
 
 const inputClass =
-  "w-full px-4 py-3 rounded-lg border border-slate-200 bg-white text-slate-800 placeholder-slate-400 focus:border-navy focus:ring-1 focus:ring-navy/20 outline-none text-base min-h-[48px]";
-const labelClass = "block text-sm font-medium text-slate-700 mb-2";
+  "lux-input";
+const labelClass = "lux-label";
 
 function duration(min: number): string {
   const h = Math.floor(min / 60);
@@ -136,7 +136,7 @@ export default function GiftCertificatesPage() {
   return (
     <div className="max-w-xl mx-auto px-4 sm:px-8 py-16 sm:py-20">
       <HomeBackLinks />
-      <h1 className="font-serif text-2xl md:text-3xl font-light text-slate-800 mb-3">Gift Certificates</h1>
+      <h1 className="font-serif text-[2.4rem] sm:text-[2.875rem] font-normal text-white leading-tight mb-3">Gift Certificates</h1>
       <p className="text-sm text-slate-600 leading-relaxed mb-8">
         Treat someone to a treatment — or a combo — paid for in full, so there&apos;s nothing for them to
         pay at their appointment. They&apos;ll receive a gift certificate by email with your personal
@@ -196,7 +196,7 @@ export default function GiftCertificatesPage() {
 
           <div>
             <p className={labelClass}>{packages.length > 0 ? "Or choose treatments" : "Choose treatments"}</p>
-            <p className="text-xs text-slate-500 mb-3">Add one or more — they can book each one whenever suits them.</p>
+            <p className="text-xs text-slate-500 mb-5">Add one or more — they can book each one whenever suits them.</p>
             {technicians.length > 1 && (
               <div className="flex flex-wrap gap-2 mb-3">
                 {technicians.map((t) => (
@@ -218,38 +218,38 @@ export default function GiftCertificatesPage() {
             {techServicesByCategory.length === 0 ? (
               <p className="text-sm text-slate-500">No treatments available yet.</p>
             ) : (
-              <div className="rounded-lg border border-slate-200 bg-white divide-y divide-slate-100">
+              <div className="space-y-6">
                 {techServicesByCategory.map(([category, list]) => (
-                  <div key={category} className="p-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">
-                      {categoryLabel(category)}
-                    </p>
-                    {list.map((s) => (
-                      <div key={s.id} className="flex items-center justify-between gap-3 py-2">
-                        <div className="min-w-0">
-                          <p className="text-sm text-slate-800">{s.name}</p>
-                          <p className="text-xs text-slate-500">
-                            {duration(s.durationMin)} · {formatCurrency(s.price)}
-                          </p>
+                  <div key={category}>
+                    <p className="lux-eyebrow mb-3">{categoryLabel(category)}</p>
+                    <div className="space-y-3">
+                      {list.map((s) => (
+                        <div key={s.id} className="lux-card flex items-center justify-between gap-4">
+                          <div className="min-w-0">
+                            <p className="font-serif text-xl text-white">{s.name}</p>
+                            <p className="text-xs lux-muted mt-1">
+                              {duration(s.durationMin)} · <span className="text-white">{formatCurrency(s.price)}</span>
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => addService(s.id)}
+                            disabled={chosen.length >= MAX_CERTIFICATE_ITEMS}
+                            className="lux-pill shrink-0 disabled:opacity-50"
+                          >
+                            Add
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => addService(s.id)}
-                          disabled={chosen.length >= MAX_CERTIFICATE_ITEMS}
-                          className="shrink-0 px-3 py-2 rounded-lg border border-slate-200 text-sm font-medium text-navy hover:bg-slate-50 disabled:opacity-50 min-h-[40px]"
-                        >
-                          Add
-                        </button>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-4">
-            <p className="text-sm font-medium text-slate-700 mb-2">Your gift certificate</p>
+          <div className="lux-card">
+            <p className="lux-eyebrow mb-3">Your gift certificate</p>
             {!hasSelection ? (
               <p className="text-sm text-slate-500">Nothing chosen yet.</p>
             ) : selectedPackage ? (
@@ -291,8 +291,8 @@ export default function GiftCertificatesPage() {
             )}
           </div>
 
-          <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-4 space-y-4">
-            <p className="text-sm font-medium text-slate-700">Who is it for?</p>
+          <div className="lux-card space-y-4">
+            <p className="lux-eyebrow">Who is it for?</p>
             <div>
               <label htmlFor="recipient-name" className={labelClass}>
                 Their name
@@ -358,7 +358,7 @@ export default function GiftCertificatesPage() {
           </div>
 
           <div className="space-y-4">
-            <p className="text-sm font-medium text-slate-700">Your details</p>
+            <p className="lux-eyebrow">Your details</p>
             <input
               type="text"
               required
@@ -384,7 +384,7 @@ export default function GiftCertificatesPage() {
           <button
             type="submit"
             disabled={submitting || !hasSelection}
-            className="w-full bg-navy text-white py-4 rounded-lg font-medium hover:bg-navy-light disabled:opacity-50 transition min-h-[52px] shadow-sm"
+            className="lux-btn w-full"
           >
             {submitting
               ? "Redirecting to payment…"

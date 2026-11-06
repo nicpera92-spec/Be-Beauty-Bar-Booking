@@ -98,8 +98,8 @@ export default function CancelBookingPage() {
   const paidByCertificate = Boolean(booking?.paidByCertificate);
 
   const bookingCard = booking && (
-    <div className="rounded-xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
-      <h2 className="font-serif text-xl md:text-2xl font-light text-slate-800 mb-2">
+    <div className="lux-card">
+      <h2 className="font-serif text-[1.65rem] font-normal text-white mb-2">
         {booking.serviceName}
       </h2>
       <p className="text-slate-600 text-sm">
@@ -156,7 +156,7 @@ export default function CancelBookingPage() {
     <div className="pt-2 text-center">
       <Link
         href="/"
-        className="inline-flex items-center justify-center px-8 py-3 bg-navy text-white text-sm font-medium rounded-lg hover:bg-navy-light transition min-h-[48px]"
+        className="lux-btn"
       >
         Book another appointment
       </Link>
@@ -177,7 +177,7 @@ export default function CancelBookingPage() {
       {(state === "refundable" || state === "non_refundable") && booking && (
         <>
           <div>
-            <h1 className="font-serif text-2xl md:text-3xl font-light text-slate-800 mb-3">
+            <h1 className="font-serif text-[2.4rem] sm:text-[2.875rem] font-normal text-white leading-tight mb-3">
               Change or cancel your booking
             </h1>
             <p className="text-slate-600 text-sm">
@@ -282,7 +282,7 @@ export default function CancelBookingPage() {
       {state === "rescheduled" && booking && (
         <div className="space-y-6">
           <div className="text-center space-y-3">
-            <h1 className="font-serif text-2xl md:text-3xl font-light text-slate-800">
+            <h1 className="font-serif text-[2.4rem] sm:text-[2.875rem] font-normal text-white leading-tight">
               Your appointment has been moved
             </h1>
             <p className="text-sm text-slate-600 leading-relaxed">
@@ -324,7 +324,7 @@ export default function CancelBookingPage() {
 
       {state === "cancelled" && (
         <div className="text-center space-y-5">
-          <h1 className="font-serif text-2xl md:text-3xl font-light text-slate-800">
+          <h1 className="font-serif text-[2.4rem] sm:text-[2.875rem] font-normal text-white leading-tight">
             Your booking has been cancelled
           </h1>
           {refundDetails && (
@@ -340,7 +340,7 @@ export default function CancelBookingPage() {
 
       {state === "already_cancelled" && (
         <div className="text-center space-y-5">
-          <h1 className="font-serif text-2xl md:text-3xl font-light text-slate-800">
+          <h1 className="font-serif text-[2.4rem] sm:text-[2.875rem] font-normal text-white leading-tight">
             This booking has already been cancelled
           </h1>
           <p className="text-sm text-slate-600 leading-relaxed">
@@ -354,7 +354,7 @@ export default function CancelBookingPage() {
 
       {state === "appointment_passed" && (
         <div className="text-center space-y-5">
-          <h1 className="font-serif text-2xl md:text-3xl font-light text-slate-800">
+          <h1 className="font-serif text-[2.4rem] sm:text-[2.875rem] font-normal text-white leading-tight">
             This appointment has already passed
           </h1>
           <p className="text-sm text-slate-600 leading-relaxed">
@@ -367,7 +367,7 @@ export default function CancelBookingPage() {
 
       {(state === "not_confirmed" || state === "invalid") && (
         <div className="text-center space-y-5">
-          <h1 className="font-serif text-2xl md:text-3xl font-light text-slate-800">
+          <h1 className="font-serif text-[2.4rem] sm:text-[2.875rem] font-normal text-white leading-tight">
             This link isn&apos;t valid
           </h1>
           <p className="text-sm text-slate-600 leading-relaxed">

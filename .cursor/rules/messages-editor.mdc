@@ -1,0 +1,28 @@
+---
+description: Notification messages editor — editing, tokens, previews
+globs: src/components/NotificationMessagesEditor.tsx,src/lib/messageEditorDom.ts,src/lib/messageEditorTokens.ts,src/lib/notificationTemplates.ts,src/lib/notificationDefaults.ts
+alwaysApply: false
+---
+
+# Messages editor
+
+## Architecture
+
+- **Storage**: zero-width delimiters (`\u200B` + label + `\u200C`) via `friendlyToken()` in `notificationTemplates.ts`
+- **Display**: contenteditable with `data-msg-token` spans (`messageEditorDom.ts`) — WYSIWYG; no overlay
+- **Round-trip**: `storageToEditorHtml` / `editorDomToStorage`; newlines as `<br>` in HTML
+
+## Placeholders
+
+- Add new details in `PLACEHOLDER_LABELS`, `LABEL_TO_VAR`, `MESSAGE_INSERT_TAGS`, `MESSAGE_PREVIEW_SAMPLE`, and pass vars in `email.ts`
+- Editor shows underlined labels only — no visible `**` in the UI
+
+## Token behaviour
+
+- Delete removes whole placeholder (Backspace/Delete beside token span)
+- `migrateTokensToStorageFormat` on load/save for legacy `**` markers
+- Run `npm run test:messages` after changes
+
+## Previews
+
+- Email/SMS preview uses `previewMessage` / `previewEmailHtml` with sample vars — not editor HTML

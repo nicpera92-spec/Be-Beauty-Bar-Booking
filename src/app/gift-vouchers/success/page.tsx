@@ -43,14 +43,14 @@ export default function GiftVoucherSuccessPage() {
 
         {error && (
           <>
-            <h1 className="font-serif text-2xl font-light text-slate-800">Thank you!</h1>
+            <h1 className="font-serif text-[2.4rem] font-normal text-white leading-tight">Thank you!</h1>
             <p className="text-slate-600">{error}</p>
           </>
         )}
 
         {voucher && (
           <>
-            <h1 className="font-serif text-2xl sm:text-3xl font-light text-slate-800">
+            <h1 className="font-serif text-[2.4rem] sm:text-[2.875rem] font-normal text-white leading-tight">
               {voucher.recipientName
                 ? `${voucher.recipientName}'s gift certificate is ready`
                 : "Your gift certificate is ready"}
@@ -92,7 +92,7 @@ export default function GiftVoucherSuccessPage() {
 
         <Link
           href="/"
-          className="inline-block px-6 py-3 rounded-lg bg-navy text-white font-medium hover:bg-navy-light transition"
+          className="lux-btn"
         >
           Back to home
         </Link>

@@ -93,8 +93,8 @@ export default function TechnicianServicesPage() {
   const allCategories = orderCategories(Object.keys(byCategory), technician.categoryOrder);
 
   return (
-    <div className="max-w-2xl mx-auto px-4 sm:px-8 py-16 sm:py-20 md:py-28">
-      <PageTopLinks>
+    <div className="max-w-[640px] mx-auto w-full px-6 pt-14 pb-20">
+      <PageTopLinks className="mb-12">
         <Link href="/" className="text-sm text-navy hover:underline">
           Home
         </Link>
@@ -105,46 +105,45 @@ export default function TechnicianServicesPage() {
         )}
       </PageTopLinks>
 
-      <p className="text-xs font-medium uppercase tracking-[0.2em] text-navy mb-2">
+      <p className="lux-eyebrow mb-3">
         {technician.name}
         {technician.skillLevel && ` · ${technician.skillLevel}`}
       </p>
-      <h1 className="font-serif text-3xl md:text-4xl font-light text-slate-800 mb-4">
+      <h1 className="font-serif text-[2.6rem] sm:text-[2.875rem] font-normal text-white leading-tight mb-3">
         Choose a service
       </h1>
-      <p className="text-slate-600 mb-16 max-w-xl">
+      <p className="lux-muted leading-[1.7] mb-10 max-w-xl">
         Pick a service with {technician.name}, then choose a date and time. A deposit is required to
         confirm your booking.
       </p>
 
       {services.length === 0 ? (
-        <p className="text-slate-600">No services listed for this technician yet.</p>
+        <p className="lux-muted">No services listed for this technician yet.</p>
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-9">
           {allCategories.map((cat) => {
             const list = byCategory[cat] ?? [];
             return (
               <section key={cat}>
-                <h2 className="text-xs font-medium uppercase tracking-[0.2em] text-navy mb-8">
-                  {formatCategoryName(cat)}
-                </h2>
-                <div className="space-y-4">
+                <h2 className="lux-eyebrow mb-4">{formatCategoryName(cat)}</h2>
+                <div className="space-y-3.5">
                   {list.map((s) => (
                     <Link
                       key={s.id}
                       href={`/book/tech/${technicianId}/${s.id}`}
-                      className="block p-4 sm:p-6 rounded-lg border border-slate-200 bg-white hover:border-navy/30 hover:shadow-md transition-all duration-200 touch-manipulation active:bg-slate-50"
+                      className="lux-card flex items-center justify-between gap-4 touch-manipulation"
                     >
-                      <h3 className="font-medium text-slate-800">{s.name}</h3>
-                      <p className="text-sm text-slate-900 mt-0.5">
-                        Duration {formatDurationHours(s.durationMin)} · Price{" "}
-                        {formatPriceShort(s.price)}
+                      <div className="min-w-0">
+                      <h3 className="font-serif text-[1.45rem] leading-snug text-white">{s.name}</h3>
+                      <p className="text-[13px] lux-muted mt-1.5">
+                        {formatDurationHours(s.durationMin)} ·{" "}
+                        <b className="font-medium text-white">{formatPriceShort(s.price)}</b>
                         {s.requiresDeposit && (
                           <> · {formatPriceShort(s.depositAmount)} deposit</>
                         )}
                       </p>
                       {s.description && (
-                        <div className="mt-2 w-full" onClick={(e) => e.stopPropagation()}>
+                        <div className="mt-2.5 w-full" onClick={(e) => e.stopPropagation()}>
                           <span
                             role="button"
                             tabIndex={0}
@@ -160,20 +159,22 @@ export default function TechnicianServicesPage() {
                                 setExpandedDescriptionId((id) => (id === s.id ? null : s.id));
                               }
                             }}
-                            className="text-sm text-slate-600 hover:underline cursor-pointer"
+                            className="text-[13px] text-[#6b7587] hover:text-white cursor-pointer"
                           >
                             {expandedDescriptionId === s.id ? "Hide description" : "View description"}
                           </span>
                           {expandedDescriptionId === s.id && (
-                            <p className="text-sm text-slate-500 mt-1.5 w-full">{s.description}</p>
+                            <p className="text-sm lux-muted mt-1.5 w-full">{s.description}</p>
                           )}
                         </div>
                       )}
+                      </div>
+                      <span className="lux-pill shrink-0">Select</span>
                     </Link>
                   ))}
                 </div>
                 {cat === "nails" && (
-                  <p className="text-sm font-semibold text-slate-700 mt-4 text-center">
+                  <p className="text-sm font-medium text-[#c9d0da] mt-4 text-center">
                     Enhancements such as French, ombré or custom nail art are available at £1 per nail,
                     added to the final price.
                   </p>

@@ -58,7 +58,7 @@ export default function DepositConfirmedPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
         </div>
-        <h1 className="font-serif text-2xl sm:text-3xl font-light text-slate-800">
+        <h1 className="font-serif text-[2.4rem] sm:text-[2.875rem] font-normal text-white leading-tight">
           Deposit payment confirmed
         </h1>
         <p className="text-slate-600">
@@ -66,8 +66,8 @@ export default function DepositConfirmedPage() {
         </p>
 
         {booking && (
-          <div className="rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm">
-            <p className="font-serif text-lg text-slate-800">{booking.service.name}</p>
+          <div className="lux-card text-left shadow-sm">
+            <p className="font-serif text-[1.4rem] text-white">{booking.service.name}</p>
             <p className="text-sm text-slate-600 mt-1">
               {formatBookingDate(booking.date, "EEEE, dd/MM/yyyy")} · {booking.startTime}–{booking.endTime}
               {booking.technician?.name && <> · with {booking.technician.name}</>}
@@ -90,7 +90,7 @@ export default function DepositConfirmedPage() {
         <div className="pt-2">
           <Link
             href="/book"
-            className="inline-block w-full sm:w-auto px-6 py-3 rounded-lg bg-slate-800 text-white font-medium hover:bg-slate-700 transition-colors"
+            className="lux-btn w-full sm:w-auto"
           >
             Book another appointment
           </Link>

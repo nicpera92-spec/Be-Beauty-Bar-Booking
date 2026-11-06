@@ -1,0 +1,29 @@
+---
+description: How the owner prefers to work with the agent on this repo
+alwaysApply: true
+---
+
+# Owner workflow preferences
+
+## Requests
+
+- Plain-English user stories work best (“when X is cancelled, notify Y if Z”)
+- Attach screenshots for UI bugs — describe what you see vs what you expect
+- One focused change per message when possible; short follow-ups are fine (“remove from month grid”)
+
+## Git
+
+- **Commit** only when explicitly asked
+- **Push** when the user says push / deploy / “push changes”
+- Do not force-push `main`
+
+## After implementing
+
+- Say what changed in plain language, not just file names
+- Mention if user should refresh admin or save Settings once to normalize data
+- Run relevant tests (`test:messages`, `test:waitlist`) and `tsc` for non-trivial changes
+
+## When stuck on UI
+
+- Prefer fixing root cause over patches (e.g. contenteditable over misaligned overlays)
+- Ask one clarifying question only if behaviour is genuinely ambiguous

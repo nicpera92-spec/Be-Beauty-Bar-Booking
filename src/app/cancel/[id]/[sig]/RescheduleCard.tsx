@@ -122,7 +122,7 @@ export default function RescheduleCard({
         <button
           type="button"
           onClick={openPicker}
-          className="w-full bg-navy text-white py-3.5 rounded-lg font-medium hover:bg-navy-light transition touch-manipulation min-h-[48px]"
+          className="lux-btn w-full"
         >
           Change date or time
         </button>
@@ -265,7 +265,7 @@ export default function RescheduleCard({
           type="button"
           onClick={confirmMove}
           disabled={saving}
-          className="w-full bg-navy text-white py-3.5 rounded-lg font-medium hover:bg-navy-light disabled:opacity-50 transition touch-manipulation min-h-[48px]"
+          className="lux-btn w-full"
         >
           {saving ? "Moving…" : `Move to ${formatBookingDate(date, "EEE d MMM")} at ${selected}`}
         </button>

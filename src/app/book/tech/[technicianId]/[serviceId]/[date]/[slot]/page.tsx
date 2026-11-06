@@ -211,8 +211,8 @@ export default function BookFormPage() {
   }
 
   return (
-    <div className="max-w-xl mx-auto px-4 sm:px-8 py-16 sm:py-20 md:py-28">
-      <PageTopLinks>
+    <div className="max-w-[640px] mx-auto w-full px-6 pt-14 pb-20">
+      <PageTopLinks className="mb-12">
         <Link href="/" className="text-sm text-navy hover:underline">
           Home
         </Link>
@@ -220,23 +220,23 @@ export default function BookFormPage() {
           ← Back to time slots
         </Link>
       </PageTopLinks>
-      <h1 className="font-serif text-2xl md:text-3xl font-light text-slate-800 mb-3">
+      <h1 className="font-serif text-[2.4rem] sm:text-[2.6rem] font-normal text-white leading-tight mb-2">
         {service.name}
       </h1>
-      <p className="text-slate-600 text-sm mb-12">
+      <p className="lux-muted mb-10">
         {dayLabel} · {startTime}–{endTime} · {formatCurrency(totalPrice)} total
         {certificate ? (
-          <> · Paid in full by gift certificate</>
+          <> · <span className="text-[#dfe4ea]">Paid in full by gift certificate</span></>
         ) : requiresDeposit ? (
-          <> · {formatCurrency(totalDeposit)} deposit</>
+          <> · <span className="text-[#dfe4ea]">{formatCurrency(totalDeposit)} deposit</span></>
         ) : (
           <> · No deposit required</>
         )}
       </p>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-7">
         <div>
-          <label htmlFor="name" className="block text-sm font-medium text-slate-700 mb-2">
+          <label htmlFor="name" className="lux-label">
             Name *
           </label>
           <input
@@ -245,12 +245,12 @@ export default function BookFormPage() {
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full px-4 py-3 sm:py-3.5 rounded-lg border border-slate-200 bg-white text-slate-800 placeholder-slate-400 focus:border-navy focus:ring-1 focus:ring-navy/20 outline-none text-base min-h-[48px]"
+            className="lux-input"
             placeholder="Your name"
           />
         </div>
         <div>
-          <label htmlFor="phone" className="block text-sm font-medium text-slate-700 mb-2">
+          <label htmlFor="phone" className="lux-label">
             Phone {notifyBySMS && <span className="text-red-500">*</span>}
           </label>
           <input
@@ -259,12 +259,12 @@ export default function BookFormPage() {
             required={notifyBySMS}
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            className="w-full px-4 py-3 sm:py-3.5 rounded-lg border border-slate-200 bg-white text-slate-800 placeholder-slate-400 focus:border-navy focus:ring-1 focus:ring-navy/20 outline-none text-base min-h-[48px]"
+            className="lux-input"
             placeholder="07xxx xxxxxx"
           />
         </div>
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
+          <label htmlFor="email" className="lux-label">
             Email {notifyByEmail && <span className="text-red-500">*</span>}
           </label>
           <input
@@ -273,17 +273,17 @@ export default function BookFormPage() {
             required={notifyByEmail}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-3 sm:py-3.5 rounded-lg border border-slate-200 bg-white text-slate-800 placeholder-slate-400 focus:border-navy focus:ring-1 focus:ring-navy/20 outline-none text-base min-h-[48px]"
+            className="lux-input"
             placeholder="you@example.com"
           />
-          <p className="text-xs text-slate-500 mt-1">Provide at least one: phone number or email</p>
+          <p className="text-xs lux-muted mt-2">Provide at least one: phone number or email</p>
         </div>
 
-        <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-4">
-          <p className="text-sm font-medium text-slate-700 mb-3">
+        <div>
+          <p className="lux-label">
             How would you like to receive notifications? <span className="text-red-500">*</span>
           </p>
-          <div className="space-y-2">
+          <div className="lux-card !py-4 space-y-3">
             <label className="flex items-start gap-3 cursor-pointer">
               <input
                 type="checkbox"
@@ -296,8 +296,8 @@ export default function BookFormPage() {
                 className="mt-0.5 w-4 h-4 rounded border-slate-300 text-navy focus:ring-navy/20"
               />
               <div className="flex-1">
-                <span className="text-sm font-medium text-slate-700">SMS (text message)</span>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <span className="text-[15px] text-white">Text message (SMS)</span>
+                <p className="text-[13px] lux-muted mt-1">
                   {certificate
                     ? "Included with your gift certificate"
                     : `SMS notifications include a ${formatCurrency(smsFee)} charge`}
@@ -316,14 +316,14 @@ export default function BookFormPage() {
                 className="mt-0.5 w-4 h-4 rounded border-slate-300 text-navy focus:ring-navy/20"
               />
               <div className="flex-1">
-                <span className="text-sm font-medium text-slate-700">Email</span>
+                <span className="text-[15px] text-white">Email</span>
               </div>
             </label>
           </div>
         </div>
 
         <div>
-          <label htmlFor="notes" className="block text-sm font-medium text-slate-700 mb-2">
+          <label htmlFor="notes" className="lux-label">
             Notes (optional)
           </label>
           <textarea
@@ -331,24 +331,17 @@ export default function BookFormPage() {
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={2}
-            className="w-full px-4 py-3 sm:py-3.5 rounded-lg border border-slate-200 bg-white text-slate-800 placeholder-slate-400 focus:border-navy focus:ring-1 focus:ring-navy/20 outline-none resize-none min-h-[80px]"
+            className="lux-input resize-none min-h-[96px]"
             placeholder="Any special requests?"
           />
         </div>
 
-        <div
-          className={`rounded-lg border-2 px-4 py-4 ${
-            policyError ? "border-red-500 bg-red-50" : "border-red-400 bg-red-50/40"
-          }`}
-        >
-          <p className="text-base font-bold text-red-700 uppercase tracking-wide mb-1">
-            ⚠ Please read this cancellation policy carefully!
-          </p>
-          <p className="text-sm font-semibold text-slate-800 mb-2 underline">Cancellation policy</p>
+        <div className={`lux-policy ${policyError ? "lux-policy-error" : ""}`}>
+          <p className="lux-eyebrow !text-[#dfe4ea] mb-3">⚠ Please read this cancellation policy carefully!</p>
           <CancellationPolicyList
             policy={cancellationPolicy}
             refundHours={refundHours}
-            className="text-sm text-slate-700 leading-relaxed list-disc list-outside pl-5 ml-1 space-y-1.5 mb-2"
+            className="text-sm lux-muted leading-[1.8] list-disc list-outside pl-5 ml-1 space-y-1 mb-2 [&_strong]:text-white [&_strong]:font-medium [&_b]:text-white"
           />
           <label className="flex items-start gap-3 cursor-pointer mt-3">
             <input
@@ -360,7 +353,7 @@ export default function BookFormPage() {
               }}
               className="mt-0.5 w-4 h-4 rounded border border-slate-300 text-navy focus:ring-navy/20"
             />
-            <span className="text-sm font-medium text-slate-800">
+            <span className="text-[15px] text-white">
               I confirm that I have read and agree to the cancellation policy.
             </span>
           </label>
@@ -379,12 +372,12 @@ export default function BookFormPage() {
           </div>
         )}
 
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
+        <div className={!showVoucher && !voucher ? "" : "lux-card"}>
             {!showVoucher && !voucher ? (
               <button
                 type="button"
                 onClick={() => setShowVoucher(true)}
-                className="text-sm text-navy font-medium hover:underline"
+                className="lux-label !mb-0 hover:text-white transition"
               >
                 Have a gift certificate?
               </button>
@@ -442,23 +435,23 @@ export default function BookFormPage() {
               </div>
             ) : (
               <div className="space-y-2">
-                <label htmlFor="voucher" className="block text-sm font-medium text-slate-700">
+                <label htmlFor="voucher" className="lux-label">
                   Gift certificate code
                 </label>
-                <div className="flex gap-2">
+                <div className="flex gap-2.5">
                   <input
                     id="voucher"
                     type="text"
                     value={voucherInput}
                     onChange={(e) => setVoucherInput(e.target.value.toUpperCase())}
                     placeholder="BB-ABCD-2345"
-                    className="flex-1 min-w-0 px-4 py-3 rounded-lg border border-slate-200 bg-white text-slate-800 placeholder-slate-400 focus:border-navy outline-none text-base min-h-[48px] uppercase"
+                    className="lux-input flex-1 min-w-0 uppercase"
                   />
                   <button
                     type="button"
                     onClick={applyVoucher}
                     disabled={checkingVoucher || !voucherInput.trim()}
-                    className="px-4 rounded-lg border border-slate-200 text-sm font-medium text-navy hover:bg-slate-50 disabled:opacity-50 min-h-[48px]"
+                    className="px-5 rounded-[14px] border border-white/15 text-[13px] tracking-[0.15em] uppercase text-[#dfe4ea] hover:bg-white/5 disabled:opacity-50 min-h-[52px]"
                   >
                     {checkingVoucher ? "Checking…" : "Apply"}
                   </button>
@@ -468,7 +461,7 @@ export default function BookFormPage() {
             )}
         </div>
 
-        <p className="text-sm text-slate-600 leading-relaxed">
+        <p className="text-sm lux-muted leading-relaxed">
           {certificate ? (
             <>
               By submitting, your gift certificate pays for this treatment in full and your booking is
@@ -497,7 +490,7 @@ export default function BookFormPage() {
         <button
           type="submit"
           disabled={submitting}
-          className="w-full bg-navy text-white py-4 rounded-lg font-medium hover:bg-navy-light disabled:opacity-50 transition touch-manipulation min-h-[48px] shadow-sm"
+          className="lux-btn w-full"
         >
           {submitting
             ? "Booking…"

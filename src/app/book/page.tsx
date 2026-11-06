@@ -107,64 +107,76 @@ export default function BookPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 sm:px-8 py-16 sm:py-20 md:py-28">
-      <PageTopLinks>
+    <div className="max-w-[640px] mx-auto w-full px-6 pt-14 pb-20">
+      <PageTopLinks className="mb-12">
         <Link href="/" className="text-sm text-navy hover:underline">
           Home
         </Link>
       </PageTopLinks>
-      <p className="text-xs font-medium uppercase tracking-[0.2em] text-navy mb-2">
-        Welcome
-      </p>
-      <h1 className="font-serif text-3xl md:text-4xl font-light text-slate-800 mb-4">
+      <p className="lux-eyebrow mb-3">Welcome</p>
+      <h1 className="font-serif text-[2.6rem] sm:text-[2.875rem] font-normal text-white leading-tight mb-3">
         Choose your Technician
       </h1>
-      <p className="text-slate-600 mb-12 max-w-xl">
+      <p className="lux-muted leading-[1.7] mb-9 max-w-xl">
         Select who you&apos;d like for your appointment, then choose from their services and pick a
         time.
       </p>
 
-      <div className="space-y-4">
+      <div className="space-y-3.5">
         {technicians.map((t) => (
           <button
             key={t.id}
             type="button"
             onClick={() => router.push(`/book/tech/${t.id}`)}
-            className="block w-full text-left p-5 sm:p-6 rounded-lg border border-slate-200 bg-white hover:border-navy/30 hover:shadow-md transition-all duration-200 touch-manipulation active:bg-slate-50"
+            className="lux-card block w-full text-left hover:border-[rgba(120,160,230,0.55)] touch-manipulation"
           >
-            <div className="flex items-center gap-x-1.5 sm:gap-x-2 flex-nowrap w-full min-w-0 overflow-hidden">
-              <h3 className="font-medium text-slate-800 text-base sm:text-lg shrink-0">{t.name}</h3>
-              {t.skillLevel && t.skillLevel.trim() && (
-                <span className="text-[10px] sm:text-xs font-medium px-1.5 sm:px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 shrink-0">
-                  {t.skillLevel}
-                </span>
-              )}
-              {t.categories && t.categories.length > 0 && (
-                <span
-                  className="min-w-0 flex-1 truncate text-[10px] sm:text-xs font-medium leading-none text-navy bg-navy/[0.07] rounded-full px-1.5 sm:px-2.5 py-1"
-                  title={t.categories.map((category) => categoryLabel(category)).join(" · ")}
-                >
-                  {t.categories.map((category) => compactCategoryLabel(category)).join(" · ")}
-                </span>
-              )}
-            </div>
-            {t.instagramUrl && t.instagramLabel && (
-              <a
-                href={t.instagramUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="inline-block mt-2 text-sm font-medium text-theme-link hover:underline"
+            <div className="flex items-center gap-5">
+              <div
+                className="w-16 h-16 rounded-full shrink-0 flex items-center justify-center font-serif text-[26px] text-[#c9d0da] border border-white/15 bg-gradient-to-br from-[#1b3a74] to-[#0d1016]"
+                aria-hidden
               >
-                {t.instagramLabel}
-              </a>
-            )}
-            {t.bio && t.bio.trim() && (
-              <p className="text-sm text-slate-600 mt-2 whitespace-pre-line">{t.bio}</p>
-            )}
-            <span className="inline-block mt-3 text-sm font-medium text-navy">
-              View services →
-            </span>
+                {t.name.charAt(0)}
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-serif text-[1.65rem] leading-tight text-white">{t.name}</h3>
+                <p className="text-[13px] lux-muted mt-1">
+                  {t.skillLevel && t.skillLevel.trim() ? t.skillLevel : null}
+                  {t.skillLevel && t.skillLevel.trim() && t.instagramUrl && t.instagramLabel ? " · " : null}
+                  {t.instagramUrl && t.instagramLabel && (
+                    <a
+                      href={t.instagramUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-[#dfe4ea] hover:underline"
+                    >
+                      {t.instagramLabel}
+                    </a>
+                  )}
+                </p>
+                {t.categories && t.categories.length > 0 && (
+                  <div
+                    className="flex flex-wrap gap-2 mt-2.5"
+                    title={t.categories.map((category) => categoryLabel(category)).join(" · ")}
+                  >
+                    {t.categories.map((category) => (
+                      <span
+                        key={category}
+                        className="text-[11px] tracking-[0.15em] uppercase lux-muted border border-white/10 px-2.5 py-1 rounded-full"
+                      >
+                        {compactCategoryLabel(category)}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {t.bio && t.bio.trim() && (
+                  <p className="text-sm lux-muted mt-2.5 whitespace-pre-line">{t.bio}</p>
+                )}
+              </div>
+              <span className="ml-auto text-[22px] text-[#c9d0da] shrink-0" aria-hidden>
+                →
+              </span>
+            </div>
           </button>
         ))}
       </div>

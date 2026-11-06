@@ -1,0 +1,35 @@
+---
+description: Admin settings and calendar UI patterns
+globs: src/app/admin/**,src/components/CalendarTimeOffAdd.tsx,src/components/AdminNav.tsx
+alwaysApply: false
+---
+
+# Admin UI
+
+## Settings (`/admin/settings`)
+
+- Master-only; tabs: business, theme, bookings, messages, payments
+- Use existing `SettingsToggle`, `SettingsFeatureRow`, `SettingsInfoTip` for compact layout
+- Long explanations go in info icons, not inline paragraphs
+- Messages tab uses `NotificationMessagesEditor`; state from `resolveNotificationMessages(null)` on init
+
+## Calendar (`/admin/calendar`)
+
+- Master can filter by technician (“Everyone” or one person)
+- Time off blocks include `technician.name` from blocks API
+- **Month grid**: generic “Time off” label on violet days
+- **Day detail panel**: show technician name + time range; Remove only for own blocks
+
+## Staff working hours
+
+- Owner: Staff (`/admin/technicians`) → **Hours** on each tech card (compact Mon–Sun rows, Off toggle, Open/Close)
+- Tech: **My hours** (`/admin/hours`) — same editor for own schedule
+- Stored on `Technician.workingHours`; booking slots / waitlist use per-day hours (null = salon open/close)
+
+## Bookings settings
+
+- `waitlistEnabled`, `rebookReminderEnabled`, `rebookReminderDaysAfter` (7–365, default 21)
+
+## Mobile
+
+- Touch-friendly targets, collapsible message groups default closed

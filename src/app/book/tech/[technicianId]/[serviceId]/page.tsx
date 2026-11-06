@@ -179,8 +179,8 @@ export default function BookDatePage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-8 py-16 sm:py-20 md:py-28">
-      <PageTopLinks>
+    <div className="max-w-[960px] mx-auto w-full px-6 pt-14 pb-20">
+      <PageTopLinks className="mb-12">
         <Link href="/" className="text-sm text-navy hover:underline">
           Home
         </Link>
@@ -188,11 +188,12 @@ export default function BookDatePage() {
           ← Back to services
         </Link>
       </PageTopLinks>
-      <h1 className="font-serif text-2xl md:text-3xl font-light text-slate-800 mb-3">
+      <h1 className="font-serif text-[2.4rem] sm:text-[2.75rem] font-normal text-white leading-tight mb-2">
         {service.name}
       </h1>
-      <p className="text-slate-600 text-sm mb-10">
-        {service.durationMin} min · {formatCurrency(service.depositAmount)} deposit
+      <p className="lux-muted mb-10">
+        {service.durationMin} min ·{" "}
+        <span className="text-[#dfe4ea]">{formatCurrency(service.depositAmount)} deposit</span>
       </p>
 
       {waitlistToken && waitlistAccessResolved && !waitlistAccessDate && (
@@ -211,29 +212,27 @@ export default function BookDatePage() {
 
       <div className="grid md:grid-cols-[1fr,1fr] gap-10 md:gap-12 items-start">
         <div>
-          <h2 className="text-xs font-medium uppercase tracking-[0.2em] text-navy mb-4">
-            1. Choose a date
-          </h2>
-          <p className="text-slate-600 text-sm mb-6">Tap a date to see available times.</p>
+          <h2 className="lux-eyebrow mb-3">1 · Choose a date</h2>
+          <p className="lux-muted text-sm mb-5">Tap a date to see available times.</p>
           {monthsWithDates.map(([monthTitle, monthDates]) => {
             // Align the first bookable day to its weekday column (Monday first).
             const leadingBlanks = (getDay(monthDates[0]) + 6) % 7;
             return (
             <div key={monthTitle} className="mb-8 last:mb-0">
-              <h3 className="text-sm font-semibold text-navy mb-3">{monthTitle}</h3>
-              <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-1.5">
+              <h3 className="font-serif text-[1.4rem] text-white mb-3">{monthTitle}</h3>
+              <div className="grid grid-cols-7 gap-1.5 sm:gap-2 mb-2">
                 {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((w) => (
                   <div
                     key={w}
-                    className="text-center text-[10px] sm:text-xs font-medium text-slate-400"
+                    className="text-center text-[11px] tracking-[0.15em] uppercase text-[#4f5868]"
                   >
                     {w}
                   </div>
                 ))}
               </div>
-              <div className="grid grid-cols-7 gap-1 sm:gap-2 min-w-0">
+              <div className="grid grid-cols-7 gap-1.5 sm:gap-2 min-w-0">
                 {Array.from({ length: leadingBlanks }).map((_, i) => (
-                  <div key={`blank-${i}`} aria-hidden className="min-h-[36px] sm:min-h-[40px]" />
+                  <div key={`blank-${i}`} aria-hidden />
                 ))}
                 {monthDates.map((d) => {
                   const dateStr = format(d, "yyyy-MM-dd");
@@ -241,20 +240,15 @@ export default function BookDatePage() {
                   const hasSlots = availability[dateStr] ?? true;
                   const isFullyBooked = !isPast && !hasSlots;
                   const isSelected = selectedDate === dateStr;
-                  let dayClass =
-                    "py-1.5 sm:py-2 rounded-md text-xs font-medium transition touch-manipulation min-h-[36px] sm:min-h-[40px] border ";
-                  if (isPast) {
-                    dayClass += "bg-slate-100 text-slate-300 border-transparent cursor-not-allowed";
-                  } else if (isFullyBooked) {
-                    dayClass +=
-                      "bg-slate-100/90 text-slate-400 font-normal border-slate-100 hover:bg-slate-100 hover:border-slate-200/70";
-                  } else {
-                    dayClass +=
-                      "border-slate-200 bg-white text-slate-800 hover:border-navy/40 hover:bg-slate-50";
-                  }
-                  if (isSelected) {
-                    dayClass += " ring-2 ring-navy ring-offset-1 bg-navy/5 border-navy/30";
-                  }
+                  const dayClass = `lux-day ${
+                    isSelected
+                      ? "lux-day-selected"
+                      : isPast
+                        ? "lux-day-past"
+                        : isFullyBooked
+                          ? "lux-day-full"
+                          : "lux-day-open"
+                  }`;
                   return (
                     <button
                       key={dateStr}
@@ -264,20 +258,9 @@ export default function BookDatePage() {
                         if (!isPast) setSelectedDate(dateStr);
                       }}
                       className={dayClass}
+                      aria-label={format(d, "EEEE d MMMM")}
                     >
                       {format(d, "d")}
-                      <br />
-                      <span
-                        className={`text-[10px] sm:text-xs font-normal ${
-                          isPast
-                            ? "text-slate-300"
-                            : isFullyBooked
-                              ? "text-slate-400/60"
-                              : "text-slate-500"
-                        }`}
-                      >
-                        {format(d, "EEE")}
-                      </span>
                     </button>
                   );
                 })}
@@ -300,17 +283,12 @@ export default function BookDatePage() {
           </p>
         </div>
 
-        <div
-          ref={timeSectionRef}
-          className="rounded-2xl border border-slate-200 bg-slate-50/50 p-6 min-h-[200px]"
-        >
-          <h2 className="text-xs font-medium uppercase tracking-[0.2em] text-navy mb-4">
-            2. Choose a time
-          </h2>
+        <div ref={timeSectionRef} className="min-h-[200px] scroll-mt-6">
+          <h2 className="lux-eyebrow mb-3">2 · Choose a time</h2>
           {!selectedDate ? (
-            <p className="text-slate-500 text-sm">Select a date to see available times.</p>
+            <p className="lux-muted text-sm">Select a date to see available times.</p>
           ) : slotsLoading ? (
-            <p className="text-slate-500 text-sm">Loading times…</p>
+            <p className="lux-muted text-sm">Loading times…</p>
           ) : slots.length === 0 ? (
             selectedDate && selectedDateLabel ? (
               settings?.waitlistEnabled !== false ? (
@@ -332,8 +310,8 @@ export default function BookDatePage() {
             )
           ) : (
             <>
-              <p className="text-slate-600 text-sm mb-4">{selectedDateLabel}</p>
-              <div className="grid grid-cols-2 gap-2 sm:gap-3 min-w-0">
+              <p className="font-serif text-[1.4rem] text-white mb-3">{selectedDateLabel}</p>
+              <div className="grid grid-cols-3 gap-2.5 min-w-0">
                 {slots.map((slot) => {
                   const wlQuery = waitlistToken
                     ? `?wl=${encodeURIComponent(waitlistToken)}`
@@ -342,9 +320,10 @@ export default function BookDatePage() {
                   <Link
                     key={slot.start}
                     href={`/book/tech/${technicianId}/${serviceId}/${selectedDate}/${encodeURIComponent(slot.start)}${wlQuery}`}
-                    className="flex items-center justify-center px-2 py-2 sm:py-2.5 rounded-lg border border-slate-200 bg-white text-slate-800 text-[11px] sm:text-xs font-medium hover:border-navy/40 hover:bg-navy/5 hover:text-navy transition touch-manipulation text-center min-h-[40px] sm:min-h-[44px] min-w-0"
+                    className="lux-time"
+                    title={`${formatTime24to12(slot.start)} – ${formatTime24to12(slot.end)}`}
                   >
-                    {formatTime24to12(slot.start)} – {formatTime24to12(slot.end)}
+                    {slot.start}
                   </Link>
                   );
                 })}

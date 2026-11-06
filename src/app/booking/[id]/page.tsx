@@ -199,54 +199,68 @@ export default function BookingPage() {
   const depositDueByCard = booking.depositAmount - (booking.voucherAmount ?? 0);
 
   return (
-    <div className="max-w-xl mx-auto px-4 sm:px-8 py-16 sm:py-20 md:py-28">
-      <HomeBackLinks />
-      <div className="rounded-xl border border-slate-200 bg-white p-6 sm:p-8 md:p-10 shadow-sm">
-        <div
-          className={`inline-block px-3 py-1.5 rounded-full text-xs font-medium uppercase tracking-wider mb-8 ${
-            confirmed
-              ? "bg-slate-100 text-navy"
-              : pending
-                ? "bg-amber-50 text-amber-700"
-                : "bg-slate-100 text-slate-600"
-          }`}
-        >
-          {confirmed ? "Confirmed" : pending ? "Awaiting deposit" : booking.status}
-        </div>
+    <div className="max-w-[640px] mx-auto w-full px-6 pt-14 pb-20">
+      <HomeBackLinks className="mb-12" />
 
-        <h1 className="font-serif text-2xl md:text-3xl font-light text-slate-800 mb-3">
-          {booking.service.name}
+      <div className="text-center mb-9">
+        {confirmed && (
+          <div
+            className="mx-auto mb-6 w-[72px] h-[72px] rounded-full flex items-center justify-center border border-[rgba(120,160,230,0.6)] text-[28px] text-white shadow-[0_0_40px_-6px_rgba(70,120,220,0.7)]"
+            aria-hidden
+          >
+            ✓
+          </div>
+        )}
+        <p className={`lux-eyebrow ${pending ? "!text-amber-300" : ""}`}>
+          {confirmed ? "Confirmed" : pending ? "Awaiting deposit" : booking.status}
+        </p>
+        <h1 className="font-serif text-[2.6rem] sm:text-5xl font-normal text-white leading-tight mt-2">
+          {confirmed ? `See you soon, ${booking.customerName.trim().split(/\s+/)[0]}` : booking.service.name}
         </h1>
-        <p className="text-slate-600 mb-5">
-          {dayLabel} · {booking.startTime}–{booking.endTime}
-          {booking.technician?.name && <> · with {booking.technician.name}</>}
-        </p>
-        <p className="text-sm text-slate-600 mb-3">
-          {booking.customerName} · {booking.customerEmail}
-        </p>
-        <p className="text-sm text-slate-500">
-          {formatCurrency(booking.servicePrice)} total
-          {paidByCertificate ? (
-            <> · Paid in full by gift certificate</>
-          ) : noDeposit ? (
-            <> · No deposit required</>
-          ) : (
-            <>
-              {" "}· {formatCurrency(booking.depositAmount)} deposit
-              {(booking.voucherAmount ?? 0) > 0 && (
-                <> ({formatCurrency(booking.voucherAmount!)} by gift voucher)</>
-              )}
-            </>
-          )}
-          {hasRemaining && (
-            <> · {formatCurrency(remaining)} remaining</>
-          )}
-        </p>
+      </div>
+
+      <div className="lux-card">
+        <p className="font-serif text-[1.65rem] leading-snug text-white mb-2">{booking.service.name}</p>
+        {[
+          { label: "When", value: `${dayLabel} · ${booking.startTime}–${booking.endTime}` },
+          ...(booking.technician?.name ? [{ label: "With", value: booking.technician.name }] : []),
+          {
+            label: "Booked for",
+            value: booking.customerEmail ? `${booking.customerName} · ${booking.customerEmail}` : booking.customerName,
+          },
+          { label: "Total", value: formatCurrency(booking.servicePrice) },
+          {
+            label: paidByCertificate ? "Payment" : noDeposit ? "Deposit" : confirmed ? "Deposit paid" : "Deposit",
+            value: paidByCertificate
+              ? "Paid in full by gift certificate"
+              : noDeposit
+                ? "No deposit required"
+                : `${formatCurrency(booking.depositAmount)}${
+                    (booking.voucherAmount ?? 0) > 0 ? ` (${formatCurrency(booking.voucherAmount!)} by gift voucher)` : ""
+                  }`,
+          },
+          ...(hasRemaining
+            ? [
+                {
+                  label: booking.balancePaidOnline ? "Balance" : "To pay at the salon",
+                  value: booking.balancePaidOnline ? "Paid online" : formatCurrency(remaining),
+                },
+              ]
+            : []),
+        ].map((row) => (
+          <div
+            key={row.label}
+            className="flex justify-between gap-4 py-3 border-b border-white/5 last:border-0 text-sm"
+          >
+            <span className="lux-muted shrink-0">{row.label}</span>
+            <span className="text-right text-white">{row.value}</span>
+          </div>
+        ))}
       </div>
 
       {pending && (
-        <div className="mt-10 rounded-xl border border-slate-200 bg-white p-6 sm:p-8 md:p-10 shadow-sm space-y-8">
-          <h2 className="font-serif text-xl font-light text-slate-800">
+        <div className="mt-6 lux-card space-y-6">
+          <h2 className="font-serif text-2xl font-normal text-white">
             Pay your deposit ({formatCurrency(depositDueByCard)}) to confirm
           </h2>
 
@@ -262,7 +276,7 @@ export default function BookingPage() {
               type="button"
               onClick={payByCard}
               disabled={paying}
-              className="w-full bg-navy text-white py-4 rounded-lg font-medium hover:bg-navy-light disabled:opacity-50 transition touch-manipulation min-h-[52px] shadow-sm"
+              className="lux-btn w-full"
             >
               {paying ? "Redirecting to payment…" : "Pay " + formatCurrency(depositDueByCard) + " by card"}
             </button>
@@ -293,10 +307,9 @@ export default function BookingPage() {
       )}
 
       {confirmed && (
-        <div className="mt-10 rounded-xl border border-slate-200 bg-white p-6 sm:p-8 md:p-10 shadow-sm space-y-8">
+        <div className="mt-6 space-y-8">
           <div>
-            <h2 className="font-serif text-xl font-light text-slate-800 mb-3">Your booking is confirmed</h2>
-            <p className="text-slate-600 text-sm mb-3 leading-relaxed">
+            <p className="lux-muted text-sm mb-3 leading-relaxed text-center">
               {paidByCertificate
                 ? "Your gift certificate covers this treatment in full — there's nothing to pay at the salon."
                 : !noDeposit && "Your deposit has been received."}
@@ -308,7 +321,7 @@ export default function BookingPage() {
                 <> A confirmation SMS has been sent to your phone.</>
               )}
             </p>
-            <p className="text-slate-500 text-sm leading-relaxed">
+            <p className="text-slate-500 text-sm leading-relaxed text-center">
               {businessName} has also received a confirmation. We look forward to seeing
               you!
             </p>
@@ -316,9 +329,9 @@ export default function BookingPage() {
               booking={booking}
               businessName={businessName}
               businessAddress={settings?.businessAddress}
-              className="mt-5"
+              className="mt-6"
             />
-            <p className="text-slate-500 text-sm leading-relaxed mt-3">
+            <p className="text-slate-500 text-sm leading-relaxed mt-4 text-center">
               {paidByCertificate ? (
                 <>
                   Need to cancel? Use the link in your confirmation email or text — the treatment goes
@@ -350,7 +363,7 @@ export default function BookingPage() {
                 type="button"
                 onClick={payBalance}
                 disabled={payingBalance}
-                className="w-full bg-navy text-white py-4 rounded-lg font-medium hover:bg-navy-light disabled:opacity-50 transition touch-manipulation min-h-[52px] shadow-sm"
+                className="lux-btn w-full"
               >
                 {payingBalance ? "Redirecting…" : "Pay " + formatCurrency(remaining) + " remaining now"}
               </button>

@@ -12,7 +12,8 @@ type CalendarBooking = {
 };
 
 const buttonClass =
-  "inline-flex items-center justify-center px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-sm font-medium text-navy hover:bg-slate-50 transition min-h-[44px]";
+  "flex flex-col items-center justify-center gap-1.5 text-center rounded-[14px] border border-white/15 bg-[#121722] px-2 py-4 text-[13px] leading-snug text-white hover:border-[rgba(120,160,230,0.6)] transition min-h-[84px]";
+const iconClass = "text-[18px] text-[#c9d0da]";
 
 /** "Add to calendar" + "Get directions" buttons for a confirmed booking. */
 export default function BookingCalendarButtons({
@@ -32,12 +33,14 @@ export default function BookingCalendarButtons({
 
   return (
     <div className={className} id="calendar">
-      <div className="flex flex-wrap gap-2">
+      <div className="grid grid-cols-3 gap-2.5">
         <a href={`/api/bookings/${booking.id}/calendar`} className={buttonClass}>
-          Add to Apple / Outlook calendar
+          <span className={iconClass} aria-hidden>◷</span>
+          Apple / Outlook calendar
         </a>
         <a href={googleCalendarUrl(event)} target="_blank" rel="noopener noreferrer" className={buttonClass}>
-          Add to Google Calendar
+          <span className={iconClass} aria-hidden>◷</span>
+          Google Calendar
         </a>
         <a
           href={googleMapsUrl(businessName, businessAddress)}
@@ -45,10 +48,11 @@ export default function BookingCalendarButtons({
           rel="noopener noreferrer"
           className={buttonClass}
         >
-          Get directions
+          <span className={iconClass} aria-hidden>⌖</span>
+          Directions
         </a>
       </div>
-      {businessAddress && <p className="text-slate-500 text-sm mt-3">{businessAddress}</p>}
+      {businessAddress && <p className="lux-muted text-sm mt-3 text-center">{businessAddress}</p>}
     </div>
   );
 }
