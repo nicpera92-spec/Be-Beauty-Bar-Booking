@@ -82,12 +82,6 @@ export default function HomePage() {
         <Link href="/book" className="lux-btn">
           Book now
         </Link>
-        <Link
-          href="/gift-vouchers"
-          className="mt-7 text-[13px] lux-muted border-b border-white/15 pb-0.5 hover:text-white transition"
-        >
-          Give a gift certificate
-        </Link>
       </div>
     </div>
   );
