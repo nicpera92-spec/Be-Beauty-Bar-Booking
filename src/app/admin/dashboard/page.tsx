@@ -68,7 +68,7 @@ function rangeLabel(from: string, to: string): string {
 
 type DashboardResponse = DashboardStats & {
   performance: YearOnYear;
-  previous: { from: string; to: string; revenue: number; confirmed: number; newCustomers: number };
+  previous: { from: string; to: string; revenue: number; confirmed: number; clients: number };
   glance: {
     upcomingCount: number;
     upcomingValue: number;
@@ -116,6 +116,28 @@ function Card({
       <p className="text-2xl sm:text-[1.7rem] font-semibold text-charcoal mt-1 tabular-nums leading-tight">{value}</p>
       {hint && <p className="text-xs text-charcoal/50 mt-1.5 leading-snug">{hint}</p>}
       {children}
+    </div>
+  );
+}
+
+function ClientSplit({ newCount, returningCount }: { newCount: number; returningCount: number }) {
+  const newPct = (newCount / (newCount + returningCount)) * 100;
+  return (
+    <div className="mt-2.5">
+      <div className="flex h-1.5 rounded-full overflow-hidden bg-slate-100">
+        <div className="h-full bg-[#6096f0]" style={{ width: `${newPct}%` }} />
+        <div className="h-full bg-[#aeb8c7]" style={{ width: `${100 - newPct}%` }} />
+      </div>
+      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5 text-xs text-charcoal/60 tabular-nums">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-[#6096f0]" />
+          {newCount} new
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-[#aeb8c7]" />
+          {returningCount} returning
+        </span>
+      </div>
     </div>
   );
 }
@@ -392,7 +414,7 @@ export default function AdminDashboardPage() {
             >
               <Change current={glance.yearToDate} previous={glance.lastYearToDate} against={`this time last year (${formatCurrency(glance.lastYearToDate)})`} />
             </Card>
-            <Card label="Clients" value={String(glance.totalCustomers)} hint="Different people who have had an appointment" />
+            <Card label="All clients" value={String(glance.totalCustomers)} hint="Everyone who has ever had an appointment" />
           </div>
         </section>
       )}
@@ -508,11 +530,20 @@ export default function AdminDashboardPage() {
               {comparable && <Change current={stats.confirmed} previous={stats.previous.confirmed} against={against} />}
             </Card>
             <Card
-              label="New clients"
-              value={String(stats.newCustomers)}
-              hint={`${plural(stats.returningCustomers, "returning client")}`}
+              label="Clients"
+              value={String(stats.newCustomers + stats.returningCustomers)}
+              hint={stats.newCustomers + stats.returningCustomers === 0 ? "None in this period" : undefined}
             >
-              {comparable && <Change current={stats.newCustomers} previous={stats.previous.newCustomers} against={against} />}
+              {stats.newCustomers + stats.returningCustomers > 0 && (
+                <ClientSplit newCount={stats.newCustomers} returningCount={stats.returningCustomers} />
+              )}
+              {comparable && (
+                <Change
+                  current={stats.newCustomers + stats.returningCustomers}
+                  previous={stats.previous.clients}
+                  against={against}
+                />
+              )}
             </Card>
             <Card
               label="Cancellations"

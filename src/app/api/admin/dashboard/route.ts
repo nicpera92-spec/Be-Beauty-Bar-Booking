@@ -135,7 +135,7 @@ export async function GET(req: NextRequest) {
       to: prev.to,
       revenue: previous.revenue,
       confirmed: previous.confirmed,
-      newCustomers: previous.newCustomers,
+      clients: previous.newCustomers + previous.returningCustomers,
     },
     glance: {
       upcomingCount: upcoming._count,
