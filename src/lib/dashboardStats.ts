@@ -1,13 +1,10 @@
 import {
-  addDays,
-  addMonths,
   differenceInCalendarDays,
   differenceInCalendarMonths,
   endOfMonth,
   format,
   getDay,
   parse,
-  startOfMonth,
   subDays,
   subMonths,
 } from "date-fns";
@@ -58,8 +55,6 @@ export type DashboardStats = {
   byHour: { label: string; count: number }[];
 };
 
-export type TrendPoint = { label: string; revenue: number; count: number };
-
 const ymd = (d: Date) => format(d, "yyyy-MM-dd");
 const parseYmd = (s: string) => parse(s, "yyyy-MM-dd", new Date());
 
@@ -108,33 +103,6 @@ export function yearOnYear(rows: { date: string; servicePrice: number }[], year:
     thisYearTotal: round2(rounded.reduce((s, m) => s + m.thisYear, 0)),
     lastYearTotal: round2(rounded.reduce((s, m) => s + m.lastYear, 0)),
   };
-}
-
-/** Confirmed takings per day (ranges up to ~2 months) or per month (longer). Empty for a single day. */
-export function takingsTrend(bookings: StatsBooking[], from: string, to: string): TrendPoint[] {
-  const f = parseYmd(from);
-  const t = parseYmd(to);
-  const days = differenceInCalendarDays(t, f) + 1;
-  if (days <= 1) return [];
-  const monthly = days > 62;
-  const buckets = new Map<string, TrendPoint>();
-  if (monthly) {
-    for (let d = startOfMonth(f); d <= t; d = addMonths(d, 1)) {
-      buckets.set(format(d, "yyyy-MM"), { label: format(d, "MMM yy"), revenue: 0, count: 0 });
-    }
-  } else {
-    for (let d = f; d <= t; d = addDays(d, 1)) {
-      buckets.set(ymd(d), { label: format(d, "d MMM"), revenue: 0, count: 0 });
-    }
-  }
-  for (const b of bookings) {
-    if (b.status !== "confirmed") continue;
-    const point = buckets.get(monthly ? b.date.slice(0, 7) : b.date);
-    if (!point) continue;
-    point.revenue += b.servicePrice;
-    point.count++;
-  }
-  return [...buckets.values()].map((p) => ({ ...p, revenue: round2(p.revenue) }));
 }
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];

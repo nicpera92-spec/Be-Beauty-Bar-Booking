@@ -5,7 +5,6 @@ import { requireMaster } from "@/lib/auth";
 import {
   computeDashboardStats,
   previousPeriod,
-  takingsTrend,
   yearOnYear,
   type StatsBooking,
 } from "@/lib/dashboardStats";
@@ -69,8 +68,6 @@ export async function GET(req: NextRequest) {
     inRange,
     inPrevious,
     confirmedHistory,
-    waitlistJoined,
-    waitlistBooked,
     upcoming,
     yearToDate,
     lastYearToDate,
@@ -90,19 +87,6 @@ export async function GET(req: NextRequest) {
       select: { date: true, customerEmail: true, customerPhone: true, technicianId: true },
       orderBy: { date: "asc" },
     }),
-    prisma.waitingListEntry.count({
-      where: {
-        createdAt: { gte: new Date(`${from}T00:00:00Z`), lte: new Date(`${to}T23:59:59Z`) },
-        ...byTechnician,
-      },
-    }),
-    prisma.waitingListEntry.count({
-      where: {
-        ...byTechnician,
-        status: "fulfilled",
-        updatedAt: { gte: new Date(`${from}T00:00:00Z`), lte: new Date(`${to}T23:59:59Z`) },
-      },
-    }),
     prisma.booking.aggregate({
       where: { status: "confirmed", date: { gte: today }, ...byTechnician },
       _count: true,
@@ -120,7 +104,7 @@ export async function GET(req: NextRequest) {
     prisma.booking.findMany({
       where: {
         status: "confirmed",
-        date: { gte: `${perfYear - 1}-01-01`, lte: `${perfYear}-12-31` },
+        date: { gte: `${perfYear - 1}-01-01`, lte: `${perfYear}-12-31` < today ? `${perfYear}-12-31` : today },
         ...byTechnician,
       },
       select: { date: true, servicePrice: true },
@@ -138,27 +122,20 @@ export async function GET(req: NextRequest) {
 
   const toStats = (rows: typeof inRange): StatsBooking[] =>
     rows.map((b) => ({ ...b, serviceName: b.service.name, technicianName: b.technician.name }));
-  const bookings = toStats(inRange);
-  const stats = computeDashboardStats(bookings, contactKeyForBooking, firstVisit);
+  const stats = computeDashboardStats(toStats(inRange), contactKeyForBooking, firstVisit);
   const previous = computeDashboardStats(toStats(inPrevious), contactKeyForBooking, firstVisit);
 
   return NextResponse.json({
     from,
     to,
     ...stats,
-    waitlistJoined,
-    waitlistBooked,
-    trend: takingsTrend(bookings, from, to),
     performance: yearOnYear(perfRows, perfYear),
     previous: {
       from: prev.from,
       to: prev.to,
       revenue: previous.revenue,
       confirmed: previous.confirmed,
-      averageBookingValue: previous.averageBookingValue,
       newCustomers: previous.newCustomers,
-      cancellationRate: previous.cancellationRate,
-      repeatRate: previous.repeatRate,
     },
     glance: {
       upcomingCount: upcoming._count,
