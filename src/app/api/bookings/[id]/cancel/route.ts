@@ -70,6 +70,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   const now = new Date();
   const reschedule = getRescheduleEligibility(booking, now, refundHours);
+  const { loadBookingLeadSettings } = await import("@/lib/bookingLeadSettings");
+  const lead = reschedule.allowed ? await loadBookingLeadSettings() : null;
   return NextResponse.json({
     state: getCustomerCancelState(booking, now, refundHours),
     booking: summarize(booking),
@@ -78,7 +80,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     businessAddress,
     instagramHandle,
     reschedule: reschedule.allowed
-      ? { allowed: true, ...rescheduleDateRange() }
+      ? { allowed: true, ...rescheduleDateRange(lead) }
       : { allowed: false, reason: reschedule.reason },
   });
 }

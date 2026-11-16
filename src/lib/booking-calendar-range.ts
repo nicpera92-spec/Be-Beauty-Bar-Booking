@@ -1,18 +1,24 @@
 import {
-  addDays,
   addMonths,
   differenceInCalendarDays,
   endOfMonth,
   format,
+  parse,
   startOfMonth,
   startOfToday,
 } from "date-fns";
+import { businessMinBookableDateStr } from "@/lib/business-time";
+import {
+  resolveBookingLeadSettings,
+  type BookingLeadSettings,
+} from "@/lib/bookingLeadPolicy";
 
 /** Same date range as the customer “choose a date” booking page. */
-export function getCustomerBookableRange() {
+export function getCustomerBookableRange(lead?: Partial<BookingLeadSettings> | null) {
   const today = startOfToday();
-  // Earliest customer date is the day after tomorrow (today and tomorrow are blocked).
-  const minBookableDate = addDays(today, 2);
+  const settings = resolveBookingLeadSettings(lead);
+  const minBookableDateStr = businessMinBookableDateStr(new Date(), settings);
+  const minBookableDate = parse(minBookableDateStr, "yyyy-MM-dd", new Date());
   const rangeStart = startOfMonth(today);
   const daysLeftInCurrentMonth = differenceInCalendarDays(endOfMonth(today), today);
   const monthsAhead = daysLeftInCurrentMonth <= 14 ? 2 : 1;
@@ -32,5 +38,6 @@ export function getCustomerBookableRange() {
     monthStarts,
     fromStr: format(minBookableDate, "yyyy-MM-dd"),
     toStr: format(rangeEnd, "yyyy-MM-dd"),
+    lead: settings,
   };
 }

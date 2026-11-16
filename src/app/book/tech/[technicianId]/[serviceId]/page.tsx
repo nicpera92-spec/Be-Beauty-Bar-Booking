@@ -6,6 +6,10 @@ import { eachDayOfInterval, format, parse, getDay } from "date-fns";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/format";
 import { getCustomerBookableRange } from "@/lib/booking-calendar-range";
+import {
+  DEFAULT_BOOKING_CUTOFF_TIME,
+  DEFAULT_BOOKING_MIN_ADVANCE_DAYS,
+} from "@/lib/bookingLeadPolicy";
 import WaitlistJoinForm from "@/components/WaitlistJoinForm";
 import PageTopLinks from "@/components/PageTopLinks";
 
@@ -18,7 +22,12 @@ type Service = {
 };
 
 type Slot = { start: string; end: string };
-type Settings = { instagramHandle?: string | null; waitlistEnabled?: boolean };
+type Settings = {
+  instagramHandle?: string | null;
+  waitlistEnabled?: boolean;
+  bookingMinAdvanceDays?: number;
+  bookingCutoffTime?: string;
+};
 
 function formatTime24to12(t: string): string {
   const [h, m] = t.split(":").map(Number);
@@ -41,7 +50,10 @@ export default function BookDatePage() {
   const [slotsLoading, setSlotsLoading] = useState(false);
   const timeSectionRef = useRef<HTMLDivElement>(null);
 
-  const { today, minBookableDate, rangeEnd: calendarEnd, fromStr, toStr } = getCustomerBookableRange();
+  const { today, minBookableDate, rangeEnd: calendarEnd, fromStr, toStr } = getCustomerBookableRange({
+    minAdvanceDays: settings?.bookingMinAdvanceDays ?? DEFAULT_BOOKING_MIN_ADVANCE_DAYS,
+    cutoffTime: settings?.bookingCutoffTime ?? DEFAULT_BOOKING_CUTOFF_TIME,
+  });
   const minBookableDateStr = format(minBookableDate, "yyyy-MM-dd");
   const waitlistToken = searchParams.get("wl");
   const linkDateParam = searchParams.get("date");

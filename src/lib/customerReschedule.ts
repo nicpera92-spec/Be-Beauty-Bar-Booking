@@ -1,8 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { getCustomerBookableRange } from "@/lib/booking-calendar-range";
+import { loadBookingLeadSettings } from "@/lib/bookingLeadSettings";
 import { getCustomerCancelState } from "@/lib/customerCancellation";
 import { DEFAULT_CANCELLATION_REFUND_HOURS, normalizeRefundHours } from "@/lib/cancellationPolicy";
 import { getAvailabilityForRange, getAvailableSlotsForDay } from "@/lib/slotAvailability";
+import type { BookingLeadSettings } from "@/lib/bookingLeadPolicy";
 
 /** A customer can move a booking themselves this many times. */
 export const MAX_CUSTOMER_RESCHEDULES = 2;
@@ -24,8 +26,8 @@ export function getRescheduleEligibility(
   return { allowed: true };
 }
 
-export function rescheduleDateRange(): { minDate: string; maxDate: string } {
-  const range = getCustomerBookableRange();
+export function rescheduleDateRange(lead?: BookingLeadSettings | null): { minDate: string; maxDate: string } {
+  const range = getCustomerBookableRange(lead);
   return { minDate: range.fromStr, maxDate: range.toStr };
 }
 
@@ -44,15 +46,16 @@ export async function getRescheduleAvailability(
   | { ok: true; availability: Record<string, boolean>; minDate: string; maxDate: string }
   | { ok: false; error: string }
 > {
-  const [booking, refundHours] = await Promise.all([
+  const [booking, refundHours, lead] = await Promise.all([
     prisma.booking.findUnique({ where: { id: bookingId } }),
     loadRefundHours(),
+    loadBookingLeadSettings(),
   ]);
   if (!booking) return { ok: false, error: "Booking not found" };
   const eligibility = getRescheduleEligibility(booking, new Date(), refundHours);
   if (!eligibility.allowed) return { ok: false, error: eligibility.reason };
 
-  const { minDate, maxDate } = rescheduleDateRange();
+  const { minDate, maxDate } = rescheduleDateRange(lead);
   const result = await getAvailabilityForRange({
     serviceId: booking.serviceId,
     technicianId: booking.technicianId,
@@ -71,15 +74,16 @@ export type RescheduleSlotsResult =
 
 /** Free slots on a day for moving this booking (its own current slot counts as free). */
 export async function getRescheduleSlots(bookingId: string, date: string): Promise<RescheduleSlotsResult> {
-  const [booking, refundHours] = await Promise.all([
+  const [booking, refundHours, lead] = await Promise.all([
     prisma.booking.findUnique({ where: { id: bookingId } }),
     loadRefundHours(),
+    loadBookingLeadSettings(),
   ]);
   if (!booking) return { ok: false, error: "Booking not found" };
   const eligibility = getRescheduleEligibility(booking, new Date(), refundHours);
   if (!eligibility.allowed) return { ok: false, error: eligibility.reason };
 
-  const { minDate, maxDate } = rescheduleDateRange();
+  const { minDate, maxDate } = rescheduleDateRange(lead);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date < minDate || date > maxDate) {
     return { ok: true, slots: [] };
   }

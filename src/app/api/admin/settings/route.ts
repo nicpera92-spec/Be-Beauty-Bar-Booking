@@ -9,6 +9,12 @@ import {
   MAX_CANCELLATION_REFUND_HOURS,
   MIN_CANCELLATION_REFUND_HOURS,
 } from "@/lib/cancellationPolicy";
+import {
+  MAX_BOOKING_ADVANCE_DAYS,
+  MIN_BOOKING_ADVANCE_DAYS,
+  normalizeBookingCutoffTime,
+  normalizeBookingMinAdvanceDays,
+} from "@/lib/bookingLeadPolicy";
 
 export async function GET(req: NextRequest) {
   const staff = await verifyAdminRequest(req);
@@ -52,6 +58,8 @@ export async function PATCH(req: NextRequest) {
     rebookReminderDaysAfter,
     cancellationRefundHours,
     cancellationPolicy,
+    bookingMinAdvanceDays,
+    bookingCutoffTime,
     reviewRequestEnabled,
     googleReviewUrl,
     dailyScheduleEnabled,
@@ -151,6 +159,32 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Cancellation policy is too long" }, { status: 400 });
     }
     data.cancellationPolicy = cancellationPolicy?.trim() ? cancellationPolicy.trim() : null;
+  }
+  if (bookingMinAdvanceDays != null) {
+    const days = Number(bookingMinAdvanceDays);
+    if (
+      !Number.isFinite(days) ||
+      days < MIN_BOOKING_ADVANCE_DAYS ||
+      days > MAX_BOOKING_ADVANCE_DAYS
+    ) {
+      return NextResponse.json(
+        {
+          error: `Booking advance must be between ${MIN_BOOKING_ADVANCE_DAYS} and ${MAX_BOOKING_ADVANCE_DAYS} days`,
+        },
+        { status: 400 }
+      );
+    }
+    data.bookingMinAdvanceDays = normalizeBookingMinAdvanceDays(days);
+  }
+  if (bookingCutoffTime != null) {
+    const raw = String(bookingCutoffTime).trim();
+    if (!/^\d{1,2}:\d{2}$/.test(raw)) {
+      return NextResponse.json(
+        { error: "Cut-off time must look like 18:00" },
+        { status: 400 }
+      );
+    }
+    data.bookingCutoffTime = normalizeBookingCutoffTime(raw);
   }
   if (reviewRequestEnabled !== undefined) data.reviewRequestEnabled = Boolean(reviewRequestEnabled);
   if (dailyScheduleEnabled !== undefined) data.dailyScheduleEnabled = Boolean(dailyScheduleEnabled);

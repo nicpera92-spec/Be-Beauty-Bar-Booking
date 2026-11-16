@@ -1,14 +1,20 @@
 import { addDays, format, parse } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
+import {
+  resolveBookingLeadSettings,
+  type BookingLeadSettings,
+} from "@/lib/bookingLeadPolicy";
 
 /** Salon operates in the UK — use for “today” in waitlist and same-day booking rules. */
 export const BUSINESS_TIMEZONE = "Europe/London";
 
-/** Customers must book at least this far ahead of the appointment start (waitlist same-day links excepted). */
-export const MIN_BOOKING_LEAD_HOURS = 24;
-
 export function businessDateStr(at: Date = new Date()): string {
   return formatInTimeZone(at, BUSINESS_TIMEZONE, "yyyy-MM-dd");
+}
+
+/** Current clock time in the salon timezone as HH:mm. */
+export function businessTimeStr(at: Date = new Date()): string {
+  return formatInTimeZone(at, BUSINESS_TIMEZONE, "HH:mm");
 }
 
 /** Calendar tomorrow in the salon timezone. */
@@ -18,12 +24,20 @@ export function businessTomorrowStr(at: Date = new Date()): string {
 }
 
 /**
- * First date customers can normally book (day after tomorrow).
- * Today and tomorrow are blocked unless they have a waitlist same-day token.
+ * First date customers can normally book.
+ * Before the cut-off: today + minAdvanceDays.
+ * At/after the cut-off: today + minAdvanceDays + 1.
+ * Waitlist same-day tokens can still unlock today.
  */
-export function businessMinBookableDateStr(at: Date = new Date()): string {
+export function businessMinBookableDateStr(
+  at: Date = new Date(),
+  lead?: Partial<BookingLeadSettings> | null
+): string {
+  const settings = resolveBookingLeadSettings(lead);
   const today = businessDateStr(at);
-  return format(addDays(parse(today, "yyyy-MM-dd", new Date()), 2), "yyyy-MM-dd");
+  const pastCutoff = businessTimeStr(at) >= settings.cutoffTime;
+  const days = settings.minAdvanceDays + (pastCutoff ? 1 : 0);
+  return format(addDays(parse(today, "yyyy-MM-dd", new Date()), days), "yyyy-MM-dd");
 }
 
 export function isBusinessToday(dateStr: string, at: Date = new Date()): boolean {
@@ -31,25 +45,18 @@ export function isBusinessToday(dateStr: string, at: Date = new Date()): boolean
 }
 
 /** True when date is before the normal minimum bookable day (waitlist same-day token excepted). */
-export function isBeforeMinBookableDate(dateStr: string, at: Date = new Date()): boolean {
-  return dateStr < businessMinBookableDateStr(at);
+export function isBeforeMinBookableDate(
+  dateStr: string,
+  at: Date = new Date(),
+  lead?: Partial<BookingLeadSettings> | null
+): boolean {
+  return dateStr < businessMinBookableDateStr(at, lead);
 }
 
 /** A UK appointment time (date + "HH:mm") as a UTC instant. */
 export function appointmentStartUtc(date: string, time: string): Date {
   const [h, m] = time.split(":");
   return fromZonedTime(`${date}T${h.padStart(2, "0")}:${m}:00`, BUSINESS_TIMEZONE);
-}
-
-/** True when the appointment starts sooner than the minimum lead time. */
-export function isAppointmentTooSoon(
-  date: string,
-  startTime: string,
-  at: Date = new Date(),
-  leadHours: number = MIN_BOOKING_LEAD_HOURS
-): boolean {
-  const start = appointmentStartUtc(date, startTime);
-  return start.getTime() - at.getTime() < leadHours * 60 * 60 * 1000;
 }
 
 /** End of the given calendar day in London, as a UTC instant (for JWT expiry). */

@@ -8,10 +8,10 @@ import {
   businessEndOfDayUtc,
   businessMinBookableDateStr,
   businessTomorrowStr,
-  isAppointmentTooSoon,
   isBeforeMinBookableDate,
   isBusinessToday,
 } from "@/lib/business-time";
+import { DEFAULT_BOOKING_CUTOFF_TIME, DEFAULT_BOOKING_MIN_ADVANCE_DAYS } from "@/lib/bookingLeadPolicy";
 import {
   createWaitlistBookingToken,
   validateWaitlistBookingAccess,
@@ -49,25 +49,30 @@ async function runOnce(run: number) {
   // --- business-time ---
   assert(businessDateStr(atMorning) === today, `[${run}] businessDateStr morning UK`);
   assert(businessTomorrowStr(atMorning) === "2026-07-06", `[${run}] businessTomorrowStr`);
-  assert(businessMinBookableDateStr(atMorning) === "2026-07-07", `[${run}] min bookable is day after tomorrow`);
+  // Default lead: 1 day, cut-off 18:00 → before 18:00 tomorrow is open.
+  assert(
+    businessMinBookableDateStr(atMorning, {
+      minAdvanceDays: DEFAULT_BOOKING_MIN_ADVANCE_DAYS,
+      cutoffTime: DEFAULT_BOOKING_CUTOFF_TIME,
+    }) === "2026-07-06",
+    `[${run}] morning: min bookable is tomorrow`
+  );
   assert(isBusinessToday(today, atMorning), `[${run}] isBusinessToday true`);
   assert(!isBusinessToday("2026-07-04", atMorning), `[${run}] isBusinessToday false`);
   assert(isBeforeMinBookableDate(today, atMorning), `[${run}] today blocked without token`);
-  assert(isBeforeMinBookableDate("2026-07-06", atMorning), `[${run}] tomorrow blocked without token`);
-  assert(!isBeforeMinBookableDate("2026-07-07", atMorning), `[${run}] day after tomorrow allowed`);
+  assert(!isBeforeMinBookableDate("2026-07-06", atMorning), `[${run}] tomorrow allowed before cut-off`);
   assert(
     businessEndOfDayUtc(today).getTime() > atMorning.getTime(),
     `[${run}] token expiry end-of-day is in the future`
   );
-  // Late evening → next morning is under 24 hours, so it must be blocked.
-  const lateEvening = new Date("2026-07-05T22:33:00+01:00");
+  const afterCutoff = new Date("2026-07-05T18:00:00+01:00");
   assert(
-    isAppointmentTooSoon("2026-07-06", "09:00", lateEvening),
-    `[${run}] next-morning slot blocked within 24h`
+    businessMinBookableDateStr(afterCutoff) === "2026-07-07",
+    `[${run}] at cut-off: earliest moves to day after tomorrow`
   );
   assert(
-    !isAppointmentTooSoon("2026-07-07", "09:00", lateEvening),
-    `[${run}] day-after-tomorrow morning outside 24h`
+    isBeforeMinBookableDate("2026-07-06", afterCutoff),
+    `[${run}] tomorrow blocked after cut-off`
   );
 
   // --- token roundtrip ---

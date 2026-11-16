@@ -19,6 +19,14 @@ import {
   MIN_CANCELLATION_REFUND_HOURS,
   normalizeRefundHours,
 } from "@/lib/cancellationPolicy";
+import {
+  DEFAULT_BOOKING_CUTOFF_TIME,
+  DEFAULT_BOOKING_MIN_ADVANCE_DAYS,
+  MAX_BOOKING_ADVANCE_DAYS,
+  MIN_BOOKING_ADVANCE_DAYS,
+  normalizeBookingCutoffTime,
+  normalizeBookingMinAdvanceDays,
+} from "@/lib/bookingLeadPolicy";
 
 const ADMIN_TOKEN_KEY = "admin-token";
 
@@ -170,6 +178,8 @@ type Settings = {
   rebookReminderDaysAfter?: number;
   cancellationRefundHours?: number;
   cancellationPolicy?: string | null;
+  bookingMinAdvanceDays?: number;
+  bookingCutoffTime?: string;
   reviewRequestEnabled?: boolean;
   googleReviewUrl?: string | null;
   dailyScheduleEnabled?: boolean;
@@ -288,6 +298,8 @@ function AdminSettingsPageInner() {
       rebookReminderDaysAfter: data.rebookReminderDaysAfter ?? 21,
       cancellationRefundHours: data.cancellationRefundHours ?? DEFAULT_CANCELLATION_REFUND_HOURS,
       cancellationPolicy: data.cancellationPolicy?.trim() || DEFAULT_CANCELLATION_POLICY,
+      bookingMinAdvanceDays: data.bookingMinAdvanceDays ?? DEFAULT_BOOKING_MIN_ADVANCE_DAYS,
+      bookingCutoffTime: data.bookingCutoffTime ?? DEFAULT_BOOKING_CUTOFF_TIME,
       reviewRequestEnabled: data.reviewRequestEnabled ?? false,
       googleReviewUrl: data.googleReviewUrl ?? "",
       dailyScheduleEnabled: data.dailyScheduleEnabled ?? true,
@@ -352,6 +364,8 @@ function AdminSettingsPageInner() {
         form.cancellationPolicy.trim() === DEFAULT_CANCELLATION_POLICY
           ? null
           : form.cancellationPolicy,
+      bookingMinAdvanceDays: form.bookingMinAdvanceDays ?? DEFAULT_BOOKING_MIN_ADVANCE_DAYS,
+      bookingCutoffTime: form.bookingCutoffTime ?? DEFAULT_BOOKING_CUTOFF_TIME,
       reviewRequestEnabled: form.reviewRequestEnabled ?? false,
       googleReviewUrl: form.googleReviewUrl ?? "",
       dailyScheduleEnabled: form.dailyScheduleEnabled ?? true,
@@ -847,6 +861,50 @@ function AdminSettingsPageInner() {
                 checked={form.dailyScheduleEnabled ?? true}
                 onChange={(dailyScheduleEnabled) => setForm((f) => ({ ...f, dailyScheduleEnabled }))}
               />
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 space-y-3">
+              <div className="flex items-center gap-1.5">
+                <p className="text-sm font-medium text-charcoal">How far ahead customers can book</p>
+                <SettingsInfoTip text="Example with 1 day and 18:00: before 6pm customers can book from tomorrow; after 6pm tomorrow is closed and the earliest day becomes the day after. Waiting-list same-day links still allow today when a slot opens." />
+              </div>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
+                <span className="text-xs text-charcoal/60">At least</span>
+                <NumberField
+                  integer
+                  min={MIN_BOOKING_ADVANCE_DAYS}
+                  max={MAX_BOOKING_ADVANCE_DAYS}
+                  value={form.bookingMinAdvanceDays ?? DEFAULT_BOOKING_MIN_ADVANCE_DAYS}
+                  onValueChange={(days) =>
+                    setForm((f) => ({
+                      ...f,
+                      bookingMinAdvanceDays: normalizeBookingMinAdvanceDays(days),
+                    }))
+                  }
+                  className="w-16 rounded-lg border border-slate-200 px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-navy/10"
+                />
+                <span className="text-xs text-charcoal/60">day(s) in advance</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
+                <span className="text-xs text-charcoal/60">Stop taking bookings for that earliest day after</span>
+                <select
+                  value={normalizeBookingCutoffTime(form.bookingCutoffTime ?? DEFAULT_BOOKING_CUTOFF_TIME)}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      bookingCutoffTime: normalizeBookingCutoffTime(e.target.value),
+                    }))
+                  }
+                  className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-navy/10"
+                >
+                  {TIME_OPTIONS.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-xs text-charcoal/45">UK time</span>
+              </div>
             </div>
 
             <div className="pt-3 border-t border-slate-100 space-y-3">

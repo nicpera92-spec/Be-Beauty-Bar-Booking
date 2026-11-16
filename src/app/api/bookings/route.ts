@@ -6,7 +6,8 @@ import { blockOverlapsBooking } from "@/lib/blockOverlap";
 import { sendBookingCreatedEmails, sendBookingConfirmationEmails } from "@/lib/email";
 import { isBookingSlotAvailable } from "@/lib/bookingAvailability";
 import { hasWaitlistSameDayBookingAccess } from "@/lib/waitlist-booking-token";
-import { isAppointmentTooSoon, isBeforeMinBookableDate } from "@/lib/business-time";
+import { isBeforeMinBookableDate } from "@/lib/business-time";
+import { loadBookingLeadSettings } from "@/lib/bookingLeadSettings";
 import { loadReviewedLookup } from "@/lib/reviewTracking";
 import {
   attachCertificateItemToBooking,
@@ -182,22 +183,19 @@ export async function POST(req: NextRequest) {
     if (isNaN(bookingDay.getTime())) {
       return NextResponse.json({ error: "Invalid date" }, { status: 400 });
     }
-    const sameDayWaitlistAccess = await hasWaitlistSameDayBookingAccess(
-      typeof waitlistToken === "string" ? waitlistToken : typeof wl === "string" ? wl : null,
-      { date, serviceId, technicianId }
-    );
-    if (!sameDayWaitlistAccess && isBeforeMinBookableDate(date)) {
+    const [sameDayWaitlistAccess, lead] = await Promise.all([
+      hasWaitlistSameDayBookingAccess(
+        typeof waitlistToken === "string" ? waitlistToken : typeof wl === "string" ? wl : null,
+        { date, serviceId, technicianId }
+      ),
+      loadBookingLeadSettings(),
+    ]);
+    if (!sameDayWaitlistAccess && isBeforeMinBookableDate(date, new Date(), lead)) {
       return NextResponse.json(
         {
           error:
-            "Bookings must be at least one full day in advance. Please choose the day after tomorrow or later.",
+            "This date is too soon to book online. Please choose a later date, or contact us if you need something sooner.",
         },
-        { status: 400 }
-      );
-    }
-    if (!sameDayWaitlistAccess && isAppointmentTooSoon(date, startTime)) {
-      return NextResponse.json(
-        { error: "Bookings must be at least 24 hours in advance. Please choose a later time." },
         { status: 400 }
       );
     }

@@ -7,7 +7,8 @@ import {
   maxConcurrentFromRules,
 } from "@/lib/bookingAvailability";
 import { hasWaitlistSameDayBookingAccess } from "@/lib/waitlist-booking-token";
-import { businessDateStr, isAppointmentTooSoon, isBeforeMinBookableDate } from "@/lib/business-time";
+import { businessDateStr, isBeforeMinBookableDate } from "@/lib/business-time";
+import { resolveBookingLeadSettings } from "@/lib/bookingLeadPolicy";
 import { resolveHoursForDate } from "@/lib/workingHours";
 
 export type RangeAvailabilityResult =
@@ -38,7 +39,13 @@ export async function getAvailabilityForRange(params: {
       }),
       prisma.businessSettings.findUnique({
         where: { id: "default" },
-        select: { openTime: true, closeTime: true, slotInterval: true },
+        select: {
+          openTime: true,
+          closeTime: true,
+          slotInterval: true,
+          bookingMinAdvanceDays: true,
+          bookingCutoffTime: true,
+        },
       }),
       prisma.booking.findMany({
         where: {
@@ -67,6 +74,10 @@ export async function getAvailabilityForRange(params: {
   if (service.technicianId !== technicianId) {
     return { ok: false, status: 400, error: "Service does not match technician" };
   }
+  const lead = resolveBookingLeadSettings({
+    minAdvanceDays: settings?.bookingMinAdvanceDays,
+    cutoffTime: settings?.bookingCutoffTime,
+  });
 
   const fromDate = parse(from, "yyyy-MM-dd", new Date());
   const toDate = parse(to, "yyyy-MM-dd", new Date());
@@ -85,7 +96,7 @@ export async function getAvailabilityForRange(params: {
   for (let i = 0; i < numDays; i++) {
     const dateStr = format(addDays(fromDate, i), "yyyy-MM-dd");
     const allowSameDayWaitlist = sameDayWaitlistAccess && dateStr === businessToday;
-    if (!allowSameDayWaitlist && isBeforeMinBookableDate(dateStr, now)) {
+    if (!allowSameDayWaitlist && isBeforeMinBookableDate(dateStr, now, lead)) {
       availability[dateStr] = false;
       continue;
     }
@@ -119,13 +130,10 @@ export async function getAvailabilityForRange(params: {
         exclusionPairs,
       }
     );
-    const afterSkip =
+    const usable =
       params.skipSlot && params.skipSlot.date === dateStr
         ? slots.filter((slot) => slot.start !== params.skipSlot!.startTime)
         : slots;
-    const usable = allowSameDayWaitlist
-      ? afterSkip
-      : afterSkip.filter((slot) => !isAppointmentTooSoon(dateStr, slot.start, now));
     availability[dateStr] = usable.length > 0;
   }
   return { ok: true, availability };
@@ -156,7 +164,13 @@ export async function getAvailableSlotsForDay(params: {
       hasWaitlistSameDayBookingAccess(params.waitlistToken, { date, serviceId, technicianId }),
       prisma.businessSettings.findUnique({
         where: { id: "default" },
-        select: { openTime: true, closeTime: true, slotInterval: true },
+        select: {
+          openTime: true,
+          closeTime: true,
+          slotInterval: true,
+          bookingMinAdvanceDays: true,
+          bookingCutoffTime: true,
+        },
       }),
       prisma.booking.findMany({
         where: {
@@ -190,7 +204,13 @@ export async function getAvailableSlotsForDay(params: {
     return { ok: false, status: 400, error: "Technician is not available" };
   }
 
-  if (!sameDayWaitlistAccess && isBeforeMinBookableDate(date)) return { ok: true, slots: [] };
+  const lead = resolveBookingLeadSettings({
+    minAdvanceDays: settings?.bookingMinAdvanceDays,
+    cutoffTime: settings?.bookingCutoffTime,
+  });
+  if (!sameDayWaitlistAccess && isBeforeMinBookableDate(date, new Date(), lead)) {
+    return { ok: true, slots: [] };
+  }
 
   const now = new Date();
   const s = settings ?? { openTime: "09:00", closeTime: "17:00", slotInterval: 30 };
@@ -221,10 +241,5 @@ export async function getAvailableSlotsForDay(params: {
       exclusionPairs,
     }
   );
-  return {
-    ok: true,
-    slots: sameDayWaitlistAccess
-      ? slots
-      : slots.filter((slot) => !isAppointmentTooSoon(date, slot.start, now)),
-  };
+  return { ok: true, slots };
 }

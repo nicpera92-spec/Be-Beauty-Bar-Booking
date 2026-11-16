@@ -102,6 +102,9 @@ model BusinessSettings {
   rebookReminderDaysAfter Int      @default(21)
   cancellationRefundHours Int      @default(48) // deposit refunded when customer cancels at least this many hours before
   cancellationPolicy   String? // one point per line; null = default policy
+  // Earliest bookable day = today + this many days; after bookingCutoffTime that day moves one further out.
+  bookingMinAdvanceDays Int     @default(1)
+  bookingCutoffTime     String  @default("18:00") // UK HH:mm
   reviewRequestEnabled Boolean  @default(false)
   googleReviewUrl      String?
   dailyScheduleEnabled Boolean  @default(true)

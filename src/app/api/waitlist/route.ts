@@ -63,7 +63,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid start date" }, { status: 400 });
     }
 
-    const { minBookableDate, rangeEnd } = getCustomerBookableRange();
+    const { loadBookingLeadSettings } = await import("@/lib/bookingLeadSettings");
+    const lead = await loadBookingLeadSettings();
+    const { minBookableDate, rangeEnd } = getCustomerBookableRange(lead);
     const startDay = parse(preferredDate, "yyyy-MM-dd", new Date());
     if (isBefore(startDay, minBookableDate)) {
       return NextResponse.json({ error: "Please choose a future date" }, { status: 400 });
