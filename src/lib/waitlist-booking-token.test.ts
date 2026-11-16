@@ -6,7 +6,9 @@ import { parse } from "date-fns";
 import {
   businessDateStr,
   businessEndOfDayUtc,
+  businessMinBookableDateStr,
   businessTomorrowStr,
+  isAppointmentTooSoon,
   isBeforeMinBookableDate,
   isBusinessToday,
 } from "@/lib/business-time";
@@ -47,13 +49,25 @@ async function runOnce(run: number) {
   // --- business-time ---
   assert(businessDateStr(atMorning) === today, `[${run}] businessDateStr morning UK`);
   assert(businessTomorrowStr(atMorning) === "2026-07-06", `[${run}] businessTomorrowStr`);
+  assert(businessMinBookableDateStr(atMorning) === "2026-07-07", `[${run}] min bookable is day after tomorrow`);
   assert(isBusinessToday(today, atMorning), `[${run}] isBusinessToday true`);
   assert(!isBusinessToday("2026-07-04", atMorning), `[${run}] isBusinessToday false`);
   assert(isBeforeMinBookableDate(today, atMorning), `[${run}] today blocked without token`);
-  assert(!isBeforeMinBookableDate("2026-07-06", atMorning), `[${run}] tomorrow allowed`);
+  assert(isBeforeMinBookableDate("2026-07-06", atMorning), `[${run}] tomorrow blocked without token`);
+  assert(!isBeforeMinBookableDate("2026-07-07", atMorning), `[${run}] day after tomorrow allowed`);
   assert(
     businessEndOfDayUtc(today).getTime() > atMorning.getTime(),
     `[${run}] token expiry end-of-day is in the future`
+  );
+  // Late evening → next morning is under 24 hours, so it must be blocked.
+  const lateEvening = new Date("2026-07-05T22:33:00+01:00");
+  assert(
+    isAppointmentTooSoon("2026-07-06", "09:00", lateEvening),
+    `[${run}] next-morning slot blocked within 24h`
+  );
+  assert(
+    !isAppointmentTooSoon("2026-07-07", "09:00", lateEvening),
+    `[${run}] day-after-tomorrow morning outside 24h`
   );
 
   // --- token roundtrip ---

@@ -7,7 +7,7 @@ import {
   maxConcurrentFromRules,
 } from "@/lib/bookingAvailability";
 import { hasWaitlistSameDayBookingAccess } from "@/lib/waitlist-booking-token";
-import { businessDateStr, isBeforeMinBookableDate } from "@/lib/business-time";
+import { businessDateStr, isAppointmentTooSoon, isBeforeMinBookableDate } from "@/lib/business-time";
 import { resolveHoursForDate } from "@/lib/workingHours";
 
 export type RangeAvailabilityResult =
@@ -119,10 +119,13 @@ export async function getAvailabilityForRange(params: {
         exclusionPairs,
       }
     );
-    const usable =
+    const afterSkip =
       params.skipSlot && params.skipSlot.date === dateStr
         ? slots.filter((slot) => slot.start !== params.skipSlot!.startTime)
         : slots;
+    const usable = allowSameDayWaitlist
+      ? afterSkip
+      : afterSkip.filter((slot) => !isAppointmentTooSoon(dateStr, slot.start, now));
     availability[dateStr] = usable.length > 0;
   }
   return { ok: true, availability };
@@ -189,6 +192,7 @@ export async function getAvailableSlotsForDay(params: {
 
   if (!sameDayWaitlistAccess && isBeforeMinBookableDate(date)) return { ok: true, slots: [] };
 
+  const now = new Date();
   const s = settings ?? { openTime: "09:00", closeTime: "17:00", slotInterval: 30 };
   const dayHours = resolveHoursForDate(date, service.technician.workingHours, s.openTime, s.closeTime);
   if (dayHours.isOff) return { ok: true, slots: [] };
@@ -202,7 +206,7 @@ export async function getAvailableSlotsForDay(params: {
     service.durationMin,
     [],
     blocks,
-    new Date(),
+    now,
     {
       technicianBookings: dayBookings
         .filter((b) => b.technicianId === technicianId)
@@ -217,5 +221,10 @@ export async function getAvailableSlotsForDay(params: {
       exclusionPairs,
     }
   );
-  return { ok: true, slots };
+  return {
+    ok: true,
+    slots: sameDayWaitlistAccess
+      ? slots
+      : slots.filter((slot) => !isAppointmentTooSoon(date, slot.start, now)),
+  };
 }

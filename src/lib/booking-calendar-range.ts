@@ -11,7 +11,8 @@ import {
 /** Same date range as the customer “choose a date” booking page. */
 export function getCustomerBookableRange() {
   const today = startOfToday();
-  const minBookableDate = addDays(today, 1);
+  // Earliest customer date is the day after tomorrow (today and tomorrow are blocked).
+  const minBookableDate = addDays(today, 2);
   const rangeStart = startOfMonth(today);
   const daysLeftInCurrentMonth = differenceInCalendarDays(endOfMonth(today), today);
   const monthsAhead = daysLeftInCurrentMonth <= 14 ? 2 : 1;

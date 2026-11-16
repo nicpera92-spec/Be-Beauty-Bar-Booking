@@ -6,7 +6,7 @@ import { blockOverlapsBooking } from "@/lib/blockOverlap";
 import { sendBookingCreatedEmails, sendBookingConfirmationEmails } from "@/lib/email";
 import { isBookingSlotAvailable } from "@/lib/bookingAvailability";
 import { hasWaitlistSameDayBookingAccess } from "@/lib/waitlist-booking-token";
-import { isBeforeMinBookableDate } from "@/lib/business-time";
+import { isAppointmentTooSoon, isBeforeMinBookableDate } from "@/lib/business-time";
 import { loadReviewedLookup } from "@/lib/reviewTracking";
 import {
   attachCertificateItemToBooking,
@@ -188,7 +188,16 @@ export async function POST(req: NextRequest) {
     );
     if (!sameDayWaitlistAccess && isBeforeMinBookableDate(date)) {
       return NextResponse.json(
-        { error: "Bookings must be at least one day in advance. Please choose tomorrow or later." },
+        {
+          error:
+            "Bookings must be at least one full day in advance. Please choose the day after tomorrow or later.",
+        },
+        { status: 400 }
+      );
+    }
+    if (!sameDayWaitlistAccess && isAppointmentTooSoon(date, startTime)) {
+      return NextResponse.json(
+        { error: "Bookings must be at least 24 hours in advance. Please choose a later time." },
         { status: 400 }
       );
     }
