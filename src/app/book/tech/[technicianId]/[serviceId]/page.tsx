@@ -64,7 +64,15 @@ export default function BookDatePage() {
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(d);
     }
-    return Array.from(map.entries());
+    // Hide months with no bookable slots for this service (past-only / fully booked).
+    return Array.from(map.entries()).filter(([, monthDates]) =>
+      monthDates.some((d) => {
+        const dateStr = format(d, "yyyy-MM-dd");
+        const tooSoon = dateStr < minBookableDateStr && dateStr !== waitlistAccessDate;
+        if (tooSoon) return false;
+        return availability[dateStr] ?? true;
+      })
+    );
   })();
 
   useEffect(() => {
@@ -218,6 +226,12 @@ export default function BookDatePage() {
         <div>
           <h2 className="lux-eyebrow mb-3">1 · Choose a date</h2>
           <p className="lux-muted text-sm mb-5">Tap a date to see available times.</p>
+          {!loading && monthsWithDates.length === 0 && (
+            <p className="text-sm text-slate-500 mb-6">
+              No dates are currently available for this service. Please check back later, or enquire
+              via Instagram for emergency appointments.
+            </p>
+          )}
           {monthsWithDates.map(([monthTitle, monthDates]) => {
             // Align the first bookable day to its weekday column (Monday first).
             const leadingBlanks = (getDay(monthDates[0]) + 6) % 7;
