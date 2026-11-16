@@ -358,10 +358,12 @@ a.lux-card:hover .lux-pill {
   border-color: rgba(120, 160, 230, 0.6);
 }
 .lux-day-full {
-  color: #3a4252;
+  /* Fully booked: readable, but quieter than open days. */
+  color: #9aa3b5;
 }
 .lux-day-past {
-  color: #262c38;
+  /* Too soon to book: soft grey so the number is clear without looking available. */
+  color: #9aa3b5;
   cursor: not-allowed;
 }
 .lux-day-selected {

@@ -47,8 +47,12 @@ export default function BookDatePage() {
   const linkDateParam = searchParams.get("date");
   const [waitlistAccessResolved, setWaitlistAccessResolved] = useState(!waitlistToken);
   const [waitlistAccessDate, setWaitlistAccessDate] = useState<string | null>(null);
+  const todayStr = format(today, "yyyy-MM-dd");
+  // Show today/tomorrow as muted unbookable days so the lead-time rule is visible.
   const calendarStart =
-    waitlistAccessDate && waitlistAccessDate < minBookableDateStr ? today : minBookableDate;
+    waitlistAccessDate && waitlistAccessDate < todayStr
+      ? new Date(`${waitlistAccessDate}T12:00:00`)
+      : today;
   const dates = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
   const availabilityFrom =
     waitlistAccessDate && waitlistAccessDate < fromStr ? waitlistAccessDate : fromStr;
